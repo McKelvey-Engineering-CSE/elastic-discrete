@@ -1,4 +1,4 @@
-CC = g++-13 -std=c++11 -O0
+CC = g++ -std=c++17 -O0
 FLAGS = -Wall -g -gdwarf-3
 LIBS = -L. -lrt -lm -lclustering -fopenmp
 CLUSTERING_OBJECTS = single_use_barrier.o timespec_functions.o
@@ -10,13 +10,13 @@ NIlibs=-lnidaqmxbase
 all: clustering_distribution
 
 synthetic_task: synthetic_task.cpp
-	$(CC) $(FLAGS) -fopenmp synthetic_task.cpp sharedMem.o task.o task_manager.o bar.o schedule.o taskData.o -o synthetic_task $(LIBS)
+	$(CC) $(FLAGS) -fopenmp synthetic_task.cpp sharedMem.o task.o task_manager.o cppBar.o schedule.o taskData.o -o synthetic_task $(LIBS)
 
 synthetic_task_gd: synthetic_task_gd.cpp
-	$(CC) $(FLAGS) -fopenmp synthetic_task_gd.cpp sharedMem.o task_manager.o task.o bar.o -o st_gd $(LIBS)
+	$(CC) $(FLAGS) -fopenmp synthetic_task_gd.cpp sharedMem.o task_manager.o task.o cppBar.o  -o st_gd $(LIBS)
 
 synthetic_task_gd_extra: synthetic_task_gd_extra.cpp
-	$(CC) $(FLAGS) -fopenmp synthetic_task_gd_extra.cpp sharedMem.o task_manager.o task.o bar.o -o st_extra $(LIBS)
+	$(CC) $(FLAGS) -fopenmp synthetic_task_gd_extra.cpp sharedMem.o task_manager.o task.o cppBar.o  -o st_extra $(LIBS)
 
 bar.o: bar.c
 	$(CC) $(FLAGS) -c bar.c
@@ -28,13 +28,17 @@ bar.o: bar.c
 #               #simple_task_utilization: simple_task.cpp
 #       $(CC) $(FLAGS) -fopenmp simple_task.cpp utilization_calculator.o -o simple_task_utilization $(LIBS)
 #
-clustering_distribution: libclustering.a sharedMem.o schedule.o scheduler.o task.o taskData.o task_manager.o bar.o clustering_launcher synthetic_task james
+clustering_distribution: libclustering.a sharedMem.o schedule.o scheduler.o task.o taskData.o task_manager.o cppBar.o clustering_launcher synthetic_task james
 
 libclustering.a: $(CLUSTERING_OBJECTS)
 	ar rcsf libclustering.a $(CLUSTERING_OBJECTS)
 
 task.o: task.cpp
 	$(CC) $(FLAGS) -c task.cpp
+
+#TEST COMPILE LINES
+cppBar.o:
+	$(CC) $(FLAGS) -fopenmp -c cppBar.cpp -o cppBar.o
 
 task_manager.o: schedule.cpp schedule.cpp sharedMem.c task_manager.cpp
 	$(CC) $(FLAGS) -fopenmp -c task_manager.cpp
@@ -60,15 +64,12 @@ sharedMem.o: sharedMem.c
 #mode.o: sharedMem.c mode.cpp
 #	$(CC) $(FLAGS) -c mode.cpp
 
-#TEST COMPILE LINES
-cppBar:
-	g++-13 -c cppBar.cpp -o cppbar.o
 
 clustering_launcher: clustering_launcher.cpp
 	$(CC) $(FLAGS) taskData.o schedule.o scheduler.o sharedMem.o clustering_launcher.cpp -o clustering_launcher $(LIBS)
 
 james: james.cpp task_manager.o
-	$(CC) $(FLAGS) james.cpp sharedMem.o scheduler.o schedule.o taskData.o task.o bar.o  task_manager.o -o james $(LIBS)
+	$(CC) $(FLAGS) james.cpp sharedMem.o scheduler.o schedule.o taskData.o task.o task_manager.o cppBar.o -o james $(LIBS)
 	cp james phil
 
 clean:

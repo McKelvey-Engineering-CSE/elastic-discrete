@@ -5,6 +5,7 @@
 #include <mutex>
 #include <atomic> //for atomic_bool
 #include "bar.h" //for mc_barrier
+#include "cppBar.hpp"
 #include <sched.h> //for cpu_set_t
 #include "include.h"
 
@@ -44,7 +45,7 @@ extern timespec current_work;
 // transition and the fact that different numbers of threads are expected at
 // the barrier at different times. This provides that, and should be used
 // instead of any other barrier. Initialized in task_manager.cpp
-extern mc_barrier bar;
+extern cppBarrier barrier;
 
 volatile extern int total_remain;
 extern int futex_val;
