@@ -1,4 +1,4 @@
-CC = g++ -std=c++11 -O0
+CC = g++-13 -std=c++11 -O0
 FLAGS = -Wall -g -gdwarf-3
 LIBS = -L. -lrt -lm -lclustering -fopenmp
 CLUSTERING_OBJECTS = single_use_barrier.o timespec_functions.o
@@ -59,6 +59,10 @@ sharedMem.o: sharedMem.c
 
 #mode.o: sharedMem.c mode.cpp
 #	$(CC) $(FLAGS) -c mode.cpp
+
+#TEST COMPILE LINES
+cppBar:
+	g++-13 -c cppBar.cpp -o cppbar.o
 
 clustering_launcher: clustering_launcher.cpp
 	$(CC) $(FLAGS) taskData.o schedule.o scheduler.o sharedMem.o clustering_launcher.cpp -o clustering_launcher $(LIBS)
