@@ -1,6 +1,7 @@
 #include "scheduler.h"
 #include <iostream>
 #include <cmath>
+#include <limits>
 #include <algorithm>
 #include <float.h>
 #include "taskData.h"
