@@ -5,6 +5,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <barrier>
+#include <atomic>
 
 #ifndef CPPBARRIER_HPP
 #define CPPBARRIER_HPP
@@ -19,9 +20,9 @@ class cppBarrier {
 private:
 	uint32_t generation __attribute__(( aligned(64) ));
 	uint32_t generation2;
-	uint32_t total_threads; 
-	uint32_t expected __attribute__(( aligned(64) ));
-	uint32_t num_hi_threads; //This value serves as data storage
+	std::atomic<uint32_t> total_threads; 
+	std::atomic<uint32_t> expected __attribute__(( aligned(64) ));
+	std::atomic<uint32_t> num_hi_threads; //This value serves as data storage
                                  //as well as a lock on the barrier
 	bool is_switcher; //Used to synchronize during mode switch
 	bool locked;
@@ -48,6 +49,14 @@ public:
                                                                     num_hi_threads(0), 
                                                                     is_switcher(false), 
                                                                     locked(false){}
+
+    //need to make sure mutex are unlocked before destruction?
+    ~cppBarrier(){
+        writeMux.unlock();
+        locked_to_low.unlock();
+        switcher_lock.unlock();
+        bar_m.unlock();
+    }
 
     //This initializes the barrier for operation with initial_total number of
     //threads. Normally this will be the number of low criticality threads.

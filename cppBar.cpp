@@ -2,8 +2,9 @@
 //retaining for code interopability; may be removed later if deemed not needed
 //in a rewrite
 void cppBarrier::mc_bar_reinit(uint32_t new_total){
-	total_threads =new_total; 
-	expected = total_threads;
+	total_threads = new_total; 
+	uint32_t hold = total_threads; 
+	expected = hold;
 	num_hi_threads = 0;
 	is_switcher = false; 
 	locked = false;
@@ -46,7 +47,7 @@ void cppBarrier::mc_spinwait(){
 	uint32_t needs_switch;
 
 	do {
-		needs_switch = __atomic_load_n(&num_hi_threads, __ATOMIC_ACQUIRE);
+		needs_switch = num_hi_threads;
 	} while( needs_switch != 0 );
 }
 
@@ -59,7 +60,7 @@ void cppBarrier::do_switch_protocol(){
 //mode switch is required. If the value is negative, we are switching from
 //high criticality to low criticality mode.
 
-	uint32_t needs_switch = __atomic_load_n(&num_hi_threads, __ATOMIC_ACQUIRE);
+	uint32_t needs_switch = num_hi_threads;
 	//This clause only evaluates to true in the event of a mode switch, so
 	//the builtin_expect tells the compiler to optimize for the case where
 	//the expression needs_switch > 0 evaluates to false. 
@@ -94,28 +95,30 @@ void cppBarrier::do_switch_protocol(){
 				//state, so we wait until expected > 0. 
 
 				//not sure there is a better way to do this, so leaving it for now - Tyler
-				while ( __atomic_load_n(&expected, __ATOMIC_ACQUIRE) == 0 ) {};
-				current = __atomic_load_n(&expected, __ATOMIC_ACQUIRE);
+				while (expected == 0) {};
+				current = expected;
 
 				//needs_switch contains num of extra threads
 				newval = current + needs_switch;
-				new_expected = __atomic_load_n(&expected, __ATOMIC_ACQUIRE);
+				new_expected = expected;
 			
-			} while ( new_expected != newval );
+			} while (new_expected != newval);
 
 			//Updating bar->total here is safe because at this
 			//point the barrier is currently expecting the switcher
 			//thread (this thread) before it resets.
 
 			//need to check the behavior of atomic functions and std concurrency - Tyler
-			__atomic_add_fetch(&total_threads, needs_switch, __ATOMIC_ACQ_REL);
+			//TODO: Check if this is actually equivalent
+			total_threads += needs_switch;
+			//__atomic_add_fetch(&total_threads, needs_switch, __ATOMIC_ACQ_REL);
 			
 			//We are done updating the barrier internal state, and
 			//we set bar->num_hi_threads to zero to signal to any
 			//threads busy wating in the else clause.
 
 			//need to unlock the shared mutex as well for any further switches - Tyler
-			__atomic_store_n(&num_hi_threads, 0, __ATOMIC_RELEASE);
+			num_hi_threads = 0;
 			switcher_lock.unlock();
 
 		} else {
