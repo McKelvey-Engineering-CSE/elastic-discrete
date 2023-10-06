@@ -1,10 +1,23 @@
 #include "cppBar.hpp"
+
+__thread uint32_t thread_generation;
+
 //retaining for code interopability; may be removed later if deemed not needed
 //in a rewrite
 void cppBarrier::mc_bar_reinit(uint32_t new_total){
 	total_threads = new_total; 
 	uint32_t hold = total_threads; 
 	expected = hold;
+	num_hi_threads = 0;
+	is_switcher = false; 
+	locked = false;
+}
+
+void cppBarrier::mc_bar_init(uint32_t initial_total){
+	total_threads = initial_total; 
+	generation = 0;
+	generation2 = 0;
+	expected = initial_total;
 	num_hi_threads = 0;
 	is_switcher = false; 
 	locked = false;
@@ -130,3 +143,87 @@ void cppBarrier::do_switch_protocol(){
 		}
 	} 
 }
+
+//We use the GCC OpenMP implementation of futex sleeping for convinience.
+//The futex allows a thread to sleep on the value located at a specific region
+//of memory. In our case, the threads sleep on the current value of
+//bar->generation. When a thread is put to sleep, it first checks atomically
+//that bar->generation == current_generation, and if so it will sleep. When
+//it wakes up, it verifies that bar->generation has changed. 
+void cppBarrier::mc_bar_wake_up_threads(){
+	do {
+		bar_cv.notify_all();
+	} while (expected != total_threads);
+
+}
+
+void cppBarrier::mc_bar_put_self_to_sleep(uint32_t current_gen){
+	//Note that this implementation allows racy behavior beteween the
+	//waking thread and the sleeping threads. After the waking thread
+	//increments bar->generation, a thread entering this function will
+	//no longer actually futex sleep. 
+	std::unique_lock<std::mutex> lock (bar_m);
+	bar_cv.wait(lock, [this, current_gen]{ return !(this->generation == current_gen );});
+
+}
+
+void cppBarrier::mc_bar_wait(){
+
+	//Before we do anything, check to see if the barrier is locked.
+	while(locked){ /* busy wait */ }
+
+	do_switch_protocol();
+
+	//From this point on, we do a regular barrier_wait
+
+	//We use the generation variable to indicate how many times this 
+	//barrier has been reset. This is so that, when a new thread starts
+	//to participate in the computation, it can drop through previous
+	//calls to mc_bar_wait
+	uint32_t current_generation = generation;
+
+	//We use two generation variables to make sure that all threads have left
+	//a barrier from a previous geneartion before new threads can begin to wait on it.
+	//Otherwise a thread could speed through and go to sleep on the barrier while other
+	//threads are waking up, and thereby skip the barrier.
+	while(generation2 < current_generation ){ /*busy wait*/ }
+
+		#ifdef DAVID
+			std::cout << "THREAD GEN: "<< thread_generation << "     CURR GEN: " << current_generation << "\n", , ;
+		#endif 
+
+	if( thread_generation == current_generation){
+		uint32_t hold = (expected += -1);
+		uint32_t result = hold;
+
+		#ifdef DAVID
+			std::cout << "RESULT OF SUBTRACTING AND FETCHING EXPECTED "<< result <<"\n";
+		#endif 
+
+		if(result == 0) {
+			//We are the last thread through the barrier, so we
+			//wake up all other threads.
+			generation += 1;
+
+			expected += 1;
+
+			mc_bar_wake_up_threads();
+
+			//We use a second generation value to require that all threads leave
+			//the barrier before any new threads are allowed in.
+			generation2 += 1;
+
+		} else {
+			//We are not the last thread through the barrier,
+			//so we put ourselves to sleep. When we leave, in increment the expected
+			//count so we can signal to the waking thread that everything has passed the
+			//barrier successfully.
+			mc_bar_put_self_to_sleep(current_generation);
+			expected += 1;
+		}
+	}
+
+	//Update how many bar_wait calls we've encountered
+	thread_generation++;
+}
+

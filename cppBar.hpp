@@ -5,7 +5,9 @@
 #include <mutex>
 #include <shared_mutex>
 #include <barrier>
+#include <condition_variable>
 #include <atomic>
+#include <climits>
 
 #ifndef CPPBARRIER_HPP
 #define CPPBARRIER_HPP
@@ -38,6 +40,8 @@ private:
 
     //functions that don't need public access
     void mc_spinwait();
+    void mc_bar_wake_up_threads();
+    void mc_bar_put_self_to_sleep(uint32_t current_gen);
 
 public:
 
