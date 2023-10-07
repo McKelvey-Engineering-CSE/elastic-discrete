@@ -170,7 +170,12 @@ void cppBarrier::mc_bar_put_self_to_sleep(uint32_t current_gen){
 void cppBarrier::mc_bar_wait(){
 
 	//Before we do anything, check to see if the barrier is locked.
-	while(locked){ /* busy wait */ }
+	//while(locked){ /* busy wait */ }
+	//Will definitely need to replace with a correct spin alternative, 
+	//but wanted to get this fixed since the concurrency was broken in this file
+	//and I noticed while quickly glancing at the github
+	const std::unique_lock<std::mutex> lock(locked_to_low);
+	lock.unlock();
 
 	do_switch_protocol();
 
