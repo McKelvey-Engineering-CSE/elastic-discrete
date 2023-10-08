@@ -27,10 +27,11 @@ private:
 	std::atomic<uint32_t> num_hi_threads; //This value serves as data storage
                                  //as well as a lock on the barrier
 	bool is_switcher; //Used to synchronize during mode switch
-	bool locked;
+	//bool locked;
 	
-    std::mutex bar_m;
+    	std::mutex bar_m;
 	std::condition_variable bar_cv;
+	std::condition_variable locked;
 
     //Cpp_20 added vars
     //std::barrier cppBarrier;
@@ -51,8 +52,8 @@ public:
                                                                     total_threads(initial_total), 
                                                                     expected(total_threads), 
                                                                     num_hi_threads(0), 
-                                                                    is_switcher(false), 
-                                                                    locked(false){}
+                                                                    is_switcher(false)//, 
+                                                                    /*locked(false)*/{}
 
     //need to make sure mutex are unlocked before destruction?
     ~cppBarrier(){
