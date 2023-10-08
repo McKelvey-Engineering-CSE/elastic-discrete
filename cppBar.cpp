@@ -10,7 +10,7 @@ void cppBarrier::mc_bar_reinit(uint32_t new_total){
 	expected = hold;
 	num_hi_threads = 0;
 	is_switcher = false; 
-	locked = false;
+	//locked = false;
 }
 
 void cppBarrier::mc_bar_init(uint32_t initial_total){
@@ -20,7 +20,7 @@ void cppBarrier::mc_bar_init(uint32_t initial_total){
 	expected = initial_total;
 	num_hi_threads = 0;
 	is_switcher = false; 
-	locked = false;
+	//locked = false;
 }
 
 //This function should be called when the system transitions to high crit mode.
@@ -51,6 +51,9 @@ void cppBarrier::mc_bar_to_low_crit(uint32_t additional_hc_threads ){
 	}
 	
     total_threads = total_threads - additional_hc_threads;
+
+    //alert other threads we are free
+    locked.notify_all();
 }
 
 //This function spinwaits on the barrier value num_high_threads. The mode
@@ -174,8 +177,8 @@ void cppBarrier::mc_bar_wait(){
 	//Will definitely need to replace with a correct spin alternative, 
 	//but wanted to get this fixed since the concurrency was broken in this file
 	//and I noticed while quickly glancing at the github
-	const std::unique_lock<std::mutex> lock(locked_to_low);
-	lock.unlock();
+	std::unique_lock<std::mutex> lock(locked_to_low, std::defer_lock);
+	locked.wait(lock);
 
 	do_switch_protocol();
 
