@@ -4,10 +4,10 @@
 #include <iostream>
 #include <mutex>
 #include <shared_mutex>
-#include <barrier>
 #include <condition_variable>
 #include <atomic>
 #include <climits>
+#include <thread>
 
 #ifndef CPPBARRIER_HPP
 #define CPPBARRIER_HPP
@@ -29,12 +29,15 @@ private:
 	bool is_switcher; //Used to synchronize during mode switch
 	//bool locked;
 	
-    	std::mutex bar_m;
+    //condition variables
 	std::condition_variable bar_cv;
 	std::condition_variable locked;
 
-    //Cpp_20 added vars
-    //std::barrier cppBarrier;
+    //TODO: Figure out if using decltype to provide a generic has any unforseen consequences
+    std::barrier<decltype([](){})> sync_point {1};
+
+    //mutexes
+    std::mutex bar_m;
     std::mutex writeMux;
     std::mutex locked_to_low;
     std::shared_mutex switcher_lock;

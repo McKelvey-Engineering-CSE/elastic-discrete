@@ -158,7 +158,7 @@ int run (int argc, char* argv[])
 			//busy_work( percentile * segment_length);
 		}
 		//mc_bar_wait(&bar);
-		barrier.mc_bar_wait();
+		newBarrier.mc_bar_wait();
 		
 		//fprintf(stderr,"(%d) CPU %d is done with first loop, time: %0.3f\n", mapid, thread_id, end-start);
 	}

@@ -68,7 +68,7 @@ const unsigned FINALIZE_PRIORITY = 1;
 const unsigned SLEEP_PRIORITY = 97;
 
 //Testing new barrier
-cppBarrier barrier(0, 0);
+cppBarrier newBarrier(0, 0);
 
 //These variables are declared extern in task.h, but need to be
 //visible in both places
@@ -236,7 +236,7 @@ void reschedule()
 	}		
 
 	//mc_bar_reinit(&bar,schedule.get_task(iindex)->get_current_CPUs());	
-	barrier.mc_bar_reinit(schedule.get_task(iindex)->get_current_CPUs());		
+	newBarrier.mc_bar_reinit(schedule.get_task(iindex)->get_current_CPUs());		
 }
 
 //typedef struct sched_attr sched_attr;
@@ -416,7 +416,7 @@ int main(int argc, char *argv[])
 		
 	//Initialize the program barrier
 	//mc_bar_init(&bar,schedule.get_task(iindex)->get_current_CPUs());
-	barrier.mc_bar_init(schedule.get_task(iindex)->get_current_CPUs());
+	newBarrier.mc_bar_init(schedule.get_task(iindex)->get_current_CPUs());
 
 
 	#ifdef PER_PERIOD_VERBOSE

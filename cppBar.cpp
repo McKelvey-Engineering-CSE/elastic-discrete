@@ -62,6 +62,8 @@ void cppBarrier::mc_bar_to_low_crit(uint32_t additional_hc_threads ){
 void cppBarrier::mc_spinwait(){
 	uint32_t needs_switch;
 
+	
+
 	do {
 		needs_switch = num_hi_threads;
 	} while( needs_switch != 0 );
@@ -174,9 +176,11 @@ void cppBarrier::mc_bar_wait(){
 
 	//Before we do anything, check to see if the barrier is locked.
 	//while(locked){ /* busy wait */ }
-	//Will definitely need to replace with a correct spin alternative, 
-	//but wanted to get this fixed since the concurrency was broken in this file
-	//and I noticed while quickly glancing at the github
+
+	//Tyler 10-9-2023 | Not quite sure how the defer_lock parameter works when
+	//the condition variable exits, but leaving here for testing; if each thread
+	//is actually still locking and unlocking the variable, then it still *seems*
+	//to be faster, but I am unsure about the tests I am running with the exec "james"
 	std::unique_lock<std::mutex> lock(locked_to_low, std::defer_lock);
 	locked.wait(lock);
 

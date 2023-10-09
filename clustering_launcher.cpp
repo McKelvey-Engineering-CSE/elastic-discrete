@@ -35,7 +35,7 @@ std::string program_name;
 // Define the name of the barrier used for synchronizing tasks after creation
 const std::string barrier_name = "RT_GOMP_CLUSTERING_BARRIER";
 const std::string barrier_name2 = "RT_GOMP_CLUSTERING_BARRIER2";
-int ret_val;
+int ret_val; 
 
 bool needs_scheduling = false;
 Scheduler * scheduler;
