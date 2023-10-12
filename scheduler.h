@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include "include.h"
+#include <limits>
 
 struct sched_pair{
 	int index; //Index of the task
