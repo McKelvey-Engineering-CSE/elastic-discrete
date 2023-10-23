@@ -6,62 +6,59 @@
 #include <float.h>
 #include "taskData.h"
 
-bool operator>(const sched_pair& lhs, const sched_pair& rhs){
-  if(lhs.weight > rhs.weight){
-    return true;
-  }
+#ifdef SCHED_PAIR_HEAP
 
-  return false;
-}
+	/*October 23 2023 - moved class to be nested inside in-case it actually is needed
+	in the future. I doubt this, and am leaving it non-compiling for the meantime.
+	If it turns out the inner class "sched_pair" is needed, these functions should be
+	moved back out of the class so that we can use references.
 
-bool operator<(const sched_pair& lhs, const sched_pair& rhs){
-  if(lhs.weight < rhs.weight){
-    return true;
-  } 
-  
-  return false;
-}
+	(Also, make them idiomatic in the future if we actually need them)
+	*/
+	bool Scheduler::sched_pair::operator>(const Scheduler::sched_pair& rhs){
+	
+	return(this->weight > rhs.weight);
 
-bool operator==(const sched_pair& lhs, const sched_pair& rhs){
-  if(lhs.weight == rhs.weight){
-    return true;
-  }
+	}
 
-  return false;
-}
+	bool Scheduler::sched_pair::operator<(const Scheduler::sched_pair& rhs){
+	
+	return(this->weight < rhs.weight);
 
-bool operator<=(const sched_pair& lhs, const sched_pair& rhs){
-  if((lhs < rhs) || (lhs == rhs)){
-    return true;
-  }
-  return false;
-}
+	}
 
-bool operator>=(const sched_pair& lhs, const sched_pair& rhs){
-  if((lhs > rhs) || (lhs == rhs)){
-    return true;
-  }
-  return false;
-}
+	bool Scheduler::sched_pair::operator==(const Scheduler::sched_pair& rhs){
+	
+	return(this->weight == rhs.weight);
 
-bool operator!=(const sched_pair& lhs, const sched_pair& rhs){
-  if(!(lhs == rhs)){
-    return true;
-  }
-  return false;
-}
+	}
+
+	bool Scheduler::sched_pair::operator<=(const Scheduler::sched_pair& rhs){
+	
+	return (this->weight < rhs.weight) || (this->weight == rhs.weight);
+
+	}
+
+	bool Scheduler::sched_pair::operator>=(const Scheduler::sched_pair& rhs){
+	
+	return (this->weight > rhs.weight) || (this->weight == rhs.weight);
+
+	}
+
+	bool Scheduler::sched_pair::operator!=(const Scheduler::sched_pair& rhs){
+	
+	return(!(this->weight == rhs.weight));
+
+	}
+
+#endif
 
 class Schedule * Scheduler::get_schedule(){
 	return &schedule;
 }
+
 TaskData * Scheduler::add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_){
 	
-	//Reserve enough space for algorithm
-	/*std::vector<std::vector<double>> weights;
-	std::vector<double> task;
-	task.reserve(num_modes_);
-	weights.push_back(std::make_pair(task,""));
-	*/
 	return schedule.add_task(elasticity_, num_modes_, work_, span_, period_);
 }
 
@@ -168,9 +165,7 @@ void Scheduler::do_schedule(){
 
 
 	//James Stop 10/4/18
-	
 
-	//fprintf(stderr,"Got this allocation: %f %s \n",DP[NUMCPUS][schedule.count()].first,DP[NUMCPUS][schedule.count()].second.c_str());	
 	fprintf(stderr, "Got this allocation: %f ",DP[NUMCPUS][schedule.count()].first);
 	for(unsigned int i=0; i<DP[NUMCPUS][schedule.count()].second.size(); i++)
 	{
@@ -184,133 +179,6 @@ void Scheduler::do_schedule(){
 		(schedule.get_task(i))->set_current_mode(DP[NUMCPUS][schedule.count()].second[i],false);
 	}
 
-
-
-	/*for(int d=1; d<=NUMCPUS; d++)
-	{
-		std::cout << "CPUS: " << d;
-		for(int l=1; l<=(schedule.count()); l++)
-		{
-			std::cout << " Task: " << l << " Score: " << DP[d][l].first;// << std::endl;
-		}
-		std::cout << std::endl;
-	}*/
-
-	//fprintf(stderr,"Got this allocation: %s %d %d \n",DP[NUMCPUS][num_tasks].second.c_str(),NUMCPUS,num_tasks);	
-/*	int m_used = 0;
-	
-	//Make sure taskset is schedulable. Begin with giving all tasks their minimum number of CPUs.
-	for(int i=0; i<schedule.count(); i++)
-	{
-		if(!first_time)
-		{
-			if((schedule.get_task(i))->get_changeable())
-			{	
-				(schedule.get_task(i))->set_previous_CPUs((schedule.get_task(i))->get_current_CPUs());
-			}
-			//fprintf(stderr, "task %d previous_CPUs = %d\n",i,(schedule.get_task(i))->get_current_CPUs());
-		}
-
-		//If tasks have been set to not change, don't worry about minimum. Instead use current.
-		if(!(schedule.get_task(i))->get_changeable())
-		{
-			m_used += (schedule.get_task(i))->get_current_CPUs();
-		}
-		else{
-			//Minimum is used in schedulability test	
-			int temp = (schedule.get_task(i))->get_min_CPUs();
-
-			m_used += temp;
-			(schedule.get_task(i))->set_current_CPUs(temp);
-		}
-
-		for(int j=0; j<schedule.count(); j++)
-		{
-			for(int k=1; k<=NUMCPUS; k++)
-			{
-			(schedule.get_task(i))->set_transfer(j,k,false);
-                        (schedule.get_task(i))->set_receive(j,k,false);
-			}
-		}
-	}
-
-	//Taskset is unschedulable. Exit. Nothing to be done.
-	if(m_used > num_CPUs) 
-	{
-		fprintf(stderr, "Error: System unschedulable. Exiting.");
-		killpg(process_group, SIGKILL);
-		return;
-	}
-
-	//Only schedulable using minimum.
-	else if (m_used == num_CPUs)
-	{
-		goto give_cpus;
-	}
-
-	//Schedulable. Now allocate CPUs.
-	//Begin by determining benefit of assigning next processor to each task.
-	//Place tasks in heap based on potential benefit, z. 
-	sched_heap.clear();
-	for(int i=0; i<schedule.count(); i++)
-	{
-		
-	
-		//We're starting over with CPU allocation.
-		(schedule.get_task(i))->set_current_lowest_CPU(-1);	
-	
-		if(((schedule.get_task(i))->get_current_CPUs() < (schedule.get_task(i))->get_max_CPUs()) && (schedule.get_task(i))->get_changeable())
-		{
-			double x = 1.0/(schedule.get_task(i))->get_elasticity()*(std::pow((schedule.get_task(i))->get_max_utilization()-(schedule.get_task(i))->get_current_utilization(),2));
-			(schedule.get_task(i))->set_current_CPUs((schedule.get_task(i))->get_current_CPUs()+1);
-			double y = 1.0/(schedule.get_task(i))->get_elasticity()*(std::pow((schedule.get_task(i))->get_max_utilization()-(schedule.get_task(i))->get_current_utilization(),2));
-			double z = x - y;
-			(schedule.get_task(i))->set_current_CPUs((schedule.get_task(i))->get_current_CPUs()-1);
-
-			//Create a new node for heap. i is index. Weight by z.
-			struct sched_pair node(i,z);
-
-			//Add node to the heap.
-			sched_heap.push_back(node);
-		}
-	}
-	
-	//Turn vector into a heap.
-	std::make_heap(sched_heap.begin(), sched_heap.end());		
-
-	while(sched_heap.size()>0 && m_used < num_CPUs)
-	{
-		//Removes from "heap" but actually moves the item to the back of the data structure.
-		std::pop_heap (sched_heap.begin(),sched_heap.end()); 
-			
-		//Find the actual max
-		int max_index = sched_heap.back().index;
-		
-		//Assign processor to this task
-		(schedule.get_task(max_index))->set_current_CPUs((schedule.get_task(max_index))->get_current_CPUs()+1);
-		m_used+=1;
-	
-		//std::cout << m_used << " " << num_CPUs << " " << (schedule.get_task(max_index))->get_current_CPUs() << " " << (schedule.get_task(max_index))->get_max_CPUs() << std::endl;
-	
-		//See if we can assign this task more processors
-		if(m_used < num_CPUs && (schedule.get_task(max_index))->get_current_CPUs() < (schedule.get_task(max_index))->get_max_CPUs()){
-			double x = 1.0/(schedule.get_task(max_index))->get_elasticity()*(std::pow((schedule.get_task(max_index))->get_max_utilization()-(schedule.get_task(max_index))->get_current_utilization(),2));
-			(schedule.get_task(max_index))->set_current_CPUs((schedule.get_task(max_index))->get_current_CPUs()+1);
-                        double y = 1.0/(schedule.get_task(max_index))->get_elasticity()*(std::pow((schedule.get_task(max_index))->get_max_utilization()-(schedule.get_task(max_index))->get_current_utilization(),2));
-                        double z = x - y;
-                        (schedule.get_task(max_index))->set_current_CPUs((schedule.get_task(max_index))->get_current_CPUs()-1);
-
-                        //Update weight and reinsert task into heap.
-                        sched_heap.back().weight = z;
-			std::push_heap(sched_heap.begin(), sched_heap.end());
-
-		}
-		else {
-			//It can't get any more CPUs. Actually remove task from the data_structure;		
-			sched_heap.pop_back();
-		}
-	}
-*/
 //give_cpus:
 	//First allocate from CPU1 and go up from there.
 	if(first_time)
@@ -524,26 +392,6 @@ void Scheduler::do_schedule(){
 					CPU_AND(&overlap, &first, &second);
 
 					int amount_overlap = CPU_COUNT(&overlap);
-
-					/*fprintf(stderr,"ACTIVE:");
-					for(int t=1; t<=NUMCPUS; t++)
-					{
-						if(schedule.get_task(j)->get_active(t))
-						fprintf(stderr,"%d ",t);
-					}
-					fprintf(stderr,"\nPASSIVE:");
-                                        for(int t=1; t<=NUMCPUS; t++)
-                                        {
-                                                if(schedule.get_task(i)->get_passive(t))
-                                                fprintf(stderr,"%d ",t);
-                                        }
-					fprintf(stderr,"\nOVERLAP:");
-                                        for(int t=1; t<=NUMCPUS; t++)
-                                        {
-                                                if(CPU_ISSET(t,&overlap))
-                                                fprintf(stderr,"%d ",t);
-                                        }*/
-
 
 					if(amount_overlap > 0)
 					{
