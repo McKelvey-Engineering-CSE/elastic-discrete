@@ -1,7 +1,7 @@
 #ifndef SHEDULER_H
 #define SCHEDULER_H
 
-#define SCHED_PAIR_HEAP
+//#define SCHED_PAIR_HEAP
 
 #include <vector>
 #include <algorithm>

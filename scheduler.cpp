@@ -173,7 +173,7 @@ void Scheduler::do_schedule(){
 	std::cout << "Got this allocation: " << DP[NUMCPUS][schedule.count()].first << " ";
 	for(unsigned int i=0; i<DP[NUMCPUS][schedule.count()].second.size(); i++)
 	{
-		std::cout << DP[NUMCPUS][schedule.count()].second[i];
+		std::cout << DP[NUMCPUS][schedule.count()].second[i] << " ";
 	}
 	std::cout << "\n";
 
@@ -182,7 +182,7 @@ void Scheduler::do_schedule(){
 		(schedule.get_task(i))->set_current_mode(DP[NUMCPUS][schedule.count()].second[i],false);
 	}
 
-//give_cpus:
+	//give_cpus:
 	//First allocate from CPU1 and go up from there.
 	if(first_time)
 	{
