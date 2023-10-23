@@ -20,7 +20,6 @@
 #include "timespec_functions.h"
 #include <signal.h>
 #include <time.h>
-#include "cppBar.hpp"
 #include <string.h>
 #include <pthread.h>
 #include <atomic> //For std::atomic_bool
@@ -67,13 +66,11 @@ const unsigned FINALIZE_PRIORITY = 1;
 //The priority that we use when sleeping.
 const unsigned SLEEP_PRIORITY = 97;
 
-//Testing new barrier
-cppBarrier newBarrier(0, 0);
 
 //These variables are declared extern in task.h, but need to be
 //visible in both places
 int futex_val;
-//mc_barrier bar;
+cppBar bar;
 bool missed_dl=false;
 int num_threads;
 volatile int total_remain __attribute__ (( aligned (64) ));
@@ -235,8 +232,7 @@ void reschedule()
 		}
 	}		
 
-	//mc_bar_reinit(&bar,schedule.get_task(iindex)->get_current_CPUs());	
-	newBarrier.mc_bar_reinit(schedule.get_task(iindex)->get_current_CPUs());		
+	bar.mc_bar_reinit(schedule.get_task(iindex)->get_current_CPUs());		
 }
 
 //typedef struct sched_attr sched_attr;
@@ -415,9 +411,7 @@ int main(int argc, char *argv[])
   	}
 		
 	//Initialize the program barrier
-	//mc_bar_init(&bar,schedule.get_task(iindex)->get_current_CPUs());
-	newBarrier.mc_bar_init(schedule.get_task(iindex)->get_current_CPUs());
-
+	bar.mc_bar_init(schedule.get_task(iindex)->get_current_CPUs());
 
 	#ifdef PER_PERIOD_VERBOSE
 	//Create storage for per-job timings --THIS NO LONGER WORKS!! num_iters is no longer static --James 9/8/18
