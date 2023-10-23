@@ -4,27 +4,38 @@
 #include <sstream>
 #include <string>
 #include <iostream>
+#include <unistd.h>
+#include <stdio.h>
+#include <errno.h>
+#include <cstdlib>
 #include <vector>
+#include <math.h>
+#include <fcntl.h>
 #include <sys/wait.h>
-#include <list>
-#include <thread>
-#include <cerrno>
-
+#include <sys/stat.h>
+#include <signal.h>
+#include <sched.h>
 #include "single_use_barrier.h"
 #include "timespec_functions.h"
 #include "scheduler.h"
+#include <string.h>
+#include <list>
+#include <thread>
+
+using namespace std;
 
 timespec current_time,start_time,run_time,end_time;
 timespec cur_time;
 timespec vdeadline={0,0};
 timespec zero={0,0};
 
+
 std::string program_name;
 
 // Define the name of the barrier used for synchronizing tasks after creation
 const std::string barrier_name = "RT_GOMP_CLUSTERING_BARRIER";
 const std::string barrier_name2 = "RT_GOMP_CLUSTERING_BARRIER2";
-int ret_val;
+int ret_val; 
 
 bool needs_scheduling = false;
 Scheduler * scheduler;
@@ -50,9 +61,10 @@ void scheduler_task()
 
 	//Make sure all tasks are ready. Wait at barrier.
 	ret_val = await_single_use_barrier(barrier_name.c_str());
+	//fprintf(stderr, "scheduler past second barrier\n");
 	if (ret_val != 0)
 	{
-		std::cerr << "ERROR: Barrier error for scheduling task.\n";
+		fprintf(stderr, "ERROR: Barrier error for scheduling task.\n");
 		kill(0, SIGTERM);
 	}
 
@@ -69,7 +81,7 @@ void scheduler_task()
 		get_time(&cur_time);
 	}
 
-	//std::cerr << "FINISHED!!\n");
+	//fprintf(stderr, "FINISHED!!\n");
 }
 
 enum rt_gomp_clustering_launcher_error_codes
@@ -98,51 +110,48 @@ void sigrt2_handler(int signum){
 int main(int argc, char *argv[])
 {
 	process_group = getpgrp();
-	std::vector<std::string> args(argv, argv+argc);
 
 	int ret_val;
 
 	//Set up a signal handler for SIGRT0
 	void (*ret_handler)(int);
 	ret_handler = signal(SIGRTMIN+0, sigrt0_handler);
-
 	if( ret_handler == SIG_ERR ){
-		std::cerr << "ERROR: Call to Signal failed, reason: " << strerror(errno) << "\n";
+		fprintf(stderr,"ERROR: Call to Signal failed, reason: %s\n", strerror(errno));
 		exit(-1);
 	}
 
 	ret_handler = signal(SIGRTMIN+1, sigrt1_handler);
 	if( ret_handler == SIG_ERR ){
-		std::cerr << "ERROR: Call to Signal failed, reason: " << strerror(errno) << "\n";
+		fprintf(stderr,"ERROR: Call to Signal failed, reason: %s\n", strerror(errno));
 		exit(-1);
 	}
 
 	// Verify the number of arguments
 	if (argc != 2)
 	{
-		std::cerr << "ERROR: The program must receive a single argument which is the taskset/schedule filename without any extension.\n";
+		fprintf(stderr, "ERROR: The program must receive a single argument which is the taskset/schedule filename without any extension.\n");
 		return RT_GOMP_CLUSTERING_LAUNCHER_ARGUMENT_ERROR;
 	}
 	
 	// Determine the taskset and schedule (.rtps) filename from the program argument
-	std::string schedule_filename(args[1] + ".rtps");
-
+	std::string schedule_filename(argv[1]);
+	schedule_filename += ".rtps";
+	
 	// Make sure we have a .rtps file. Quit if not.
-	//struct stat schedule_stat; //struct stat still in from use of legacy .rtpt file when access date was used to create new .rtps files. This is OK.
-	//if ((stat(schedule_filename.c_str(), &schedule_stat)) == -1)
-
-	//just use ifstream good property....????
-	std::ifstream ifs(schedule_filename);
-	if(!ifs.good())
+	struct stat schedule_stat; //struct stat still in from use of legacy .rtpt file when access date was used to create new .rtps files. This is OK.
+	int schedule_ret_val = stat(schedule_filename.c_str(), &schedule_stat);
+	if (schedule_ret_val == -1)
 	{
-		std::cerr << "ERROR: Cannot find schedule file: " << schedule_filename << "\n";
+		fprintf(stderr, "ERROR: Cannot find schedule file: %s\n", schedule_filename.c_str());
 		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
 	}
 	
 	// Open the schedule (.rtps) file
+	std::ifstream ifs(schedule_filename.c_str());
 	if (!ifs.is_open())
 	{
-		std::cerr << "ERROR: Cannot open schedule file.\n";
+		fprintf(stderr, "ERROR: Cannot open schedule file.\n");
 		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
 	}
 
@@ -156,12 +165,12 @@ int main(int argc, char *argv[])
 	std::istringstream firstline(line);
 	if(!(firstline >> schedulable))
 	{
-		std::cerr << "ERROR: First line of .rtps file error.\n Format: <taskset schedulability>.\n";
+		fprintf(stderr, "ERROR: First line of .rtps file error.\n Format: <taskset schedulability>.\n");
 		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
 	}
 	if(!schedulable)
 	{
-		std::cerr << "ERROR: Taskset deemed not schedulable by .rtps file. Exiting.\n";
+		fprintf(stderr, "ERROR: Taskset deemed not schedulable by .rtps file. Exiting.\n");
 		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
 	}
 
@@ -169,7 +178,7 @@ int main(int argc, char *argv[])
 	std::istringstream secondline(line);
 	if(!((secondline >> num_tasks) && (secondline >> sec_to_run) && (secondline >> nsec_to_run)))
 	{
-		std::cerr << "ERROR: Second line of .rtps file error.\n Format: <number of tasks> <s to run> <ns to run>.\n";
+		fprintf(stderr, "ERROR: Second line of .rtps file error.\n Format: <number of tasks> <s to run> <ns to run>.\n");
 		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
 	}
 
@@ -186,7 +195,7 @@ int main(int argc, char *argv[])
 
 	if (!(num_lines == 2*num_tasks))
 	{
-		std::cerr << "ERROR: Found "<< num_lines/2 << " tasks and expected " << num_tasks << ".\n";
+		fprintf(stderr, "ERROR: Found %u tasks and expected %u.\n",num_lines/2,num_tasks);
 		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 	}
 
@@ -198,14 +207,14 @@ int main(int argc, char *argv[])
 	ret_val = init_single_use_barrier(barrier_name.c_str(), num_tasks + 1); //Added +1 for scheduler thread. JO 6/22/18
 	if (ret_val != 0)
 	{
-		std::cerr << "ERROR: Failed to initialize barrier.\n";
+		fprintf(stderr, "ERROR: Failed to initialize barrier.\n");
 		return RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR;
 	}
 
 	ret_val = init_single_use_barrier(barrier_name2.c_str(), num_tasks + 1);
 	if (ret_val != 0)
 	{
-		std::cerr << "ERROR: Failed to initialize barrier.\n";
+		fprintf(stderr, "ERROR: Failed to initialize barrier.\n");
 		return RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR;
 	}
 
@@ -214,6 +223,8 @@ int main(int argc, char *argv[])
 	start_time.tv_sec = current_time.tv_sec + 5;//Add 5 seconds to start time so all tasks have enough time to finish their init() stages.
 	start_time.tv_nsec = current_time.tv_nsec;
 	end_time = start_time + run_time;
+	//end_time.tv_sec = start_time.tv_sec + secs_to_run;
+	//end_time.tv_nsec = current_time.tv_nsec;
 
 	// Iterate over the tasks and fork and execv each one
 	std::string task_command_line, task_timing_line;//, task_partition_line;
@@ -223,6 +234,8 @@ int main(int argc, char *argv[])
 		if (std::getline(ifs, task_command_line))
 		{
 			std::istringstream task_command_stream(task_command_line);
+			//std::istringstream task_timing_stream(task_timing_line);
+			//std::istringstream task_partition_stream(task_partition_line);
 			
 			// Add arguments to this vector of strings. This vector will be transformed into
 			// a vector of char * before the call to execv by calling c_str() on each string,
@@ -245,14 +258,14 @@ int main(int argc, char *argv[])
 			}
 			else
 			{
-				std::cerr << "ERROR: Program name not provided for task.\n";
+				fprintf(stderr, "ERROR: Program name not provided for task.\n");
 				kill(0, SIGTERM);
 				return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 			}
 
-			std::vector <timespec> work;
-			std::vector <timespec> span;
-			std::vector <timespec> period;
+			vector <timespec> work;
+			vector <timespec> span;
+			vector <timespec> period;
 			int num_modes;
 
 			time_t work_sec;
@@ -274,14 +287,14 @@ int main(int argc, char *argv[])
 					//Make sure we have at least 1 mode.
 					if(num_modes <= 0)
 					{
-						std::cerr << "ERROR: Task " << t << " timing data. At least 1 mode of operation is required. Found " << num_modes << ".\n";
+						fprintf(stderr, "ERROR: Task %d timing data. At least 1 mode of operation is required. Found %d.\n", t, num_modes);
 						kill(0, SIGTERM);
 						return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 					}
 				}
 				else
 				{
-					std::cerr << "ERROR: Task "<< t <<" timing data. Mal-formed elasticity value and/or number of modes.\n";
+					fprintf(stderr, "ERROR: Task %d timing data. Mal-formed elasticity value and/or number of modes.\n", t);
 					kill(0, SIGTERM);
 					return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 				}
@@ -303,7 +316,7 @@ int main(int argc, char *argv[])
 					}
 					else
 					{
-						std::cerr << "ERROR: Task " << t << " timing data. Mal-formed work, span, or period in mode " << i<< ".\n";
+						fprintf(stderr, "ERROR: Task %d timing data. Mal-formed work, span, or period in mode %d.\n", t, i);
 					}
 				}
 
@@ -313,7 +326,7 @@ int main(int argc, char *argv[])
 			}
 			else	
 			{
-				std::cerr << "ERROR: Too few timing parameters were provided for task " << program_name.c_str() << ".\n";
+				fprintf(stderr, "ERROR: Too few timing parameters were provided for task %s.\n", program_name.c_str());
 				kill(0, SIGTERM);
 				return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 			}
@@ -339,8 +352,8 @@ int main(int argc, char *argv[])
 			
 			// NULL terminate the argument vector
 			task_manager_argv.push_back(NULL);
-			//HERE!!!	
-			std::cerr << "Forking and execv-ing task " << program_name.c_str() << "\n";
+		//HERE!!!	
+			fprintf(stderr, "Forking and execv-ing task %s\n", program_name.c_str());
 			
 			// Fork and execv the task program
 			pid_t pid = fork();
@@ -358,14 +371,14 @@ int main(int argc, char *argv[])
 			}
 			else if (pid == -1)
 			{
-				std::perror("Forking a new process for task failed,\n");
+				perror("Forking a new process for task failed,\n");
 				kill(0, SIGTERM);
 				return RT_GOMP_CLUSTERING_LAUNCHER_FORK_EXECV_ERROR;
 			}	
 		}
 		else
 		{
-			std::cerr << "ERROR: Please include at least one task.\n";
+			fprintf(stderr, "ERROR: Please include at least one task.\n");
 			kill(0, SIGTERM);
 			return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 		}
@@ -373,10 +386,11 @@ int main(int argc, char *argv[])
 
 	scheduler->do_schedule();
 
-	//std::cerr << "Scheduler reached scheduling barrier.");	
-	if ((ret_val = await_single_use_barrier(barrier_name2.c_str())) != 0)
+	//fprintf(stderr, "Scheduler reached scheduling barrier.");	
+	ret_val = await_single_use_barrier(barrier_name2.c_str());
+	if (ret_val != 0)
 	{
-		std::cerr << "ERROR: Barrier error for scheduling task \n";
+		fprintf(stderr, "ERROR: Barrier error for scheduling task \n");
 		kill(0, SIGTERM);
 	}
 
@@ -385,14 +399,14 @@ int main(int argc, char *argv[])
 	// Close the file
 	ifs.close();
 	
-	std::cerr << "All tasks started.\n";
+	fprintf(stderr, "All tasks started.\n");
 	
 	// Wait until all child processes have terminated
 	while (!(wait(NULL) == -1 && errno == ECHILD));
 	
 	t.join();
 
-	std::cerr << "All tasks finished.\n";
+	fprintf(stderr, "All tasks finished.\n");
 	
 	delete scheduler;
 	
