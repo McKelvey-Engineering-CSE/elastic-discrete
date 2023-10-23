@@ -1,10 +1,12 @@
 #include "scheduler.h"
+#include "taskData.h"
+
 #include <iostream>
 #include <cmath>
 #include <limits>
 #include <algorithm>
+#include <cerrno>
 #include <float.h>
-#include "taskData.h"
 
 #ifdef SCHED_PAIR_HEAP
 
@@ -69,6 +71,7 @@ void Scheduler::do_schedule(){
 	if(first_time)
 	{
 		int min_required = 0;
+
 		//Determine minimum required processors
 		for(int i=0; i<schedule.count(); i++)
 		{
@@ -129,6 +132,7 @@ void Scheduler::do_schedule(){
 				//Assign the minimum to be infinity.
 				double MIN=std::numeric_limits<double>::max();
 				int selection=-1;
+
 				//Consider mode j
 				for(int j=0; j<(schedule.get_task(l-1))->get_num_modes(); j++)
 				{
@@ -166,16 +170,15 @@ void Scheduler::do_schedule(){
 
 	//James Stop 10/4/18
 
-	fprintf(stderr, "Got this allocation: %f ",DP[NUMCPUS][schedule.count()].first);
+	std::cout << "Got this allocation: " << DP[NUMCPUS][schedule.count()].first << " ";
 	for(unsigned int i=0; i<DP[NUMCPUS][schedule.count()].second.size(); i++)
 	{
-		fprintf(stderr, "%d ", DP[NUMCPUS][schedule.count()].second[i]);
+		std::cout << DP[NUMCPUS][schedule.count()].second[i];
 	}
-	fprintf(stderr, "\n");
+	std::cout << "\n";
 
 	for(int i=0; i<schedule.count(); i++)
 	{
-		//int temp = std::atoi(&(DP[NUMCPUS][schedule.count()].second.c_str()[i]));
 		(schedule.get_task(i))->set_current_mode(DP[NUMCPUS][schedule.count()].second[i],false);
 	}
 
@@ -189,9 +192,9 @@ void Scheduler::do_schedule(){
 		{
 			if((schedule.get_task(i))->get_current_lowest_CPU() > 0)
 			{
-				fprintf(stderr, "Error in task %d: all tasks should have had lowest CPU cleared.\n",i);
+				std::cerr << "Error in task " << i << ": all tasks should have had lowest CPU cleared.\n";
 				killpg(process_group, SIGKILL);
-                		return;
+                return;
 			}
 
 			(schedule.get_task(i))->set_current_lowest_CPU(next_CPU);
@@ -199,9 +202,9 @@ void Scheduler::do_schedule(){
 
 			if(next_CPU > num_CPUs+1)
 			{
-				fprintf(stderr, "Error in task %d: too many CPUs have been allocated.%d %d\n",i, next_CPU, num_CPUs);
-                        	killpg(process_group, SIGKILL);
-                        	return;
+				std::cerr << "Error in task " << i << ": too many CPUs have been allocated." << next_CPU << " " << num_CPUs<< " \n";
+				killpg(process_group, SIGKILL);
+				return;
 			}		
 		}
 	}
@@ -210,8 +213,7 @@ void Scheduler::do_schedule(){
 	{
 		for(int i=0; i<schedule.count(); i++)
 		{
-			//fprintf(stderr,"Down in bottom part. Task %d has %d current CPUs and %d previous CPUs\n",i,(schedule.get_task(i))->get_current_CPUs(),(schedule.get_task(i))->get_previous_CPUs());
-
+		
 			int gained = (schedule.get_task(i))->get_current_CPUs() - (schedule.get_task(i))->get_previous_CPUs(); 
 			(schedule.get_task(i))->set_CPUs_gained(gained);
 		}
@@ -223,9 +225,8 @@ void Scheduler::do_schedule(){
 			{
 				if((schedule.get_task(i))->get_CPUs_gained() > 0 && (schedule.get_task(j))->get_CPUs_gained() < 0) 	
 				{
-					//fprintf(stderr,"FIRST CASE %d %d\n",(schedule.get_task(i))->get_CPUs_gained(), (schedule.get_task(j))->get_CPUs_gained());
-
 					int difference = abs((schedule.get_task(i))->get_CPUs_gained()) - abs((schedule.get_task(j))->get_CPUs_gained());
+					
 					if(difference >= 0)
 					{
 						int amount = abs((schedule.get_task(j))->get_CPUs_gained());
@@ -237,38 +238,32 @@ void Scheduler::do_schedule(){
 					else
 					{
 						int amount = abs((schedule.get_task(i))->get_CPUs_gained());
-                                                (schedule.get_task(i))->set_CPUs_gained((schedule.get_task(i))->get_CPUs_gained() - amount);
-                                                (schedule.get_task(j))->set_CPUs_gained((schedule.get_task(j))->get_CPUs_gained() + amount);
-                                                (schedule.get_task(i))->update_give(j,-1*amount);
-                                                (schedule.get_task(j))->update_give(i,amount);
+						(schedule.get_task(i))->set_CPUs_gained((schedule.get_task(i))->get_CPUs_gained() - amount);
+						(schedule.get_task(j))->set_CPUs_gained((schedule.get_task(j))->get_CPUs_gained() + amount);
+						(schedule.get_task(i))->update_give(j,-1*amount);
+						(schedule.get_task(j))->update_give(i,amount);
 
 					}
 				}
 				else if((schedule.get_task(j))->get_CPUs_gained() > 0 && (schedule.get_task(i))->get_CPUs_gained() < 0)
 				{
-					//
-					//fprintf(stderr,"SECOND CASE %d %d\n",(schedule.get_task(i))->get_CPUs_gained(), (schedule.get_task(j))->get_CPUs_gained());
-
 					int difference = abs((schedule.get_task(j))->get_CPUs_gained()) - abs((schedule.get_task(i))->get_CPUs_gained());
-                                        if(difference >= 0)
-                                        {
-                                                int amount = abs((schedule.get_task(i))->get_CPUs_gained());
-                                                (schedule.get_task(j))->set_CPUs_gained((schedule.get_task(j))->get_CPUs_gained() - amount);
-                                                (schedule.get_task(i))->set_CPUs_gained((schedule.get_task(i))->get_CPUs_gained() + amount);
-                                                (schedule.get_task(j))->update_give(i,-1*amount);
-                                                (schedule.get_task(i))->update_give(j,amount);
-                                        }
-					else
-                                        {
-                                                int amount = abs((schedule.get_task(j))->get_CPUs_gained());
-                                                (schedule.get_task(j))->set_CPUs_gained((schedule.get_task(j))->get_CPUs_gained() - amount);
-                                                (schedule.get_task(i))->set_CPUs_gained((schedule.get_task(i))->get_CPUs_gained() + amount);
-                                                (schedule.get_task(j))->update_give(i,-1*amount);
-                                                (schedule.get_task(i))->update_give(j,amount);
-                                        }
+					
+					if(difference >= 0){
+						int amount = abs((schedule.get_task(i))->get_CPUs_gained());
+						(schedule.get_task(j))->set_CPUs_gained((schedule.get_task(j))->get_CPUs_gained() - amount);
+						(schedule.get_task(i))->set_CPUs_gained((schedule.get_task(i))->get_CPUs_gained() + amount);
+						(schedule.get_task(j))->update_give(i,-1*amount);
+						(schedule.get_task(i))->update_give(j,amount);
+					}
+					else{
+						int amount = abs((schedule.get_task(j))->get_CPUs_gained());
+						(schedule.get_task(j))->set_CPUs_gained((schedule.get_task(j))->get_CPUs_gained() - amount);
+						(schedule.get_task(i))->set_CPUs_gained((schedule.get_task(i))->get_CPUs_gained() + amount);
+						(schedule.get_task(j))->update_give(i,-1*amount);
+						(schedule.get_task(i))->update_give(j,amount);
+					}
 				}
-				//else
-				//{fprintf(stderr,"THIRD CASE %d->%d  %d-> %d\n",i,(schedule.get_task(i))->get_CPUs_gained(), j,(schedule.get_task(j))->get_CPUs_gained());}
 			}
 		}
 		//Now determine which CPUs are transfered.
@@ -280,7 +275,6 @@ void Scheduler::do_schedule(){
 				if((schedule.get_task(i))->gives(j) > 0)
 				{
 					int amount_gives = (schedule.get_task(i))->gives(j);
-					//fprintf(stderr,"NOW FIRST CASE %d gives %d : %d CPUS\n",i, j, amount_gives);
 				
 					for(int t=1; t<=NUMCPUS; t++){
 						if(schedule.get_task(i)->get_active(t) && schedule.get_task(j)->get_passive(t))
@@ -296,25 +290,25 @@ void Scheduler::do_schedule(){
 						{
 							if(CPU_ISSET(k,&overlap))
 							{
-                                                                bool used = false;
-                                                                for(int l=0; l<schedule.count(); l++)
-                                                                {
-                                                                        if(schedule.get_task(i)->transfers(l,k))
-                                                                        {
-                                                                                used=true;
-                                                                        }
-                                                                }
+								bool used = false;
+								for(int l=0; l<schedule.count(); l++)
+								{
+										if(schedule.get_task(i)->transfers(l,k))
+										{
+												used=true;
+										}
+								}
 
 								if(!used && k!=(schedule.get_task(i))->get_permanent_CPU() && !(schedule.get_task(i))->transfers(j,k) )
 								{
-									fprintf(stderr,"Task %d should be sending CPU %d to task %d.\n",i,k,j);
+									std::cerr << "Task " << i << " should be sending CPU " << k << " to task " << j << ".\n";
+									
 									(schedule.get_task(i))->set_transfer(j,k,true);
-									//(schedule.get_task(i))->clr_active(k); //James add 7/8/18
-									//(schedule.get_task(i))->set_passive(k); //James add 7/8/18
+
 									(schedule.get_task(j))->set_receive(i,k,true);
-									//(schedule.get_task(j))->clr_passive(k); //James add 7/8/18
-                                                                        //(schedule.get_task(j))->set_active(k); //James add 7/8/18
+									
 									amount_gives--;
+
 									if(amount_gives == 0)
 									{
 										break;
@@ -329,30 +323,29 @@ void Scheduler::do_schedule(){
 						{
 							if(schedule.get_task(i)->get_active(k))
 							{
-                                                                bool used = false;
-                                                                for(int l=0; l<schedule.count(); l++)
-                                                                {
-                                                                        if(schedule.get_task(i)->transfers(l,k))
-                                                                        {
-                                                                                used=true;
-                                                                        }
-                                                                }   
+								bool used = false;
+								for(int l=0; l<schedule.count(); l++)
+								{
+										if(schedule.get_task(i)->transfers(l,k))
+										{
+												used=true;
+										}
+								}   
 	
-                                                                if(!used && k!=(schedule.get_task(i))->get_permanent_CPU() && !(schedule.get_task(i))->transfers(j,k))
-                                                                {
-                                                                        fprintf(stderr,"Task %d should be sending CPU %d to task %d.\n",i,k,j);
+								if(!used && k!=(schedule.get_task(i))->get_permanent_CPU() && !(schedule.get_task(i))->transfers(j,k))
+								{
+									std::cerr << "Task " << i << " should be sending CPU " << k << " to task " << j << ".\n";
+
 									(schedule.get_task(i))->set_transfer(j,k,true);
-									//(schedule.get_task(i))->clr_active(k); //James add 7/8/18
-                                                                        //(schedule.get_task(i))->set_passive(k); //James add 7/8/18
+									
 									(schedule.get_task(j))->set_receive(i,k,true);
-									//(schedule.get_task(j))->clr_passive(k); //James add 7/8/18
-                                                                        //(schedule.get_task(j))->set_active(k); //James add 7/8/18
-                                                                        amount_gives--;
-                                                                        if(amount_gives == 0)
-                                                                        {
-                                                                                break;
-                                                                        }
-                                                                }
+
+									amount_gives--;
+									if(amount_gives == 0)
+									{
+										break;
+									}
+                                }
 
 							}
 						}
@@ -361,33 +354,30 @@ void Scheduler::do_schedule(){
 				else if((schedule.get_task(i))->gives(j) < 0)
 				{	
 					int amount_gives = (schedule.get_task(j))->gives(i);
-					//fprintf(stderr,"NOW SECOND CASE %d gives %d : %d CPUS\n",j, i, amount_gives);
 						
 					cpu_set_t first;
 					cpu_set_t second;			
 					CPU_ZERO(&first);
 					CPU_ZERO(&second);
 					CPU_ZERO(&overlap);
-                                        for(int t=1; t<=NUMCPUS; t++){
-                                                /*if(schedule.get_task(j)->get_active(t) && schedule.get_task(i)->get_passive(t))
-                                                {
-                                                        CPU_SET(t,&overlap);
-                                                }*/
+
+					for(int t=1; t<=NUMCPUS; t++)
+					{
 						if(schedule.get_task(j)->get_active(t))
 						{
 							CPU_SET(t, &first);
 
 						}
-							//fprintf(stderr,"%d\n",CPU_COUNT(&first));
+
 						if(schedule.get_task(i)->get_passive(t))
 						{
 							CPU_SET(t, &second);
 				
 						}
-							//fprintf(stderr,"%d\n",CPU_COUNT(&second));
+						
 						
 
-                                        }
+                    }
 	
 					CPU_AND(&overlap, &first, &second);
 
@@ -412,13 +402,13 @@ void Scheduler::do_schedule(){
 								{
 									
 									(schedule.get_task(j))->set_transfer(i,k,true);
-									//(schedule.get_task(j))->clr_active(k); //James add 7/8/18
-                                                                        //(schedule.get_task(j))->set_passive(k); //James add 7/8/18
+									
 									(schedule.get_task(i))->set_receive(j,k,true);
-									//(schedule.get_task(i))->clr_passive(k); //James add 7/8/18
-                                                                        //(schedule.get_task(i))->set_active(k); //James add 7/8/18
-									fprintf(stderr,"Task %d should be sending CPU %d to task %d.\n",j,k,i);
+									
+									std::cerr << "Task " << j << "  should be sending CPU " << k << " to task " << i << ".\n";
+
 									amount_gives--;
+
 									if(amount_gives == 0)
 									{
 										break;
@@ -434,29 +424,29 @@ void Scheduler::do_schedule(){
 							if( schedule.get_task(j)->get_active(k))
 							{
 								bool used = false;
-                                                		for(int l=0; l<schedule.count(); l++)
-                             	                        	{
-                                                                	if(schedule.get_task(j)->transfers(l,k))
-                                                                	{
-                                                                        	used=true;
-                                                                	}	
-                                                        	}
-                                                                if(!used && k!=(schedule.get_task(j))->get_permanent_CPU() && !(schedule.get_task(j))->transfers(i,k))
-                                                                {
-                                                                        (schedule.get_task(j))->set_transfer(i,k,true);
-									//(schedule.get_task(j))->clr_active(k); //James add 7/8/18
-                                                                        //(schedule.get_task(j))->set_passive(k); //James add 7/8/18
-									(schedule.get_task(i))->set_receive(j,k,true);
-									//(schedule.get_task(i))->clr_passive(k); //James add 7/8/18
-                                                                        //(schedule.get_task(i))->set_active(k); //James add 7/8/18
-									fprintf(stderr,"Task %d should be sending CPU %d to task %d.\n",j,k,i);
-                                                                        amount_gives--;
-                                                                        if(amount_gives == 0)
-                                                                        {
-                                                                                break;
-                                                                        }
-                                                                }
 
+								for(int l=0; l<schedule.count(); l++)
+								{
+									if(schedule.get_task(j)->transfers(l,k))
+									{
+											used=true;
+									}	
+								}
+								if(!used && k!=(schedule.get_task(j))->get_permanent_CPU() && !(schedule.get_task(j))->transfers(i,k))
+								{
+									(schedule.get_task(j))->set_transfer(i,k,true);
+									
+									(schedule.get_task(i))->set_receive(j,k,true);
+									
+									std::cerr << "Task " << j << "  should be sending CPU " << k << " to task " << i << ".\n";
+
+									amount_gives--;
+
+									if(amount_gives == 0)
+									{
+										break;
+									}
+                                }
 							}
 						}
 					}
