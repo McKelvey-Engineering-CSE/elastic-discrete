@@ -56,17 +56,10 @@ sharedMem::sharedMem(std::string name, access_mode mode, size_t size_bytes) {
 	}
 	
 	//append a forwards slash to name if it is not already there
-	std::string proper;
-	if   ( name[0] == '/' ) proper = name;
-	else proper = "/" + name;
+	std::string proper = (name[0] == '/') ? name : "/" + name;
 
 	//Check that there is only one forwards slash in the name
-	int count = 0;
-	for(unsigned i = 0; i < name.length(); i++){
-		if ( proper[i] == '/' ) count++;
-	}
-
-	if( count > 1 ){
+	if(proper.find(std::string("/"), 1) != std::string::npos){
 		printf("FATAL: Shared memory handle must contain at most one forward slash, which if present must be the first character.\n");
 		exit(INVALID_HANDLE);
 	}
@@ -101,17 +94,15 @@ sharedMem::sharedMem(std::string name, access_mode mode, size_t size_bytes) {
 		this->owner = false;
 		fd = shm_open( proper.c_str(), shm_open_access, fd_access_mode);
 		if( fd == -1 ){ //If creation still fail then something is wrong
-			printf("FATAL: shm_open failed! Reason: %s\n", strerror(errno));
+			std::cout << "FATAL: shm_open failed! Reason: " << strerror(errno) << "\n";
 			exit(CREATION_FAILURE);
 		}
 	} else { //creation succeeded, resize the file area, set self as owner
 		this->owner = true;
 		size_t trunc_size = 4096 * ((real_size/4096) + 1);		
 		int ret_val = ftruncate(fd, trunc_size);
-		//extras->utility = 0;
-		//extras->reference_count = 0;
 		if ( ret_val == -1 ){
-			printf("FATAL: File descriptor could not be resized! Reason: %s\n", strerror(errno));
+			std::cout << "FATAL: File descriptor could not be resized! Reason: " << strerror(errno) << "\n";
 			exit(RESIZE_FAILURE);
 		}
 	}
@@ -127,7 +118,7 @@ sharedMem::sharedMem(std::string name, access_mode mode, size_t size_bytes) {
 
 	void* retptr = mmap(NULL, real_size, mmap_prot, mmap_flags, fd, 0);
 	if( retptr == MAP_FAILED ){
-		printf("FATAL: Call to mmap failed! Reason: %s\n", strerror(errno));
+		std::cout << "FATAL: Call to mmap failed! Reason: " << strerror(errno) << " \n";
 		exit(MAP_FAILURE);
 	}
 
@@ -146,11 +137,6 @@ sharedMem::sharedMem(std::string name, access_mode mode, size_t size_bytes) {
 	*(this->guard1) = GUARD_VALUE;
 	*(this->guard2) = GUARD_VALUE;
 	*(this->guard3) = GUARD_VALUE;
-	//*(this->guard4) = GUARD_VALUE;
-
-	//extras->read = true;
-	//extras->written = false;
-	//extras->utility = 0;
 
 	//If we are the owner, then we perform any initialization 
 	//as well as setting up the extras data structure. If we are not the 
@@ -158,8 +144,6 @@ sharedMem::sharedMem(std::string name, access_mode mode, size_t size_bytes) {
 
 	//GCC builtin, GCC only, should be switched to atomic types
 	__sync_add_and_fetch(&(extras->reference_count), 1);
-
-	//std::cout << "REFERENCE COUNT IN BEGINNING: "  <<  extras->reference_count << " UTILITY: " << extras->utility << " init_lock " << extras->init_lock   <<std::endl;
 
 	if( this->owner ){
 		extras->has_owner = true;
@@ -178,31 +162,17 @@ sharedMem::sharedMem(std::string name, access_mode mode, size_t size_bytes) {
 	}
 }
 
-//sharedMem::sharedMem() {
-//}
-
 //Check the guard values against the supposed value, if any are modified,
 //then something has probably gone wrong
 bool sharedMem::valid(){
 	return ( *guard1 == GUARD_VALUE &&
                  *guard2 == GUARD_VALUE &&
                  *guard3 == GUARD_VALUE);
-		 //&& *guard4 == GUARD_VALUE);
 }
 
 void* sharedMem::getMapping(){
 	return ptr;
 }
-
-//void* sharedMem::getMapping2(){
-//	return ptr2;
-//}
-
-//void sharedMem::swap_pointers(){
-//        void* temp=ptr;
-//	ptr = ptr2;
-//	ptr2 = temp;	
-//}
 
 bool sharedMem::is_owner(){
 	return this->owner;
@@ -218,8 +188,6 @@ sharedMem::~sharedMem(){
 	//GCC builtin, GCC only, should be switched to atomic types
 	__sync_sub_and_fetch(&(extras->reference_count), 1);
 
-	//std::cout << extras->reference_count << std::endl;
-	
 	if(extras->reference_count == 0) { 
 	    shm_unlink(name.c_str());
 	}
