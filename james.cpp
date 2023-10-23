@@ -11,7 +11,7 @@ int run(int argc, char *argv[]){
 
 int finalize(int argc, char *argv[])
 {
-        return 0;
+    return 0;
 }
 
 task_t task = { init, run, finalize };

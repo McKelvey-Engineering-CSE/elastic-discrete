@@ -351,7 +351,7 @@ int main(int argc, char *argv[])
 				execv(program_name.c_str(), const_cast<char **>(&task_manager_argv[0]));
 				
 				// Error if execv returns
-				perror("Execv-ing a new task failed.\n");
+				std::perror("Execv-ing a new task failed.\n");
 				kill(0, SIGTERM);
 				return RT_GOMP_CLUSTERING_LAUNCHER_FORK_EXECV_ERROR;
 			
