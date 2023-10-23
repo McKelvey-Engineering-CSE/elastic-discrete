@@ -8,12 +8,11 @@
 #include <sys/wait.h>
 #include <list>
 #include <thread>
+#include <cerror>
 
 #include "single_use_barrier.h"
 #include "timespec_functions.h"
 #include "scheduler.h"
-
-//using namespace std;
 
 timespec current_time,start_time,run_time,end_time;
 timespec cur_time;
@@ -359,7 +358,7 @@ int main(int argc, char *argv[])
 			}
 			else if (pid == -1)
 			{
-				perror("Forking a new process for task failed,\n");
+				std::perror("Forking a new process for task failed,\n");
 				kill(0, SIGTERM);
 				return RT_GOMP_CLUSTERING_LAUNCHER_FORK_EXECV_ERROR;
 			}	
