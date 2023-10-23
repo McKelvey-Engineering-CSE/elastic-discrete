@@ -15,6 +15,7 @@
 
 #include <string>
 #include <atomic>
+
 enum access_mode {READ_ONLY, READ_WRITE};
 
 //Values that we want to keep in the shared memory region for our own purposes

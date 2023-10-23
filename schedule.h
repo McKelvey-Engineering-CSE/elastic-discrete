@@ -1,17 +1,15 @@
 #ifndef _SHARED_SCHEDULE_H
 #define  _SHARED_SCHEDULE_H
+
 #include "sharedMem.h"
 #include "taskData.h"
-#include <atomic>
 #include "include.h"
 
-//const int MAX_TASKS=10;
+#include <atomic>
+
 const int INVALID_INDEX=-1;
-//extern const int MAXTASKS;
 
 class Schedule : sharedMem {
-	
-private:
 
 public: 
 	Schedule(std::string name_);	
