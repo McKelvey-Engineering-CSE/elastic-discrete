@@ -1,7 +1,25 @@
 #ifndef SHEDULER_H
 #define SCHEDULER_H
 
-//#define SCHED_PAIR_HEAP
+/*************************************************************************
+
+scheduler.h
+
+This object contains the Scheduler object itself along with the scheduling
+algorithm employed to schedule elastic tasks.
+
+
+Class : sharedMem
+
+		This class contains all of the scheduling algorithm logic
+		as well as the actual driver code for deploying a derived schedule.
+
+        This class contains a sub class "sched_pair" which is used in 
+		a heap to monitor differnt task pairs. By default this inner
+		class is disabled and prevented from being compiled. To enable it,
+		define SCHED_PAIR_HEAP.
+
+**************************************************************************/
 
 #include <vector>
 #include <algorithm>

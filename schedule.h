@@ -1,6 +1,25 @@
 #ifndef _SHARED_SCHEDULE_H
 #define  _SHARED_SCHEDULE_H
 
+/*************************************************************************
+
+schedule.h
+
+TODO: WRITE BETTER DESCRIPTION
+
+This object inherits from and creates the shared memory segment for the 
+scheduling algorithm. It also manages the interaction between the scheduler, 
+tasks, and memory segments.
+
+
+Class : Schedule
+
+		This class inherits from the Shared memory class and implements
+		the maintenance of the shared memory mappings and the interaction
+		between the scheduler algorithm and the tasks themselves
+
+**************************************************************************/
+
 #include "sharedMem.h"
 #include "taskData.h"
 #include "include.h"

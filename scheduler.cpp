@@ -268,15 +268,16 @@ void Scheduler::do_schedule(){
 		}
 		//Now determine which CPUs are transfered.
 		for(int i=0; i<schedule.count(); i++)
-                {
+        {
 			for(int j=i+1; j<schedule.count(); j++)
-                        {		
+            {		
 				cpu_set_t overlap;
 				if((schedule.get_task(i))->gives(j) > 0)
 				{
 					int amount_gives = (schedule.get_task(i))->gives(j);
 				
-					for(int t=1; t<=NUMCPUS; t++){
+					for(int t=1; t<=NUMCPUS; t++)
+					{
 						if(schedule.get_task(i)->get_active(t) && schedule.get_task(j)->get_passive(t))
 						{
 							CPU_SET(t,&overlap);
@@ -328,7 +329,7 @@ void Scheduler::do_schedule(){
 								{
 										if(schedule.get_task(i)->transfers(l,k))
 										{
-												used=true;
+											used=true;
 										}
 								}   
 	
@@ -374,9 +375,6 @@ void Scheduler::do_schedule(){
 							CPU_SET(t, &second);
 				
 						}
-						
-						
-
                     }
 	
 					CPU_AND(&overlap, &first, &second);
@@ -417,6 +415,7 @@ void Scheduler::do_schedule(){
 							}
 						}
 					}
+
 					if(amount_gives > 0)
 					{
 						for(int k=NUMCPUS; k >=1; k--)

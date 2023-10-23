@@ -1,24 +1,29 @@
 #ifndef _CPPBAR_H
 #define _CPPBAR_H
-/* David Ferry - Sept 20, 2015
- *
- * This is a reenterable barrier that is designed for use with the mixed-
- * criticality federated scheduling system. It provides a single function
- * called mc_bar_wait that all threads call, which simplifies the interface,
- * and a separate function, mc_bar_to_high_crit that is called when the system
- * transitions to high criticality mode and releases extra high-criticality
- * threads.
- *
- * The primary problem this barrier solves is that the internal state of the
- * barrier can be changed at any time when high criticality mode is entered.
- * */
 
-/* Tyler Martin - October 23, 2023
+/*************************************************************************
 
-    rewriting C code to C++ code as intermediate step before replacing all
-    macros with atomic operations provided by the C++11 library
+bar.h
 
-*/
+This object This is a reenterable barrier that is designed for use with the
+discrete elastic scheduling system. It provides a single class
+called cppBar that all threads share, which contins a function, 
+mc_bar_to_high_crit that is called when the system transitions to high 
+criticality mode and releases extra high-criticality threads.
+
+The primary problem this barrier solves is that the internal state of the
+barrier can be changed at any time when high criticality mode is entered.
+
+
+Class : cppBar
+
+		This class implements the barrier in a c++ idiomatic way.
+        In the future, this class will implement atomic structures
+        and calls using locks and mutexes to synchronize processes.
+        
+        NOTE: an std::barrier is likely to replace this in the future
+
+**************************************************************************/
 
 #include <stdint.h>
 #include <stdbool.h>

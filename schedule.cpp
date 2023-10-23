@@ -9,9 +9,6 @@ Schedule::Schedule(std::string name_) : sharedMem(name_, READ_WRITE, MAXTASKS*si
 	{
 		((struct overhead *) sharedMem::getOverhead())->utility.store((int)0);
 	}
-	else
-	{
-	}
 }
 
 Schedule::~Schedule() {}

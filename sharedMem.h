@@ -1,9 +1,30 @@
 #ifndef _RT_SHARED_MEM_H_
 #define _RT_SHARED_MEM_H_
 
-//This object encapsulates the concept of a memory region shared between
-//processes. It provides for construction, access, and destruction of such
-//an object.
+/*************************************************************************
+
+SharedMem.h
+
+This object encapsulates the concept of a memory region shared between
+processes. It provides for construction, access, and destruction of such
+an object.
+
+Enum : access_mode 
+        This object encapsulates the concept of a memory region shared between
+        processes. It provides for construction, access, and destruction of such
+        an object.
+
+Struct : overhead
+
+        Values that we want to keep in the shared memory region for our own purposes
+
+Class : sharedMem
+
+        This class encapsulates the creation of and access to a region of shared
+        memory. Multiple processes can share this memory assuming they use the same
+        name and specify the same size (in bytes). 
+
+**************************************************************************/
 
 #include <sys/mman.h> //shm_open and mmap
 #include <sys/stat.h> //for mode constants
@@ -16,9 +37,9 @@
 #include <string>
 #include <atomic>
 
+
 enum access_mode {READ_ONLY, READ_WRITE};
 
-//Values that we want to keep in the shared memory region for our own purposes
 struct overhead {
 	int			num_tasks;
 	int 			init_lock;
@@ -27,9 +48,6 @@ struct overhead {
 	std::atomic<int>	utility; //count tasks
 };
 
-//This class encapsulates the creation of and access to a region of shared
-//memory. Multiple processes can share this memory assuming they use the same
-//name and specify the same size (in bytes). 
 class sharedMem{
 
 public:
