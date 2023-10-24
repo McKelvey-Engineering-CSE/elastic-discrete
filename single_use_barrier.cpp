@@ -8,6 +8,9 @@
 #include <errno.h>
 #include <time.h>
 
+#include <iostream>
+#include <cerrno>
+
 typedef struct
 {
 	unsigned value;
@@ -19,7 +22,7 @@ static volatile barrier_t *get_barrier(const char *name, int *error_flag)
 	int fd = shm_open(name, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 	if( fd == -1 )
 	{
-		perror("ERROR: single_use_barrier call to shm_open failed");
+		std::perror("ERROR: single_use_barrier call to shm_open failed");
 		*error_flag = RT_GOMP_SINGLE_USE_BARRIER_SHM_OPEN_FAILED_ERROR;
 		return NULL;
 	}
@@ -27,7 +30,7 @@ static volatile barrier_t *get_barrier(const char *name, int *error_flag)
 	int ret_val = ftruncate(fd, sizeof(barrier_t));
 	if( ret_val == -1 )
 	{
-		perror("ERROR: single_use_barrier call to ftruncate failed");
+		std::perror("ERROR: single_use_barrier call to ftruncate failed");
 		*error_flag = RT_GOMP_SINGLE_USE_BARRIER_FTRUNCATE_FAILED_ERROR;
 		return NULL;
 	}
@@ -35,7 +38,7 @@ static volatile barrier_t *get_barrier(const char *name, int *error_flag)
 	volatile barrier_t *barrier = (barrier_t *) mmap(NULL, sizeof(barrier_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (barrier == MAP_FAILED)
 	{
-		perror("ERROR: single_use_barrier call to mmap failed");
+		std::perror("ERROR: single_use_barrier call to mmap failed");
 		*error_flag = RT_GOMP_SINGLE_USE_BARRIER_MMAP_FAILED_ERROR;
 		return NULL;
 	}
@@ -43,7 +46,7 @@ static volatile barrier_t *get_barrier(const char *name, int *error_flag)
 	ret_val = close(fd);
 	if( ret_val == -1 )
 	{
-		perror("WARNING: single_use_barrier call to close file descriptor failed\n");
+		std::perror("WARNING: single_use_barrier call to close file descriptor failed\n");
 	}
 	
 	return barrier;
@@ -54,7 +57,7 @@ static void unmap_barrier(volatile barrier_t *barrier)
 	int ret_val = munmap((void *) barrier, sizeof(barrier_t));
 	if (ret_val == -1)
 	{
-		perror("WARNING: single_use_barrier call to munmap failed\n");
+		std::perror("WARNING: single_use_barrier call to munmap failed\n");
 	}
 }
 
@@ -65,7 +68,7 @@ static void destroy_barrier(const char *name)
 	// to destroy the barrier which is not a problem. Report any other errors.
 	if (ret_val == -1 && errno != ENOENT)
 	{
-		perror("WARNING: single_use_barrier call to shm_unlink failed\n");
+		std::perror("WARNING: single_use_barrier call to shm_unlink failed\n");
 	}
 }
 
@@ -73,7 +76,7 @@ int init_single_use_barrier(const char *name, unsigned value)
 {
 	if (value == 0)
 	{
-		fprintf(stderr, "ERROR: A barrier cannot be created for zero tasks");
+		std::cerr << "ERROR: A barrier cannot be created for zero tasks";
 		return RT_GOMP_SINGLE_USE_BARRIER_INVALID_VALUE_ERROR;
 	}
 	
