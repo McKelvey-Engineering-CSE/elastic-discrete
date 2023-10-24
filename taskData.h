@@ -1,5 +1,21 @@
 #ifndef _TASKDATA_H
 #define  _TASKDATA_H
+
+/*************************************************************************
+
+taskData.h
+
+This object returns a bunch of data about a given task... need to look at code
+more to come up with a better description than that
+
+
+Class : TaskData
+
+		Class that stores information related to a given task, as well as providing
+		getters and setters to modify those data points/values
+        
+**************************************************************************/
+
 #include <algorithm>
 #include <assert.h>
 #include <stdlib.h> 
