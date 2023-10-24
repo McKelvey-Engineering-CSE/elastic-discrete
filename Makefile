@@ -5,8 +5,6 @@ CLUSTERING_OBJECTS = single_use_barrier.o timespec_functions.o
 NIincludes = -I/usr/local/natinst/nidaqmxbase/include
 NIlibs=-lnidaqmxbase
 
-#all: clustering_distribution simple_task synthetic_task
-#all: clustering_distribution synthetic_task synthetic_task_gd synthetic_task_gd_extra
 all: clustering_distribution
 
 synthetic_task: synthetic_task.cpp
@@ -20,14 +18,7 @@ synthetic_task_gd_extra: synthetic_task_gd_extra.cpp
 
 bar.o: bar.cpp
 	$(CC) $(FLAGS) -c bar.cpp
-#synthetic_task_utilization: synthetic_task.cpp
-#       $(CC) $(FLAGS) -fopenmp synthetic_task.cpp utilization_calculator.o -o synthetic_task_utilization $(LIBS)
-#
-#       simple_task: simple_task.cpp
-#               $(CC) $(FLAGS) -fopenmp simple_task.cpp mode.o sharedMem.o task_manager.o bar.o -o simple_task $(LIBS)
-#               #simple_task_utilization: simple_task.cpp
-#       $(CC) $(FLAGS) -fopenmp simple_task.cpp utilization_calculator.o -o simple_task_utilization $(LIBS)
-#
+
 clustering_distribution: libclustering.a sharedMem.o schedule.o scheduler.o task.o taskData.o task_manager.o bar.o clustering_launcher synthetic_task james
 
 libclustering.a: $(CLUSTERING_OBJECTS)
@@ -56,10 +47,6 @@ schedule.o: schedule.cpp
 
 sharedMem.o: sharedMem.cpp
 	$(CC) $(FLAGS) -c sharedMem.cpp
-
-#mode.o: sharedMem.cpp mode.cpp
-#	$(CC) $(FLAGS) -c mode.cpp
-
 
 clustering_launcher: clustering_launcher.cpp
 	$(CC) $(FLAGS) taskData.o schedule.o scheduler.o sharedMem.o clustering_launcher.cpp -o clustering_launcher $(LIBS)
