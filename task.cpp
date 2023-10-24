@@ -11,7 +11,6 @@
 //#define DAVID
 
 inline void futex_sleep(){
-//	printf("SLEEPING\n");
 	old_futex_wait(&futex_val, 0);
 }
 
@@ -68,6 +67,5 @@ void mode_change_finish(){
 	printf("Thread %d spent %0.1fus in busy wait\n", cpus[omp_get_thread_num()], (end-start)*1000000.0);
 	#endif
 
-	//high_crit_cv.notify_all();
 }
 

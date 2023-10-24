@@ -11,15 +11,11 @@
 #include "timespec_functions.h"
 #include "include.h"
 
-//extern const int NUMCPUS = 31;//There is always 1 CPU set aside for the scheduler object.
-//extern const int MAXTASKS = 10;
-//extern const int MAXMODES = 10;
-
 class TaskData{
 private:
 	static int counter;
 	int index; //unique identifier
-	//int total_CPUs;
+	
 	bool changeable;
 	bool can_reschedule;
 	int num_adaptations;
@@ -65,12 +61,14 @@ private:
 	int give[MAXTASKS];
 	bool transfer[MAXTASKS][NUMCPUS+1];
 	bool receive[MAXTASKS][NUMCPUS+1];
+
 public:
+
 	TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_) : index(counter++), changeable(true), can_reschedule(false), num_adaptations(0),  elasticity(elasticity_), num_modes(num_modes_), max_utilization(0), max_CPUs(0), min_CPUs(NUMCPUS),  CPUs_gained(0), practical_max_utilization(max_utilization),  practical_max_CPUs(max_CPUs), current_lowest_CPU(-1), percentage_workload(1.0), current_period({0,0}), current_work({0,0}), current_span({0,0}), current_utilization(0.0), current_CPUs(0), previous_CPUs(0), permanent_CPU(-1), current_mode(0), max_work({0,0})
 	{
 		if(num_modes > MAXMODES)
 		{
-			fprintf(stderr, "ERROR: No task can have more than %d modes.\n",MAXMODES);
+			std::cerr << "ERROR: No task can have more than " << MAXMODES << " modes.\n";
 			kill(0, SIGTERM);
 		}
 
@@ -159,19 +157,13 @@ public:
 	
 	int get_CPUs_gained();
 	void set_CPUs_gained(int new_CPUs_gained);
+
 	int get_previous_CPUs();
 	void set_previous_CPUs(int new_prev);
 
 	void set_current_mode(int new_mode, bool disable);
-
-	//void set_current_work(timespec new_work, bool disable);
-	//void set_current_span(timespec new_work, bool disable);
-	//void set_current_period(timespec new_period, bool disable);
-
-	//void set_current_mode(int new_mode, bool disable);
 	int get_current_mode();
 
-	//void set_current_CPUs(int new_CPUs);
 	void reset_changeable();
 	void set_current_lowest_CPU(int _lowest);
 
@@ -186,7 +178,6 @@ public:
 
 	int get_permanent_CPU();
 	void set_permanent_CPU(int perm);
-	//assert deadline==current_period;
 	
 	void set_active(int i);
 	void clr_active(int i);
