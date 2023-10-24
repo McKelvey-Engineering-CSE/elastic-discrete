@@ -24,14 +24,13 @@
 #include <pthread.h>
 #include <atomic> //For std::atomic_bool
 #include <list>
-//#include "futexold.h"
+
 #include "bar.h" 
 #include <sys/types.h>
 #include <sys/syscall.h>
 #include <limits.h> //for INT MAX
 #include <map>
-//#include "taskData.h"
-//#include <map>
+
 #include "include.h"
 
 #define gettid() syscall(SYS_gettid)
@@ -52,10 +51,6 @@ using namespace std;
 #ifdef TRACING
 FILE * fd;
 #endif
-
-//extern const unsigned int NUMCPUS;//There is always 1 CPU set aside for the scheduler object.
-
-//mode_structure ms("apartec_ms");
 
 //There are one trillion nanoseconds in a second, or one with nine zeroes
 const unsigned nsec_in_sec = 1000000000; 
@@ -100,14 +95,11 @@ enum rt_gomp_task_manager_error_codes
 	RT_GOMP_TASK_MANAGER_ARG_COUNT_ERROR
 };
 
-time_t start_sec=0, end_sec=0;//, min_work_sec=0, max_work_sec=0, span_sec=0, tmin_sec=0, tmax_sec=0, deadline_sec=0, relative_release_sec=0;
-long start_nsec=0, end_nsec=0;//, min_work_nsec=0, max_work_nsec=0, span_nsec=0, tmin_nsec=0, tmax_nsec=0, deadline_nsec=0, relative_release_nsec=0;;
-timespec start_time, end_time, current_period, current_work, current_span, deadline;//, min_work, max_work, span, tmin, tmax, deadline, relative_release;
-//double elastic_coefficient=1.0;
-//int rtprio=1;
+time_t start_sec=0, end_sec=0;
+long start_nsec=0, end_nsec=0;
+timespec start_time, end_time, current_period, current_work, current_span, deadline;
 int iindex=-1;
 int current_mode = -1;
-
 unsigned num_iters=0;
 
 // Let scheduler know we need a rescheduling.
@@ -127,16 +119,14 @@ Schedule schedule(std::string("EFSschedule"));
 
 //has pthread_t at omp_thread index
 vector<pthread_t> threads;
+
 //tells which thread is on a CPU
 map<int, pthread_t> thread_locations;
 
 //tells OMP number of thread
 map<pthread_t, int> omp_thread_index;
 
-//unordered_map<pthread_t, bool> active_map;
-
-void sigrt0_handler(int signum){
-}
+void sigrt0_handler(int signum){}
 
 void reschedule();
 
@@ -170,24 +160,23 @@ void reschedule()
 			if(schedule.get_task(iindex)->transfers(i,j))
 			{
 				schedule.get_task(iindex)->clr_active(j);
-				//fprintf(stderr,"BLAHHH\n");
+				
 				schedule.get_task(iindex)->set_passive(j);
 				active[omp_thread_index[thread_locations[j]]] = false;
 	
 				global_param.sched_priority=SLEEP_PRIORITY;
-	                        ret_val = pthread_setschedparam(thread_locations[j], SCHED_RR, &global_param);
+	            ret_val = pthread_setschedparam(thread_locations[j], SCHED_RR, &global_param);
+
 				if(ret_val < 0)
-				{fprintf(stderr,"ERROR: could not set priority.\n");}
-				//fprintf(stderr,"MADE IT OUT!!");
+				{
+					std::cerr << "ERROR: could not set priority.\n";
+				}
+				
 			}
 			else if (schedule.get_task(iindex)->receives(i,j))
 			{
-				//fprintf(stderr,"BLAHHH2\n");	
 				if(schedule.get_task(iindex)->get_passive(j))
 				{
-					//fprintf(stderr,"BLAHHH3\n");
-					//CPU_CLR(j,schedule.get_task(iindex)->get_passive());
-                                	//CPU_SET(j,schedule.get_task(iindex)->get_active());
 					schedule.get_task(iindex)->clr_passive(j);
 					schedule.get_task(iindex)->set_active(j);
 
@@ -198,20 +187,19 @@ void reschedule()
 				}
 				else
 				{	
-					//fprintf(stderr,"%dBLAHHH4\n",iindex);
 					for(int k = NUMCPUS; k>=1 ; k--)
 					{
 						if(schedule.get_task(iindex)->get_passive(k))
 						{
 							for(int i=1; i<=NUMCPUS; i++)
 							{
-								std::cout << active[i] << std::endl;
+								std::cout << active[i] << "\n";
 							}	
-							std::cout << omp_thread_index[thread_locations[k]] << " " << thread_locations[k]  << " "  <<  k << std::endl;							
+
+							std::cout << omp_thread_index[thread_locations[k]] << " " << thread_locations[k]  << " "  <<  k << "\n";							
 
 							active[omp_thread_index[thread_locations[k]]] = true;
 							schedule.get_task(iindex)->clr_passive(k);
-							//schedule.get_task(iindex)->set_active(k);	
 	
 							thread_locations[j]=thread_locations[k];
 							thread_locations.erase(k);
@@ -220,8 +208,10 @@ void reschedule()
 							schedule.get_task(iindex)->set_active(j); 
 							global_param.sched_priority=7;
 							ret_val = pthread_setschedparam(thread_locations[j], SCHED_RR, &global_param);	
+
 							CPU_ZERO(&global_cpuset);
 							CPU_SET(j,&global_cpuset);
+
 							pthread_setaffinity_np(thread_locations[j],sizeof(cpu_set_t),&global_cpuset);
 
 							break;
@@ -235,8 +225,6 @@ void reschedule()
 	bar.mc_bar_reinit(schedule.get_task(iindex)->get_current_CPUs());		
 }
 
-//typedef struct sched_attr sched_attr;
-
 int main(int argc, char *argv[])
 {
 	fflush(stdout);
@@ -245,7 +233,7 @@ int main(int argc, char *argv[])
 	#ifdef TRACING
 	fd = fopen( "/sys/kernel/debug/tracing/trace_marker", "a" );
 	if( fd == NULL ){
-		perror("Error: TRACING is defined and you are not using trace-cmd.");
+		std::perror("Error: TRACING is defined and you are not using trace-cmd.");
 		return -1;
 	}
 	#endif
@@ -257,7 +245,7 @@ int main(int argc, char *argv[])
 		command_string += argv[i];
 	}
 
-	fprintf(stderr, "Task %d started with command string:\n>%s\n", getpid(), command_string.c_str());
+	std::cerr << "Task " << getpid() << " started with command string:\n>" << command_string.c_str() << "\n";
 
 	//Get our own PID and store it
 	mypid = getpid();
@@ -271,13 +259,13 @@ int main(int argc, char *argv[])
 	void (*ret_handler)(int);
 	ret_handler = signal(SIGRTMIN+0, sigrt0_handler);
 	if( ret_handler == SIG_ERR ){
-		fprintf(stderr,"ERROR: Call to Signal failed, reason: %s\n", strerror(errno));
+		std::cerr << "ERROR: Call to Signal failed, reason: " << strerror(errno) << "\n";
 		exit(-1);
 	}
 
 	ret_handler = signal(SIGRTMIN+1, sigrt1_handler);
 	if( ret_handler == SIG_ERR ){
-		fprintf(stderr,"ERROR: Call to Signal failed, reason: %s\n", strerror(errno));
+		std::cerr << "ERROR: Call to Signal failed, reason: " << strerror(errno) << "\n";
 		exit(-1);
 	}
 
@@ -289,11 +277,10 @@ int main(int argc, char *argv[])
 		(std::istringstream(argv[3]) >> end_sec) &&
         (std::istringstream(argv[4]) >> end_nsec) &&
 		(std::istringstream(argv[5]) >> iindex)))
-		
 	{
-		fprintf(stderr, "ERROR: Cannot parse input argument for task %s", task_name);
-                kill(0, SIGTERM);
-                return RT_GOMP_TASK_MANAGER_ARG_PARSE_ERROR;
+		std::cerr << "ERROR: Cannot parse input argument for task " << task_name << "\n";
+		kill(0, SIGTERM);
+		return RT_GOMP_TASK_MANAGER_ARG_PARSE_ERROR;
 	}
 
 	start_time = {start_sec, start_nsec};
@@ -303,13 +290,11 @@ int main(int argc, char *argv[])
 	int task_argc = argc - 7;                                             
 	char **task_argv = &argv[7];
 
-	//fprintf(stderr, "%s : %d : %s\n",barrier_name, task_argc, task_argv[0]); 
-	//fprintf(stderr, "Task %s reached scheduling barrier\n", task_name);
 	//Wait at barrier for the other tasks but mainly to make sure scheduler has finished
 	ret_val = await_single_use_barrier("RT_GOMP_CLUSTERING_BARRIER2");
 	if (ret_val != 0)
 	{
-		fprintf(stderr, "ERROR: Barrier error for task %s", task_name);
+		std::cerr << "ERROR: Barrier error for task " << task_name << "\n";
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_BARRIER_ERROR;
 	}
@@ -328,7 +313,7 @@ int main(int argc, char *argv[])
 	
 	{
 	lock_guard<mutex> lk(con_mut);
-	fprintf(stderr, "Task %d lowest CPU: %d, currentCPUS, %d minCPUS: %d, maxCPUS: %d, practical max: %d, %ldns\n",getpid(), schedule.get_task(iindex)->get_current_lowest_CPU(), schedule.get_task(iindex)->get_current_CPUs(), schedule.get_task(iindex)->get_min_CPUs(), schedule.get_task(iindex)->get_max_CPUs(), schedule.get_task(iindex)->get_practical_max_CPUs(), schedule.get_task(iindex)->get_current_period().tv_nsec);
+	std::cerr << "Task " << getpid() << " lowest CPU: " << schedule.get_task(iindex)->get_current_lowest_CPU() << ", currentCPUS, " << schedule.get_task(iindex)->get_current_CPUs() << " minCPUS: " << schedule.get_task(iindex)->get_min_CPUs() << ", maxCPUS: " << schedule.get_task(iindex)->get_max_CPUs() << ", practical max: " << schedule.get_task(iindex)->get_practical_max_CPUs() << ", " << schedule.get_task(iindex)->get_current_period().tv_nsec << "ns\n";
 	}
 
 	struct sched_param param;
@@ -336,14 +321,15 @@ int main(int argc, char *argv[])
 	ret_val = sched_setscheduler(getpid(), SCHED_RR, &param);
 	if (ret_val != 0)
 	{
- 		fprintf(stderr,"WARNING: %d  Could not set priority. Returned %d (%s)\n", getpid(), errno, strerror(errno));
+ 		std::cerr << "WARNING: " << getpid() << " Could not set priority. Returned: " << errno << "  (" << strerror(errno) << ")\n";
 	}
 
 	// OMP settings
+	//NOTE: LOOK BACK AT THIS DURING UPGRADE PROCEDURE
 	omp_set_nested(0);
 	omp_set_dynamic(0);
 	omp_set_schedule(omp_sched_dynamic, 1);	
-	//num_threads = schedule.get_task(iindex)->get_max_CPUs();
+
 	num_threads = schedule.get_task(iindex)->get_practical_max_CPUs();
 	omp_set_num_threads(num_threads);
 
@@ -360,7 +346,6 @@ int main(int argc, char *argv[])
 	threads.reserve(NUMCPUS);
 	#pragma omp parallel
 	{
-		//lock_guard<mutex> lk(con_mut);
 		threads[omp_get_thread_num()]=pthread_self();
 		omp_thread_index[pthread_self()]=omp_get_thread_num();	
 	}
@@ -385,10 +370,13 @@ int main(int argc, char *argv[])
 			global_param.sched_priority=7;
             ret_val = pthread_setschedparam(threads[j], SCHED_RR, &global_param);
 			thread_locations[p]=threads[j];
-			fprintf(stderr,"%d setting %d to active.\n",iindex,p);
+
+			std::cerr << iindex <<" setting " << p << " to active.\n";
+
 			schedule.get_task(iindex)->set_active(p);
 			CPU_ZERO(&global_cpuset);
 			CPU_SET(p,&global_cpuset);
+
 			pthread_setaffinity_np(threads[j],sizeof(cpu_set_t),&global_cpuset);
  
 		}
@@ -397,14 +385,19 @@ int main(int argc, char *argv[])
 		{
 			active[j] = false;
 			//What processor does it go on?
+
             int p = (schedule.get_task(iindex)->get_current_lowest_CPU() + j -1) % (NUMCPUS) + 1;
 			global_param.sched_priority=SLEEP_PRIORITY;
-                        ret_val = pthread_setschedparam(threads[j], SCHED_RR, &global_param);	
+            ret_val = pthread_setschedparam(threads[j], SCHED_RR, &global_param);	
+
 			thread_locations[p]=threads[j];
 			schedule.get_task(iindex)->set_passive(p);
-			fprintf(stderr,"%d setting %d to passive.\n",iindex,p);
+
+			std::cerr << iindex << " setting " << p << " to passive.\n";
+
 			CPU_ZERO(&global_cpuset);
 			CPU_SET(p,&global_cpuset);
+
 			pthread_setaffinity_np(threads[j],sizeof(cpu_set_t),&global_cpuset);
 
 		}
@@ -424,27 +417,29 @@ int main(int argc, char *argv[])
 		ret_val = task.init(task_argc, task_argv);
 		if (ret_val != 0)
 		{
-			fprintf(stderr, "ERROR: Task initialization failed for task %s", task_name);
+			std::cerr <<  "ERROR: Task initialization failed for task " << task_name <<"\n";
 			kill(0, SIGTERM);
 			return RT_GOMP_TASK_MANAGER_INIT_TASK_ERROR;
 		}
 	}
 	
-	fprintf(stderr, "Task %s reached barrier\n", task_name);
+	std::cerr <<  "Task " << task_name << " reached barrier\n";
+
 	// Wait at barrier for the other tasks
 	ret_val = await_single_use_barrier(barrier_name);
 	if (ret_val != 0)
 	{
-		fprintf(stderr, "ERROR: Barrier error for task %s", task_name);
+		std::cerr <<  "ERROR: Barrier error for task " << task_name << "\n";
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_BARRIER_ERROR;
 	}
 	
 	//Don't go until it's time.
+	//NOTE: POTENTIAL WASTE OF TIME, BARRIERS MAY BE BETTER
 	timespec current_time;
 	do {
 		 get_time(&current_time);
-	}while(current_time < start_time);
+	} while(current_time < start_time);
 	//Grab a timestamp at the start of real-time operation
 
 	// Initialize timing controls
@@ -453,11 +448,9 @@ int main(int argc, char *argv[])
 	get_time(&correct_period_start);
 	timespec max_period_runtime = { 0, 0 };
 	uint64_t total_nsec = 0;
-	//timespec tmp1, tmp2, tmp3;
 
 	while(current_time < end_time)	
 	{
-		//fprintf(stderr, "current time {%lds,%ldns}. end time {%lds,%ldns}",current_time.tv_sec,current_time.tv_nsec,end_time.tv_sec,end_time.tv_nsec);
 		if(schedule.get_task(iindex))
 		{
 			num_iters++;
@@ -486,12 +479,13 @@ int main(int argc, char *argv[])
 		get_time(&period_finish);
 		if (ret_val != 0)
 		{
-			fprintf(stderr, "ERROR: Task run failed for task %s", task_name);
+			std::cerr << "ERROR: Task run failed for task " << task_name<< "\n";
 			return RT_GOMP_TASK_MANAGER_RUN_TASK_ERROR;
 		}
 		
 		// Check if the task finished before its deadline and record the maximum running time
 		ts_diff(correct_period_start, period_finish, period_runtime);
+
 		if (period_runtime > deadline) 
 		{
 			deadlines_missed += 1;
@@ -506,6 +500,7 @@ int main(int argc, char *argv[])
 		{
 			missed_dl=false;
 		}
+
 		if (period_runtime > max_period_runtime) max_period_runtime = period_runtime;
 		total_nsec += period_runtime.tv_nsec + nsec_in_sec * period_runtime.tv_sec;
 
@@ -516,6 +511,7 @@ int main(int argc, char *argv[])
 		if(needs_reschedule)
 		{       
 			bool ready = true;
+
 			//Check other tasks to see if this task can transition yet. It can iff it is giving up a CPU, or is gaining a CPU that has been given up.
 			for(int i=0; i<schedule.count(); i++)
 			{
@@ -523,7 +519,6 @@ int main(int argc, char *argv[])
 				{
 					if ((schedule.get_task(i)->transfers(iindex,j)))
 					{
-						//fprintf(stderr,"I'm task %d and I'm supposed to be getting CPU %d from task %d\n",iindex,j,i);
 						if((schedule.get_task(i))->get_num_adaptations() <=  (schedule.get_task(iindex))->get_num_adaptations())
 						{
 							ready = false;
@@ -541,18 +536,20 @@ int main(int argc, char *argv[])
 
 				reschedule();
 				
-				fprintf( stderr, "thread %d: finished reschedule\n", iindex);	
+				std::cerr << "thread " << iindex<< ": finished reschedule\n";	
+
 				#ifdef TRACING
 				fprintf( fd, "thread %d: finished reschedule\n", getpid());
 				fflush( fd );
 				#endif
+
 				schedule.get_task(iindex)->set_num_adaptations(schedule.get_task(iindex)->get_num_adaptations()+1);
 				needs_reschedule = false;
 			}
 			else
 			{
 				//Gaining a processor that wasn't ready yet.
-				fprintf(stderr,"task %d can't reschedule!\n",getpid());
+				std::cerr << "task " << getpid() << " can't reschedule!\n";
 			}
 		}
 
@@ -566,26 +563,27 @@ int main(int argc, char *argv[])
 	
 	if (ret_val != 0)
 	{
-		perror("WARNING: Could not set FINALIZE_PRIORITY");
+		std::perror("WARNING: Could not set FINALIZE_PRIORITY");
 	}
 	
-	// Finalize the task
 	#ifdef TRACING
 	fclose(fd);
 	#endif
+
+	// Finalize the task
 	if (schedule.get_task(iindex) && task.finalize != NULL) 
 	{
 		ret_val = task.finalize(task_argc, task_argv);
 		if (ret_val != 0)
 		{
-			fprintf(stderr, "WARNING: Task finalization failed for task %s\n", task_name);
+			std::cerr <<  "WARNING: Task finalization failed for task " << task_name << "\n";
 		}
 	}
 
 	//Print out useful information.
-	fprintf(stderr,"(%d) Deadlines missed for task %s: %d/%d\n", mypid, task_name, deadlines_missed, num_iters);
-	fprintf(stderr,"(%d) Max running time for task %s: %i sec  %lu nsec\n", mypid, task_name, (int)max_period_runtime.tv_sec, max_period_runtime.tv_nsec);
-	fprintf(stderr,"(%d) Avg running time for task %s: %0.6f  msec\n", mypid, task_name, (total_nsec/(num_iters))/1000000.0);
+	std::cerr << "(" << mypid << ") Deadlines missed for task " << task_name << ": " << deadlines_missed << "/" << num_iters << "\n";
+	std::cerr << "(" << mypid << ") Max running time for task " << task_name << ": " << (int)max_period_runtime.tv_sec << " sec  " << max_period_runtime.tv_nsec << " nsec\n";
+	std::cerr << "(" << mypid << ") Avg running time for task " << task_name << ": " << (total_nsec/(num_iters))/1000000.0 << " msec\n";
 
 	
 	#ifdef PER_PERIOD_VERBOSE

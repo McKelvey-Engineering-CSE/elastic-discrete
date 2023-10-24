@@ -36,7 +36,7 @@ libclustering.a: $(CLUSTERING_OBJECTS)
 task.o: task.cpp
 	$(CC) $(FLAGS) -c task.cpp
 
-task_manager.o: schedule.cpp schedule.cpp sharedMem.c task_manager.cpp
+task_manager.o: schedule.cpp schedule.cpp sharedMem.cpp task_manager.cpp
 	$(CC) $(FLAGS) -fopenmp -c task_manager.cpp
 
 single_use_barrier.o: single_use_barrier.cpp
@@ -54,10 +54,10 @@ taskData.o: taskData.cpp
 schedule.o: schedule.cpp
 	$(CC) $(FLAGS) -c schedule.cpp
 
-sharedMem.o: sharedMem.c
-	$(CC) $(FLAGS) -c sharedMem.c
+sharedMem.o: sharedMem.cpp
+	$(CC) $(FLAGS) -c sharedMem.cpp
 
-#mode.o: sharedMem.c mode.cpp
+#mode.o: sharedMem.cpp mode.cpp
 #	$(CC) $(FLAGS) -c mode.cpp
 
 
