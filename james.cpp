@@ -6,6 +6,7 @@ int init(int argc, char *argv[])
 }
 
 int run(int argc, char *argv[]){
+	//*(int * ) 0 = 0;
 	return 0;
 }
 
