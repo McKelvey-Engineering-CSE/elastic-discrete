@@ -52,6 +52,12 @@ using namespace std;
 FILE * fd;
 #endif
 
+//testing capturing faults and notifying before simply dying
+void exit_on_signal(int sig){
+	std::cerr << "Signal captured " << strsignal(sig) << ". Program cannot continue. Exiting.\n";
+	exit(-1);
+}
+
 //There are one trillion nanoseconds in a second, or one with nine zeroes
 const unsigned nsec_in_sec = 1000000000; 
 
@@ -229,6 +235,13 @@ int main(int argc, char *argv[])
 {
 	fflush(stdout);
 	fflush(stderr);
+
+	//setup the capture handlers
+	signal(SIGSEGV, exit_on_signal);
+	signal(SIGTERM, exit_on_signal);
+	signal(SIGABRT, exit_on_signal);
+	signal(SIGILL, exit_on_signal);
+	signal(SIGFPE, exit_on_signal);
 
 	#ifdef TRACING
 	fd = fopen( "/sys/kernel/debug/tracing/trace_marker", "a" );
