@@ -22,7 +22,7 @@ Allows for operator overloading
 in the future for printing without encroaching
 on how the printing is handled. Could be replaced
 with C++ 20 idiomatic methods, but I want to keep
-this all C++17 at the absolute worsttime when high criticality mode is entered.
+this all C++17 at the absolute worst
 
 
 Function : cprint(args...)
