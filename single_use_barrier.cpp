@@ -11,6 +11,8 @@
 #include <iostream>
 #include <cerrno>
 
+#include "print.h"
+
 typedef struct
 {
 	unsigned value;
@@ -76,7 +78,7 @@ int init_single_use_barrier(const char *name, unsigned value)
 {
 	if (value == 0)
 	{
-		std::cerr << "ERROR: A barrier cannot be created for zero tasks";
+		print(std::cerr, "ERROR: A barrier cannot be created for zero tasks\n");
 		return RT_GOMP_SINGLE_USE_BARRIER_INVALID_VALUE_ERROR;
 	}
 	

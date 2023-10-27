@@ -26,6 +26,7 @@ Class : TaskData
 #include <vector>
 #include "timespec_functions.h"
 #include "include.h"
+#include "print.h"
 
 class TaskData{
 private:
@@ -84,7 +85,7 @@ public:
 	{
 		if(num_modes > MAXMODES)
 		{
-			std::cerr << "ERROR: No task can have more than " << MAXMODES << " modes.\n";
+			print(std::cerr, "ERROR: No task can have more than ", MAXMODES,  " modes.\n");
 			kill(0, SIGTERM);
 		}
 

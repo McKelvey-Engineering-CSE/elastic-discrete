@@ -3,6 +3,8 @@
 #include <sys/types.h>
 #include <iostream>
 
+#include "print.h"
+
 //Guards are placed before and after the allocated shared memory region so we
 //can periodically check for memory stomping, value is randomly generated
 #define GUARD_VALUE  266684235
@@ -51,7 +53,7 @@ sharedMem::sharedMem(std::string name, access_mode mode, size_t size_bytes) {
 	//length will be less than 255, and that there is exactly one forward
 	//slash at the start of the string. If there is not, we append it there.
 	if( name.length() > 253 ){
-		printf("FATAL: Shared memory handle must be less than 253 characters!\n");
+		print(std::cout, "FATAL: Shared memory handle must be less than 253 characters!\n");
 		exit(INVALID_HANDLE);
 	}
 	
@@ -60,7 +62,7 @@ sharedMem::sharedMem(std::string name, access_mode mode, size_t size_bytes) {
 
 	//Check that there is only one forwards slash in the name
 	if(proper.find(std::string("/"), 1) != std::string::npos){
-		printf("FATAL: Shared memory handle must contain at most one forward slash, which if present must be the first character.\n");
+		print(std::cout, "FATAL: Shared memory handle must contain at most one forward slash, which if present must be the first character.\n");
 		exit(INVALID_HANDLE);
 	}
 
@@ -94,7 +96,7 @@ sharedMem::sharedMem(std::string name, access_mode mode, size_t size_bytes) {
 		this->owner = false;
 		fd = shm_open( proper.c_str(), shm_open_access, fd_access_mode);
 		if( fd == -1 ){ //If creation still fail then something is wrong
-			std::cerr << "FATAL: shm_open failed! Reason: " << strerror(errno) << "\n";
+			print(std::cerr, "FATAL: shm_open failed! Reason: ", strerror(errno), "\n");
 			exit(CREATION_FAILURE);
 		}
 	} else { //creation succeeded, resize the file area, set self as owner
@@ -102,7 +104,7 @@ sharedMem::sharedMem(std::string name, access_mode mode, size_t size_bytes) {
 		size_t trunc_size = 4096 * ((real_size/4096) + 1);		
 		int ret_val = ftruncate(fd, trunc_size);
 		if ( ret_val == -1 ){
-			std::cerr << "FATAL: File descriptor could not be resized! Reason: " << strerror(errno) << "\n";
+			print(std::cerr, "FATAL: File descriptor could not be resized! Reason: ", strerror(errno), "\n");
 			exit(RESIZE_FAILURE);
 		}
 	}
@@ -118,7 +120,7 @@ sharedMem::sharedMem(std::string name, access_mode mode, size_t size_bytes) {
 
 	void* retptr = mmap(NULL, real_size, mmap_prot, mmap_flags, fd, 0);
 	if( retptr == MAP_FAILED ){
-		std::cerr << "FATAL: Call to mmap failed! Reason: " << strerror(errno) << " \n";
+		print(std::cerr, "FATAL: Call to mmap failed! Reason: ", strerror(errno), " \n");
 		exit(MAP_FAILURE);
 	}
 
