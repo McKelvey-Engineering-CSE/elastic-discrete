@@ -97,7 +97,7 @@ public:
 		}			
 		for(int i=0; i<num_modes; i++)
 		{	
-			std::cout << work[i] << " " << span[i] << " " << period[i] << std::endl;	
+			print(std::cout, work[i], " ", span[i], " ", period[i], "\n");	
 		}	
 
 		timespec numerator;
