@@ -4,12 +4,18 @@
 #include <condition_variable>
 #include <atomic>
 #include <mutex>
+#include <shared_mutex>
 #include <iostream>
 
+#include "print.h"
+
 class latch {
+
+public:
     std::atomic<int> counter;
     std::condition_variable cv_;
     std::mutex mut_;
+    std::shared_mutex mut_update_;
 
 public:
 

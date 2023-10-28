@@ -12,14 +12,15 @@
 #include <cerrno>
 
 #include "print.h"
+#include "latch.h"
 
 typedef struct
 {
 	unsigned value;
 }
-barrier_t;
+we;
 
-static volatile barrier_t *get_barrier(const char *name, int *error_flag)
+static latch *get_barrier(const char *name, int *error_flag)
 {
 	int fd = shm_open(name, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 	if( fd == -1 )
@@ -29,7 +30,7 @@ static volatile barrier_t *get_barrier(const char *name, int *error_flag)
 		return NULL;
 	}
 
-	int ret_val = ftruncate(fd, sizeof(barrier_t));
+	int ret_val = ftruncate(fd, sizeof(latch));
 	if( ret_val == -1 )
 	{
 		std::perror("ERROR: single_use_barrier call to ftruncate failed");
@@ -37,7 +38,8 @@ static volatile barrier_t *get_barrier(const char *name, int *error_flag)
 		return NULL;
 	}
 
-	volatile barrier_t *barrier = (barrier_t *) mmap(NULL, sizeof(barrier_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	latch *barrier = static_cast<latch*>(mmap(NULL, sizeof(latch), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
+
 	if (barrier == MAP_FAILED)
 	{
 		std::perror("ERROR: single_use_barrier call to mmap failed");
@@ -54,9 +56,9 @@ static volatile barrier_t *get_barrier(const char *name, int *error_flag)
 	return barrier;
 }
 
-static void unmap_barrier(volatile barrier_t *barrier)
+static void unmap_barrier( latch *barrier)
 {
-	int ret_val = munmap((void *) barrier, sizeof(barrier_t));
+	int ret_val = munmap((void *) barrier, sizeof(latch));
 	if (ret_val == -1)
 	{
 		std::perror("WARNING: single_use_barrier call to munmap failed\n");
@@ -83,10 +85,10 @@ int init_single_use_barrier(const char *name, unsigned value)
 	}
 	
 	int error_flag = 0;
-	volatile barrier_t *barrier = get_barrier(name, &error_flag);
+	latch *barrier = get_barrier(name, &error_flag);
 	if (error_flag == 0)
 	{
-		barrier->value = value;
+		barrier->init_latch(value);
 		unmap_barrier(barrier);
 	}
 	
@@ -96,19 +98,15 @@ int init_single_use_barrier(const char *name, unsigned value)
 int await_single_use_barrier(const char *name)
 {
 	int error_flag = 0;
-	volatile barrier_t *barrier = get_barrier(name, &error_flag);
+	 latch *barrier = get_barrier(name, &error_flag);
 	if (error_flag == 0)
 	{
-		// Decrement the value of the barrier
-		__sync_add_and_fetch(&(barrier->value), -1);
-		
-		// Sleep until the value of the barrier reaches zero
-		timespec sleep_time = {0, 500000}; // half millisecond
-		while (barrier->value > 0){
-			nanosleep(&sleep_time, NULL);	
-		}
+		print(std::cout, "waiting at latch: ", name, "\nBarrier Value:", barrier->counter, "\n");
+
+		barrier->arrive_and_wait();
 		
 		unmap_barrier(barrier);
+
 		// Processes race to destroy the barrier. The race is semantically harmless.
 		destroy_barrier(name);
 	}
