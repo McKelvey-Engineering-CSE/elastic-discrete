@@ -16,7 +16,7 @@
 #include <fstream>
 #include "task.h"
 #include "schedule.h"
-#include "single_use_barrier.h"
+#include "process_barrier.h"
 #include "timespec_functions.h"
 #include <signal.h>
 #include <time.h>
@@ -305,8 +305,8 @@ int main(int argc, char *argv[])
 	char **task_argv = &argv[7];
 
 	//Wait at barrier for the other tasks but mainly to make sure scheduler has finished
-	ret_val = await_single_use_barrier("RT_GOMP_CLUSTERING_BARRIER2");
-	if (ret_val != 0)
+	
+	if ((ret_val = process_barrier::await_and_destroy_barrier("RT_GOMP_CLUSTERING_BARRIER2")) != 0)
 	{
 		print(std::cerr,  "ERROR: Barrier error for task " , task_name , "\n");
 		kill(0, SIGTERM);
@@ -440,8 +440,7 @@ int main(int argc, char *argv[])
 	print(std::cerr,   "Task " , task_name , " reached barrier\n");
 
 	// Wait at barrier for the other tasks
-	ret_val = await_single_use_barrier(barrier_name);
-	if (ret_val != 0)
+	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name)) != 0)
 	{
 		print(std::cerr,   "ERROR: Barrier error for task " , task_name , "\n");
 		kill(0, SIGTERM);

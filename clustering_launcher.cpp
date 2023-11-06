@@ -10,7 +10,7 @@
 #include <thread>
 #include <cerrno>
 
-#include "single_use_barrier.h"
+#include "process_barrier.h"
 #include "timespec_functions.h"
 #include "scheduler.h"
 #include "print.h"
@@ -50,8 +50,7 @@ void scheduler_task()
 	pthread_setaffinity_np(pthread_self(),sizeof(cpu_set_t),&mask);
 
 	//Make sure all tasks are ready. Wait at barrier.
-	ret_val = await_single_use_barrier(barrier_name.c_str());
-	if (ret_val != 0)
+	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name.c_str())) != 0)
 	{
 		print(std::cerr, "ERROR: Barrier error for scheduling task.\n");
 		kill(0, SIGTERM);
@@ -101,7 +100,7 @@ int main(int argc, char *argv[])
 	process_group = getpgrp();
 	std::vector<std::string> args(argv, argv+argc);
 
-	int ret_val;
+	//int ret_val;
 
 	//Set up a signal handler for SIGRT0
 	void (*ret_handler)(int);
@@ -196,15 +195,13 @@ int main(int argc, char *argv[])
 	ifs.seekg(0, std::ios::beg);
 	
 	// Initialize a barrier to synchronize the tasks after creation
-	ret_val = init_single_use_barrier(barrier_name.c_str(), num_tasks + 1); //Added +1 for scheduler thread. JO 6/22/18
-	if (ret_val != 0)
+	if (process_barrier::create_process_barrier(barrier_name.c_str(), num_tasks + 1) == nullptr)
 	{
 		print(std::cerr, "ERROR: Failed to initialize barrier.\n");
 		return RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR;
 	}
 
-	ret_val = init_single_use_barrier(barrier_name2.c_str(), num_tasks + 1);
-	if (ret_val != 0)
+	if (process_barrier::create_process_barrier(barrier_name2.c_str(), num_tasks + 1) == nullptr)
 	{
 		print(std::cerr, "ERROR: Failed to initialize barrier.\n");
 		return RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR;
@@ -373,9 +370,10 @@ int main(int argc, char *argv[])
 	}
 
 	scheduler->do_schedule();
-
-	//print(std::cerr, "Scheduler reached scheduling barrier.");	
-	if ((ret_val = await_single_use_barrier(barrier_name2.c_str())) != 0)
+	
+	int get_val=0;
+	process_barrier::get_process_barrier(barrier_name2.c_str(), &get_val);
+	if (get_val != 0)
 	{
 		print(std::cerr, "ERROR: Barrier error for scheduling task \n");
 		kill(0, SIGTERM);

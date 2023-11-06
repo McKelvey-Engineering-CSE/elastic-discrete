@@ -46,7 +46,7 @@ public:
     explicit latch(std::size_t incount, std::function<void()> inret_func, bool all) : count(incount), ret_function(inret_func), scheduler_only(all), execute_function(true) { }
 
     //reinit for barrier mode
-	void init_latch(int in);
+	void init(int in);
 
     //arrive at the barrier and wait
     void arrive_and_wait();

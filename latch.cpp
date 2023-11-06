@@ -1,6 +1,6 @@
 #include "latch.h"
 
-void latch::init_latch(int in){
+void latch::init(int in){
     std::lock_guard<std::mutex> lock(mut);
     count = in;
 }
