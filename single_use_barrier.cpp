@@ -38,7 +38,7 @@ static latch *get_barrier(const char *name, int *error_flag)
 		return NULL;
 	}
 
-	latch *barrier = static_cast<latch*>(mmap(NULL, sizeof(latch), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
+	latch *barrier = new ((mmap(NULL, sizeof(latch), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, fd, 0))) latch(1);
 
 	if (barrier == MAP_FAILED)
 	{
@@ -101,13 +101,13 @@ int await_single_use_barrier(const char *name)
 	 latch *barrier = get_barrier(name, &error_flag);
 	if (error_flag == 0)
 	{
-		print(std::cout, "waiting at latch: ", name, "\nBarrier Value:", barrier->counter, "\n");
 
 		barrier->arrive_and_wait();
 		
 		unmap_barrier(barrier);
 
 		// Processes race to destroy the barrier. The race is semantically harmless.
+		// Tyler - still not sure about this
 		destroy_barrier(name);
 	}
 	

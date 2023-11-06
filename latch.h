@@ -9,34 +9,24 @@
 
 #include "print.h"
 
-class latch {
+class latch 
+{
+
+std::mutex mut;
+std::condition_variable cv;
+std::size_t count;
 
 public:
-    std::atomic<int> counter;
-    std::condition_variable cv_;
-    std::mutex mut_;
-    std::shared_mutex mut_update_;
 
-public:
+    //construct latch
+    explicit latch(std::size_t incount) : count(incount) { }
 
-    //Allow construction of a latch without a known
-    //size to begin with.
-    latch(int value = 1) : counter(value) {}
+    //reinit for barrier mode
+	void init_latch(int in);
 
-    //reset our value (I know this is actually a barrier now, but whatever)
-    void init_latch(int value);
-
-    //decrement counter
-    void count_down();
-
-    //just returns whether or not the barrier is set
-    bool try_wait();
-
-    //stall at barrier without dec
-    void wait();
-
-    //arrive at barrier, dec and wait
+    //arrive at the barrier and wait
     void arrive_and_wait();
 };
+
 
 #endif

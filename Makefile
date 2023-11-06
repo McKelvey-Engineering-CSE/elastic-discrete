@@ -1,4 +1,4 @@
-CC = g++ -std=c++20 -O0
+CC = g++ -std=c++14 -O0
 FLAGS = -Wall -g -gdwarf-3
 LIBS = -L. -lrt -lm -lclustering -fopenmp
 CLUSTERING_OBJECTS = single_use_barrier.o latch.o timespec_functions.o
