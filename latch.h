@@ -6,6 +6,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <iostream>
+#include <functional>
 
 #include "print.h"
 
@@ -22,7 +23,7 @@ scheduler mode, where only the scheduling process/thread executes the exit
 function, or on a per-thread basis where each process/thread executes the 
 function as it leaves.
 
-Objects : latch
+Objects : latch <template>
 
 **************************************************************************/
 
@@ -32,17 +33,26 @@ class latch
 std::mutex mut;
 std::condition_variable cv;
 std::size_t count;
+std::function<void()> ret_function;
+bool scheduler_only = true;
+bool execute_function = false;
 
 public:
 
     //construct latch
+    explicit latch() : count(1) { }
     explicit latch(std::size_t incount) : count(incount) { }
+    explicit latch(std::size_t incount, std::function<void()> inret_func) : count(incount), ret_function(inret_func), execute_function(true) { }
+    explicit latch(std::size_t incount, std::function<void()> inret_func, bool all) : count(incount), ret_function(inret_func), scheduler_only(all), execute_function(true) { }
 
     //reinit for barrier mode
 	void init_latch(int in);
 
     //arrive at the barrier and wait
     void arrive_and_wait();
+
+    //execute return function
+    void return_function();
 };
 
 

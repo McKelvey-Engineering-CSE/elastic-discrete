@@ -18,4 +18,24 @@ void latch::arrive_and_wait()
     else {
         cv.wait(lock, [this] { return count == 0;});
     }
+
+    //handle return function
+    return_function();
+}
+
+void latch::return_function(){
+
+    if (execute_function){
+
+        print(std::cerr, "running exit function\n");
+
+        //if "scheduler" is the only one doing it
+        if (scheduler_only){
+            return;
+        }
+
+        else{
+            ret_function();
+        }
+    }
 }

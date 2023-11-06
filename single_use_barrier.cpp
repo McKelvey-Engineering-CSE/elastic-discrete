@@ -98,7 +98,7 @@ int init_single_use_barrier(const char *name, unsigned value)
 int await_single_use_barrier(const char *name)
 {
 	int error_flag = 0;
-	 latch *barrier = get_barrier(name, &error_flag);
+	latch *barrier = get_barrier(name, &error_flag);
 	if (error_flag == 0)
 	{
 
