@@ -16,10 +16,10 @@
 
 
 //static function to create a new process_barrier
-process_barrier* process_barrier::create_process_barrier(std::string barrier_name, int num_tasks){
+process_barrier* process_barrier::create_process_barrier(std::string barrier_name, int num_tasks, std::function<void()> infunction, bool inall, bool inexecution){
 
 	int ret_val = 0;
-	process_barrier* barrier = get_process_barrier(barrier_name.c_str(), &ret_val);
+	process_barrier* barrier = get_process_barrier(barrier_name.c_str(), &ret_val, infunction, inall, inexecution);
 
 	if (ret_val == -1){
 		std::perror("FAILURE: creation of a process barrier has failed. Program will now exit\n");
@@ -32,7 +32,7 @@ process_barrier* process_barrier::create_process_barrier(std::string barrier_nam
 }
 
 //static function to grab a barrier from shared memory based on the name
-process_barrier* process_barrier::get_process_barrier(std::string inname, int *error_flag)
+process_barrier* process_barrier::get_process_barrier(std::string inname, int *error_flag, std::function<void()> infunction, bool inall, bool inexecution)
 {
 
 	int fd = shm_open(inname.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
@@ -51,7 +51,7 @@ process_barrier* process_barrier::get_process_barrier(std::string inname, int *e
 		return nullptr;
 	}
 
-	process_barrier *barrier = new ((mmap(NULL, sizeof(process_barrier), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, fd, 0))) process_barrier(1);
+	process_barrier *barrier = new ((mmap(NULL, sizeof(process_barrier), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, fd, 0))) process_barrier(1, infunction, inall, inexecution);
 
 	if (barrier == MAP_FAILED)
 	{

@@ -42,10 +42,10 @@ public:
 	using latch::latch; 
 
 	//static function to destroy a barrier by force if needed
-	static process_barrier* create_process_barrier(std::string barrier_name, int num_tasks);
+	static process_barrier* create_process_barrier(std::string barrier_name, int num_tasks, std::function<void()> infunction = nullptr, bool inall = false, bool inexecution = false);
 
 	//static function to get a barrier object by name
-	static process_barrier* get_process_barrier(std::string inname, int *error_flag);
+	static process_barrier* get_process_barrier(std::string inname, int *error_flag, std::function<void()> infunction = nullptr, bool inall = false, bool inexecution = false);
 
 	//static function to unmap a barrier
 	static void unmap_process_barrier(process_barrier* barrier);
