@@ -5,14 +5,20 @@
 
 /*************************************************************************
 
-single_use_barrier.h
+process_barrier.h
 
-This object This is functionally a latch. It is stored in shared memory
-and allows the scheduler to ensure that all the threads from a given
-task are ready when the task is first run. (As far as I can tell, this
-latch is never used again)
+This object is an extension of the latch object defined in latch.h
+It serves as a reinitializable barrier that can be used to synchronize 
+processes. It has multiple static methods which allow an unusual accessing
+pattern, as the constructor itself is only ever called by the object
+when it creates its own memory segment. 
         
-        NOTE: an std::latch is likely to replace this in the future
+objects:
+	enum: rt_gomp_single_use_barrier_error_codes
+		simple error codes for various functions
+
+	class: process_barrier (inheriting from latch)
+		barrier for interprocess synchronization
 
 **************************************************************************/
 
