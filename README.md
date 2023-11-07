@@ -2,7 +2,7 @@
 
 last updated: 7 November 2023
 
-Updated by: Tyler Martin
+Readme last updated by: Tyler Martin
 
 ## Description
 This is a runtime system to run parallel elastic tasks with discrete candidate values of period T OR work C. 
@@ -29,7 +29,6 @@ int run(int argc, char *argv[]);
 int finalize(int argc, char *argv[]);
 
 task_t task = { init, run, finalize };
-
 ```
 
 Once you have this structure, compile your task against the task_manager object to enable the scheduler to use it.
@@ -48,7 +47,7 @@ RTPS File structure
 
 Once you have a .rtps file created, you can schedule and run your task using this scheduler. 
 
-## elastic-discrete-legacy-description
+## Elastic Discrete Legacy Description
 ```
 Author: James Orr
 Date: 5 September, 2018
