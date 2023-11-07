@@ -25,7 +25,7 @@
 #include <atomic> //For std::atomic_bool
 #include <list>
 
-#include "bar.h" 
+#include "thread_barrier.h" 
 #include <sys/types.h>
 #include <sys/syscall.h>
 #include <limits.h> //for INT MAX
@@ -72,7 +72,7 @@ const unsigned SLEEP_PRIORITY = 97;
 //These variables are declared extern in task.h, but need to be
 //visible in both places
 int futex_val;
-cppBar bar;
+thread_barrier bar;
 bool missed_dl=false;
 int num_threads;
 volatile int total_remain __attribute__ (( aligned (64) ));

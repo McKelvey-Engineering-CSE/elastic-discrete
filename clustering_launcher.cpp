@@ -377,16 +377,18 @@ int main(int argc, char *argv[])
 			{
 				task_manager_argvector.push_back(task_arg);
 			}
-			
+
 			// Create a vector of char * arguments from the vector of string arguments
 			std::vector<const char *> task_manager_argv;
 			for (std::vector<std::string>::iterator i = task_manager_argvector.begin(); i != task_manager_argvector.end(); ++i)
 			{
 				task_manager_argv.push_back(i->c_str());
 			}
+			//for(std::string j : task_manager_argvector){
+				//task_manager_argv.push_back(j.c_str());
+			//}
 			
 			//Null terminate the task manager arg vector as a sentinel
-			//Do we need this???? - Tyler
 			task_manager_argv.push_back(NULL);	
 			print(std::cerr, "Forking and execv-ing task " , program_name.c_str() , "\n");
 			

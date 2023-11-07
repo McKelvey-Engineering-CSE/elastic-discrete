@@ -8,18 +8,18 @@ NIlibs=-lnidaqmxbase
 all: clustering_distribution
 
 synthetic_task: synthetic_task.cpp
-	$(CC) $(FLAGS) -fopenmp synthetic_task.cpp sharedMem.o task.o task_manager.o bar.o schedule.o taskData.o -o synthetic_task $(LIBS)
+	$(CC) $(FLAGS) -fopenmp synthetic_task.cpp sharedMem.o task.o task_manager.o thread_barrier.o schedule.o taskData.o -o synthetic_task $(LIBS)
 
 synthetic_task_gd: synthetic_task_gd.cpp
-	$(CC) $(FLAGS) -fopenmp synthetic_task_gd.cpp sharedMem.o task_manager.o task.o bar.o  -o st_gd $(LIBS)
+	$(CC) $(FLAGS) -fopenmp synthetic_task_gd.cpp sharedMem.o task_manager.o task.o thread_barrier.o  -o st_gd $(LIBS)
 
 synthetic_task_gd_extra: synthetic_task_gd_extra.cpp
-	$(CC) $(FLAGS) -fopenmp synthetic_task_gd_extra.cpp sharedMem.o task_manager.o task.o bar.o  -o st_extra $(LIBS)
+	$(CC) $(FLAGS) -fopenmp synthetic_task_gd_extra.cpp sharedMem.o task_manager.o task.o thread_barrier.o  -o st_extra $(LIBS)
 
-bar.o: bar.cpp
-	$(CC) $(FLAGS) -c bar.cpp
+thread_barrier.o: thread_barrier.cpp
+	$(CC) $(FLAGS) -c thread_barrier.cpp
 
-clustering_distribution: libclustering.a sharedMem.o schedule.o scheduler.o task.o taskData.o task_manager.o bar.o clustering_launcher synthetic_task james
+clustering_distribution: libclustering.a sharedMem.o schedule.o scheduler.o task.o taskData.o task_manager.o thread_barrier.o clustering_launcher synthetic_task james
 
 libclustering.a: $(CLUSTERING_OBJECTS)
 	ar rcsf libclustering.a $(CLUSTERING_OBJECTS)
@@ -55,7 +55,7 @@ clustering_launcher: clustering_launcher.cpp
 	$(CC) $(FLAGS) taskData.o schedule.o scheduler.o sharedMem.o clustering_launcher.cpp -o clustering_launcher $(LIBS)
 
 james: james.cpp task_manager.o
-	$(CC) $(FLAGS) james.cpp sharedMem.o scheduler.o schedule.o taskData.o task.o task_manager.o bar.o -o james $(LIBS)
+	$(CC) $(FLAGS) james.cpp sharedMem.o scheduler.o schedule.o taskData.o task.o task_manager.o thread_barrier.o -o james $(LIBS)
 	cp james phil
 
 clean:

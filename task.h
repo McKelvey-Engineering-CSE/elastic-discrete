@@ -20,8 +20,8 @@ Struct : task_t
 #include <condition_variable>
 #include <mutex>
 #include <atomic> //for atomic_bool
-#include "bar.h" //for mc_barrier
-#include "bar.h"
+#include "thread_barrier.h" //for mc_barrier
+#include "thread_barrier.h"
 #include <sched.h> //for cpu_set_t
 #include "include.h"
 
@@ -62,7 +62,7 @@ extern timespec current_work;
 // transition and the fact that different numbers of threads are expected at
 // the barrier at different times. This provides that, and should be used
 // instead of any other barrier. Initialized in task_manager.cpp
-extern cppBar bar;
+extern thread_barrier bar;
 
 volatile extern int total_remain;
 extern int futex_val;

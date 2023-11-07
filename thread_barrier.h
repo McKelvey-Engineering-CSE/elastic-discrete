@@ -1,13 +1,13 @@
-#ifndef _CPPBAR_H
-#define _CPPBAR_H
+#ifndef _thread_barrier_H
+#define _thread_barrier_H
 
 /*************************************************************************
 
-bar.h
+thread_barrier.h
 
 This object This is a reenterable barrier that is designed for use with the
 discrete elastic scheduling system. It provides a single class
-called cppBar that all threads share, which contins a function, 
+called thread_barrier that all threads share, which contins a function, 
 mc_bar_to_high_crit that is called when the system transitions to high 
 criticality mode and releases extra high-criticality threads.
 
@@ -15,13 +15,11 @@ The primary problem this barrier solves is that the internal state of the
 barrier can be changed at any time when high criticality mode is entered.
 
 
-Class : cppBar
+Class : thread_barrier (inherits class latch)
 
 		This class implements the barrier in a c++ idiomatic way.
         In the future, this class will implement atomic structures
         and calls using locks and mutexes to synchronize processes.
-        
-        NOTE: an std::barrier is likely to replace this in the future
 
 **************************************************************************/
 
@@ -30,13 +28,19 @@ Class : cppBar
 #include <condition_variable>
 #include <mutex>
 
+#include "print.h"
+#include "latch.h"
+
 //#define USE_FUTEX
 #define USE_C11_CV
 #if defined(USE_FUTEX) && defined(USE_C11_CV)
 #error "Cannot define both USE_FUTEX and USE_C11_CV!"
 #endif
 
-class cppBar{
+class thread_barrier : latch {
+
+    //grab all inherited constructors
+    using latch::latch; 
 
 	//The aligned attribute ensures that this data field occupies a single
 	//cache line. The normal layout will put generation and total_threads
@@ -63,13 +67,11 @@ class cppBar{
     //functions who are called by already active threads
     void do_switch_protocol();
     void mc_spinwait();
-    void mc_bar_wake_up_threads();
-    void mc_bar_put_self_to_sleep(uint32_t current_gen);
 
 public:
 
     //simple constructors for future use
-    cppBar():   generation(0), 
+    thread_barrier():   generation(0), 
                 generation2(0), 
                 total_threads(0), 
                 expected(0), 
@@ -77,7 +79,7 @@ public:
                 is_switcher(false), 
                 locked(false){}
 
-    cppBar( uint32_t total_threads, uint32_t initial_total ):   generation(0), 
+    thread_barrier( uint32_t total_threads, uint32_t initial_total ):   generation(0), 
                                                             generation2(0), 
                                                             total_threads(initial_total), 
                                                             expected(total_threads), 
@@ -109,5 +111,5 @@ public:
 
 };
 
-#endif //_CPPBAR_H
+#endif //_thread_barrier_H
 

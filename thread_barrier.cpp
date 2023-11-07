@@ -16,7 +16,7 @@
  * as I had hoped for. The min branch will supply the latest modern 
  * build, while this branch contains altered versions of the main files */
 
-#include "bar.h"
+#include "thread_barrier.h"
 
 //We declare these here, they're used in futex.h. Normally libgomp would
 //declare them extern and initialize them someplace else. I'm hoping that
@@ -35,10 +35,8 @@
 __thread uint32_t thread_generation;
 
 
-void cppBar::mc_bar_init( uint32_t initial_total ){
-	//printf("INIT BARRIER on CPU %d with INIT TOTAL %d\n", sched_getcpu(), initial_total);
-	//fflush(stdout);	
-
+void thread_barrier::mc_bar_init( uint32_t initial_total )
+{
 	generation     = 0;
 	generation2    = 0;
 	total_threads  = initial_total;
@@ -46,16 +44,20 @@ void cppBar::mc_bar_init( uint32_t initial_total ){
 	num_hi_threads = 0;
 	is_switcher    = false;
 	locked         = false;
+
+	init(initial_total);
 }
 
 
-void cppBar::mc_bar_reinit( uint32_t new_total ){
-
+void thread_barrier::mc_bar_reinit( uint32_t new_total )
+{
 	total_threads  = new_total;
 	expected       = total_threads;
 	num_hi_threads = 0;
 	is_switcher    = false;
 	locked	    = false;
+
+	init(new_total);
 }
 
 //This function should be called when the system transitions to high crit mode.
@@ -64,7 +66,8 @@ void cppBar::mc_bar_reinit( uint32_t new_total ){
 //
 //Note that this function should be called before any high criticality threads
 //are released, otherwise a race condition exists and deadlock may result. 
-void cppBar::mc_bar_to_high_crit( uint32_t additional_hc_threads ){
+void thread_barrier::mc_bar_to_high_crit( uint32_t additional_hc_threads )
+{
 	__atomic_store_n(&num_hi_threads, additional_hc_threads, __ATOMIC_RELEASE);
 }
 
@@ -72,11 +75,11 @@ void cppBar::mc_bar_to_high_crit( uint32_t additional_hc_threads ){
 //in the barrier, and when it is guaranteed that high criticality threads won't
 //try to enter the barrier in the future i.e. at the start or end of a period. 
 //Only one thread should try to call this function.
-void cppBar::mc_bar_to_low_crit( uint32_t additional_hc_threads ){
-	
+void thread_barrier::mc_bar_to_low_crit( uint32_t additional_hc_threads )
+{	
 	__atomic_store_n( &locked , true, __ATOMIC_RELEASE);
 	if( expected != total_threads ){
-		printf("ERROR: Tried to update barrier during corrupted state! Exiting...\n");
+		print(std::cerr, "ERROR: Tried to update barrier during corrupted state! Exiting...\n");
 		abort();
 	}
 	
@@ -91,7 +94,8 @@ void cppBar::mc_bar_to_low_crit( uint32_t additional_hc_threads ){
 //This function spinwaits on the barrier value num_high_threads. The mode
 //switcher thread will signal that it is finished by setting the value of
 //num_high_threads to zero.
-void cppBar::mc_spinwait( ){
+void thread_barrier::mc_spinwait()
+{
 	uint32_t needs_switch;
 
 	do {
@@ -101,7 +105,8 @@ void cppBar::mc_spinwait( ){
 
 //This function implements the switch protocol that updates the internal
 //barrier.
-void cppBar::do_switch_protocol( ){
+void thread_barrier::do_switch_protocol()
+{
 //All threads will always first check whether the barrier needs to effect a
 //mode switch. The variable num_high_threads is used to signify this. If
 //the value is positive, a mode switch is required. If the value is zero, no
@@ -148,11 +153,11 @@ void cppBar::do_switch_protocol( ){
 				//needs_switch contains num of extra threads
 				newval = current + needs_switch;
 				//bool res2 = __atomic_compare_exchange(&expected,
-                                //                                      &current, 
-                                //                                      &newval, 
-                                //                                      false,
-                                //                                      __ATOMIC_ACQ_REL,
-                                //                                      __ATOMIC_ACQUIRE);
+				//                                      &current, 
+				//                                      &newval, 
+				//                                      false,
+				//                                      __ATOMIC_ACQ_REL,
+				//                                      __ATOMIC_ACQUIRE);
 
 				new_expected = __atomic_load_n(&expected, __ATOMIC_ACQUIRE);
 			} while ( new_expected != newval );
@@ -177,56 +182,15 @@ void cppBar::do_switch_protocol( ){
 	} 
 }
 
-//We use the GCC OpenMP implementation of futex sleeping for convinience.
-//The futex allows a thread to sleep on the value located at a specific region
-//of memory. In our case, the threads sleep on the current value of
-//generation. When a thread is put to sleep, it first checks atomically
-//that generation == current_generation, and if so it will sleep. When
-//it wakes up, it verifies that generation has changed. 
-void cppBar::mc_bar_wake_up_threads(){
-	
-	#ifdef USE_FUTEX	
-	futex_wake ((int *) &generation, INT_MAX);
-	#endif //USE_FUTEX
-
-	#ifdef USE_C11_CV
-	//Retry the notify_all() untill all threads have successfully left
-	//the barrier. Each thread will increment expected as it leaves.
-	do {
-	bar_cv.notify_all();
-	} while ( __atomic_load_n(&expected, __ATOMIC_ACQUIRE) != total_threads );
-	#endif //USE_C11_CV
-
-}
-
-void cppBar::mc_bar_put_self_to_sleep( uint32_t current_gen){
-	//Note that this implementation allows racy behavior beteween the
-	//waking thread and the sleeping threads. After the waking thread
-	//increments generation, a thread entering this function will
-	//no longer actually futex sleep. 
-
-	#ifdef USE_FUTEX
-	do{
-		futex_wait ((int *) &generation, current_gen );
-	} while (__atomic_load_n(&generation, __ATOMIC_ACQUIRE) == current_gen);
-	#endif //USE_FUTEX
-
-	#ifdef USE_C11_CV
-	std::unique_lock<std::mutex> lock (bar_m);
-	bar_cv.wait( lock, [this, current_gen]{ return !(__atomic_load_n(&generation, __ATOMIC_ACQUIRE) == current_gen );} );
-	#endif //USE_C11_CV
-
-}
-
-void cppBar::mc_bar_wait( ){
-
+void thread_barrier::mc_bar_wait( )
+{
 	//Before we do anything, check to see if the barrier is locked.
 	while( __atomic_load_n(&locked, __ATOMIC_ACQUIRE) == true )
 	{ /* busy wait */ }
 
 	do_switch_protocol();
 
-	//From this point on, we do a regular barrier_wait
+	//From this point on, we do a regular latch arrive_and_wait()
 
 	//We use the generation variable to indicate how many times this 
 	//barrier has been reset. This is so that, when a new thread starts
@@ -241,36 +205,31 @@ void cppBar::mc_bar_wait( ){
 	while( __atomic_load_n(&generation2, __ATOMIC_ACQUIRE) < current_generation )
 	{ /*busy wait*/ }
 
-		#ifdef DAVID
-			printf("THREAD GEN: %d     CURR GEN: %d\n", thread_generation, current_generation);
-		#endif 
-
-	if( thread_generation == current_generation){
+	if( thread_generation == current_generation)
+	{
 		uint32_t result = __atomic_add_fetch( &expected, -1, __ATOMIC_ACQ_REL );
 
-		#ifdef DAVID
-			printf("RESULT OF SUBTRACTING AND FETCHING EXPECTED %d\n", result);
-		#endif 
-
 		if( result == 0 ) {
-			//We are the last thread through the barrier, so we
-			//wake up all other threads.
+			//We are the last thread through the barrier,so it becomes our
+			//problem to keep other threads from prematurely accessing this 
+			//wait - we update an atomic variable to keep the other threads
+			//out until we are sure the reinitialization of the barrier has
+			//completed
 			__atomic_add_fetch( &generation, 1, __ATOMIC_ACQ_REL );
 
 			__atomic_add_fetch( &expected, 1, __ATOMIC_ACQ_REL );
 
-			mc_bar_wake_up_threads();
+			arrive_and_wait();
 
 			//We use a second generation value to require that all threads leave
 			//the barrier before any new threads are allowed in.
 			__atomic_add_fetch( &generation2, 1, __ATOMIC_ACQ_REL );
 
 		} else {
-			//We are not the last thread through the barrier,
-			//so we put ourselves to sleep. When we leave, in increment the expected
-			//count so we can signal to the waking thread that everything has passed the
-			//barrier successfully.
-			mc_bar_put_self_to_sleep(current_generation);
+			//We are not the last thread through the barrier so we do not need
+			//to concern ourselves with updating the generation2 value
+			arrive_and_wait();
+
 			__atomic_add_fetch( &expected, 1, __ATOMIC_ACQ_REL );
 		}
 	}
