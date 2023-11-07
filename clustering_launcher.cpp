@@ -24,6 +24,7 @@ timespec cur_time;
 timespec vdeadline={0,0};
 timespec zero={0,0};
 int ret_val;
+int get_val=0;
 std::string program_name;
 struct itimerspec disarming_its, virtual_dl_timer_its;
 struct sigevent sev;
@@ -137,11 +138,17 @@ int get_scheduling_file(std::string name, std::ifstream &ifs){
 	return 0;
 }
 
-int read_scheduling_file(std::ifstream &ifs, bool* schedulable, unsigned* num_tasks, unsigned* sec_to_run, long* nsec_to_run, std::vector<int>* line_lengths){
+int read_scheduling_file(std::ifstream &ifs, 
+						bool* schedulable, 
+						unsigned* num_tasks, 
+						unsigned* sec_to_run, 
+						long* nsec_to_run, 
+						std::vector<int>* line_lengths){
 
 	std::string line;
 	unsigned num_lines; 
 	
+	//read in the first line and check for a scheduability boolean
 	getline(ifs, line);
 	std::istringstream firstline(line);
 	line_lengths->push_back(line.length() + 1);
@@ -156,6 +163,7 @@ int read_scheduling_file(std::ifstream &ifs, bool* schedulable, unsigned* num_ta
 		return -1;
 	}
 
+	//read in second line and check for the task run allowance parameters
 	getline(ifs, line);
 	std::istringstream secondline(line);
 	line_lengths->push_back(line.length() + 1);
@@ -176,6 +184,69 @@ int read_scheduling_file(std::ifstream &ifs, bool* schedulable, unsigned* num_ta
 	return 0;
 }
 
+int parse_task_timing_parameters(std::string task_timing_line, 
+								std::vector<std::string>* task_manager_argvector, 
+								std::vector<timespec>* work, 
+								std::vector<timespec>* span, 
+								std::vector<timespec>* period, 
+								int t, std::string program_name){
+	int num_modes;
+	time_t work_sec;
+	long work_nsec;
+	time_t span_sec; 
+	long span_nsec; 
+	time_t period_sec;
+	long period_nsec;
+	double elasticity;
+	
+	std::istringstream task_timing_stream(task_timing_line);
+
+	//Read in elasticity coefficient and number of modes.
+	if((task_timing_stream >> elasticity) && (task_timing_stream >> num_modes))
+	{
+		//Make sure we have at least 1 mode.
+		if(num_modes <= 0)
+		{
+			print(std::cerr, "ERROR: Task " , t , " timing data. At least 1 mode of operation is required. Found " , num_modes , ".\n");
+			kill(0, SIGTERM);
+			return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
+		}
+	}
+	else
+	{
+		print(std::cerr, "ERROR: Task ", t ," timing data. Mal-formed elasticity value and/or number of modes.\n");
+		kill(0, SIGTERM);
+		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
+	}
+
+	//Read in Work, Span, and Periods for each mode.
+	for(int i=0; i<num_modes; i++)
+	{
+		if((task_timing_stream >> work_sec) && (task_timing_stream >> work_nsec) && (task_timing_stream >> span_sec) && (task_timing_stream >> span_nsec) && 
+				(task_timing_stream >> period_sec) && (task_timing_stream >> period_nsec))	
+		{
+			//Put work, span, period values on vector
+			work->push_back({work_sec,work_nsec});
+			span->push_back({span_sec,span_nsec});
+			period->push_back({period_sec,period_nsec});
+
+			print(std::cout, work->back() , " " , span->back() , " " , period->back() , "\n");
+		}
+		else
+		{
+			print(std::cerr, "ERROR: Task " , t , " timing data. Mal-formed work, span, or period in mode " , i, ".\n");
+		}
+	}
+
+	//why are we making a TaskData object just to read this??? - Tyler
+	TaskData * td;
+	td = scheduler->add_task(elasticity, num_modes, work->data(), span->data(), period->data());
+	task_manager_argvector->push_back(std::to_string(td->get_index()));
+
+	return 0;
+
+}
+
 /************************************************************************************
 
 Main Process:
@@ -194,7 +265,7 @@ int main(int argc, char *argv[])
 	long nsec_to_run=0;
 	std::ifstream ifs;
 	std::string task_command_line, task_timing_line, line;
-	std::vector<int> line_lengths(2);
+	std::vector<int> line_lengths;
 
 	// Verify the number of arguments
 	if (argc != 2)
@@ -220,45 +291,45 @@ int main(int argc, char *argv[])
 	ifs.clear();
 	ifs.seekg(line_lengths[0] + line_lengths[1], std::ios::beg);
 	
-	// Initialize a barrier to synchronize the tasks after creation
-	if (process_barrier::create_process_barrier(barrier_name.c_str(), num_tasks + 1) == nullptr)
+	//Initialize two barriers to synchronize the tasks after creation
+	if (process_barrier::create_process_barrier(barrier_name, num_tasks + 1) == nullptr || 
+		process_barrier::create_process_barrier(barrier_name2, num_tasks + 1) == nullptr)
 	{
 		print(std::cerr, "ERROR: Failed to initialize barrier.\n");
 		return RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR;
 	}
 
-	if (process_barrier::create_process_barrier(barrier_name2.c_str(), num_tasks + 1) == nullptr)
-	{
-		print(std::cerr, "ERROR: Failed to initialize barrier.\n");
-		return RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR;
-	}
-
+	//gather all time monitoring variables, and 
+	//add 5 seconds to start time so all tasks have 
+	//enough time to finish their init() stages.
 	get_time(&current_time);
 	run_time={sec_to_run, nsec_to_run};
-
-	//Add 5 seconds to start time so all tasks have enough time to finish their init() stages.
 	start_time.tv_sec = current_time.tv_sec + 5;
-	
 	start_time.tv_nsec = current_time.tv_nsec;
 	end_time = start_time + run_time;
 
-	// Iterate over the tasks and fork and execv each one
+	// Iterate over the tasks, gather their arguments, timing parameters, and name 
+	// and then fork and execv each one
 	for (unsigned t = 1; t <= num_tasks; ++t)
 	{		
 		if (std::getline(ifs, task_command_line))
 		{
 			std::istringstream task_command_stream(task_command_line);
 			
-			// Add arguments to this vector of strings. This vector will be transformed into
-			// a vector of char * before the call to execv by calling c_str() on each string,
-			// but storing the strings in a vector is necessary to ensure that the arguments
-			// have different memory addresses. If the char * vector is created directly, by
-			// reading the arguments into a string and and adding the c_str() to a vector, 
-			// then each new argument could overwrite the previous argument since they might
-			// be using the same memory address. Using a vector of strings ensures that each
-			// argument is copied to its own memory before the next argument is read.
+			/****************************************************************************
+			Add arguments to this vector of strings. This vector will be transformed into
+			a vector of char * before the call to execv by calling c_str() on each string,
+			but storing the strings in a vector is necessary to ensure that the arguments
+			have different memory addresses. If the char * vector is created directly, by
+			reading the arguments into a string and and adding the c_str() to a vector, 
+			then each new argument could overwrite the previous argument since they might
+			be using the same memory address. Using a vector of strings ensures that each
+			argument is copied to its own memory before the next argument is read.
+			- James (sometime in October probably)
 
-			//Are we still needing this?? -Tyler
+			Do we still need this?
+			- Tyler
+			*****************************************************************************/
 			std::vector<std::string> task_manager_argvector;
 			
 			// Add the task program name to the argument vector with number of modes as well as start and finish times
@@ -277,65 +348,16 @@ int main(int argc, char *argv[])
 				return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 			}
 
+			//vectors to maintain the task running parameters
 			std::vector <timespec> work;
 			std::vector <timespec> span;
 			std::vector <timespec> period;
-			int num_modes;
-
-			time_t work_sec;
-			long work_nsec;
-			time_t span_sec; 
-			long span_nsec; 
-			time_t period_sec;
-			long period_nsec;
-			double elasticity;
-				
+			
+			//parse the input file to obtain the task arguments
 			if (std::getline(ifs, task_timing_line))
 			{       
-				std::istringstream task_timing_stream(task_timing_line);
-
-				//Read in elasticity coefficient and number of modes.
-				if((task_timing_stream >> elasticity) && (task_timing_stream >> num_modes))
-				{
-					//Make sure we have at least 1 mode.
-					if(num_modes <= 0)
-					{
-						print(std::cerr, "ERROR: Task " , t , " timing data. At least 1 mode of operation is required. Found " , num_modes , ".\n");
-						kill(0, SIGTERM);
-						return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
-					}
-				}
-				else
-				{
-					print(std::cerr, "ERROR: Task ", t ," timing data. Mal-formed elasticity value and/or number of modes.\n");
-					kill(0, SIGTERM);
+				if (parse_task_timing_parameters(task_timing_line, &task_manager_argvector, &work, &span, &period, t, program_name) != 0)
 					return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
-				}
-
-				//Read in Work, Span, and Periods for each mode.
-				for(int i=0; i<num_modes; i++)
-				{
-					if((task_timing_stream >> work_sec) && (task_timing_stream >> work_nsec) && (task_timing_stream >> span_sec) && (task_timing_stream >> span_nsec) && 
-							(task_timing_stream >> period_sec) && (task_timing_stream >> period_nsec))	
-					{
-						//Put work, span, period values on vector
-						timespec w = {work_sec,work_nsec};
-						timespec s = {span_sec,span_nsec};
-						timespec p = {period_sec,period_nsec};
-						print(std::cout, w , " " , s , " " , p , "\n");
-						work.push_back(w);
-						span.push_back(s);
-						period.push_back(p);
-					}
-					else
-					{
-						print(std::cerr, "ERROR: Task " , t , " timing data. Mal-formed work, span, or period in mode " , i, ".\n");
-					}
-				}
-
-				TaskData * td;
-				td = scheduler->add_task(elasticity, num_modes, work.data(), span.data(), period.data());
-				task_manager_argvector.push_back(std::to_string(td->get_index()));
 			}
 			else	
 			{
@@ -343,7 +365,7 @@ int main(int argc, char *argv[])
 				kill(0, SIGTERM);
 				return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 			}
-
+			
 			// Add the barrier name to the argument vector
 			task_manager_argvector.push_back(barrier_name);
 			
@@ -363,7 +385,8 @@ int main(int argc, char *argv[])
 				task_manager_argv.push_back(i->c_str());
 			}
 			
-			// NULL terminate the argument vector
+			//Null terminate the task manager arg vector as a sentinel
+			//Do we need this???? - Tyler
 			task_manager_argv.push_back(NULL);	
 			print(std::cerr, "Forking and execv-ing task " , program_name.c_str() , "\n");
 			
@@ -396,9 +419,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	//tell scheduler to calculate schedule for tasks
 	scheduler->do_schedule();
 	
-	int get_val=0;
 	process_barrier::get_process_barrier(barrier_name2.c_str(), &get_val);
 	if (get_val != 0)
 	{
