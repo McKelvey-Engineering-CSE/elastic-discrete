@@ -137,13 +137,14 @@ int get_scheduling_file(std::string name, std::ifstream &ifs){
 	return 0;
 }
 
-int read_scheduling_file(std::ifstream &ifs, bool* schedulable, unsigned* num_tasks, unsigned* sec_to_run, long* nsec_to_run){
+int read_scheduling_file(std::ifstream &ifs, bool* schedulable, unsigned* num_tasks, unsigned* sec_to_run, long* nsec_to_run, std::vector<int>* line_lengths){
 
 	std::string line;
 	unsigned num_lines; 
 	
 	getline(ifs, line);
 	std::istringstream firstline(line);
+	line_lengths->push_back(line.length() + 1);
 	if(!(firstline >> *schedulable))
 	{
 		print(std::cerr, "ERROR: First line of .rtps file error.\n Format: <taskset schedulability>.\n");
@@ -157,6 +158,7 @@ int read_scheduling_file(std::ifstream &ifs, bool* schedulable, unsigned* num_ta
 
 	getline(ifs, line);
 	std::istringstream secondline(line);
+	line_lengths->push_back(line.length() + 1);
 	if(!((secondline >> *num_tasks) && (secondline >> *sec_to_run) && (secondline >> *nsec_to_run)))
 	{
 		print(std::cerr, "ERROR: Second line of .rtps file error.\n Format: <number of tasks> <s to run> <ns to run>.\n");
@@ -190,8 +192,9 @@ int main(int argc, char *argv[])
 	unsigned num_tasks=0;
 	unsigned sec_to_run=0;
 	long nsec_to_run=0;
-	std::string line;//, num_tasks_s, num_modes_s, sec_to_run_s, nsec_to_run;
 	std::ifstream ifs;
+	std::string task_command_line, task_timing_line, line;
+	std::vector<int> line_lengths(2);
 
 	// Verify the number of arguments
 	if (argc != 2)
@@ -204,20 +207,18 @@ int main(int argc, char *argv[])
 	init_signal_handlers();
 	
 	//open the scheduling file
-	if (get_scheduling_file(args[1], ifs) != 0)
-		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
+	if (get_scheduling_file(args[1], ifs) != 0) return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
 
 	//read the scheduling file
-	if (read_scheduling_file(ifs, &schedulable, &num_tasks, &sec_to_run, &nsec_to_run) != 0)
-		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
+	if (read_scheduling_file(ifs, &schedulable, &num_tasks, &sec_to_run, &nsec_to_run, &line_lengths) != 0) return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 
 	//create the scheduling object
 	//(retain CPU 0 for the scheduler)
 	scheduler = new Scheduler(num_tasks,(int) std::thread::hardware_concurrency()-1);
 
-	// Seek back to the beginning of the file
+	//Seek back to the start of the process lines
 	ifs.clear();
-	ifs.seekg(0, std::ios::beg);
+	ifs.seekg(line_lengths[0] + line_lengths[1], std::ios::beg);
 	
 	// Initialize a barrier to synchronize the tasks after creation
 	if (process_barrier::create_process_barrier(barrier_name.c_str(), num_tasks + 1) == nullptr)
@@ -234,13 +235,14 @@ int main(int argc, char *argv[])
 
 	get_time(&current_time);
 	run_time={sec_to_run, nsec_to_run};
-	start_time.tv_sec = current_time.tv_sec + 5;//Add 5 seconds to start time so all tasks have enough time to finish their init() stages.
+
+	//Add 5 seconds to start time so all tasks have enough time to finish their init() stages.
+	start_time.tv_sec = current_time.tv_sec + 5;
+	
 	start_time.tv_nsec = current_time.tv_nsec;
 	end_time = start_time + run_time;
 
 	// Iterate over the tasks and fork and execv each one
-	std::string task_command_line, task_timing_line;//, task_partition_line;
-	std::getline(ifs, task_command_line); std::getline(ifs, task_command_line); //Ignore first two lines of file.
 	for (unsigned t = 1; t <= num_tasks; ++t)
 	{		
 		if (std::getline(ifs, task_command_line))
@@ -255,6 +257,8 @@ int main(int argc, char *argv[])
 			// then each new argument could overwrite the previous argument since they might
 			// be using the same memory address. Using a vector of strings ensures that each
 			// argument is copied to its own memory before the next argument is read.
+
+			//Are we still needing this?? -Tyler
 			std::vector<std::string> task_manager_argvector;
 			
 			// Add the task program name to the argument vector with number of modes as well as start and finish times
@@ -360,8 +364,7 @@ int main(int argc, char *argv[])
 			}
 			
 			// NULL terminate the argument vector
-			task_manager_argv.push_back(NULL);
-			//HERE!!!	
+			task_manager_argv.push_back(NULL);	
 			print(std::cerr, "Forking and execv-ing task " , program_name.c_str() , "\n");
 			
 			// Fork and execv the task program
