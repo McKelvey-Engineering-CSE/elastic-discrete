@@ -15,17 +15,23 @@
 #include "scheduler.h"
 #include "print.h"
 
+/************************************************************************************
+Globals
+*************************************************************************************/
+
 timespec current_time,start_time,run_time,end_time;
 timespec cur_time;
 timespec vdeadline={0,0};
 timespec zero={0,0};
-
+int ret_val;
 std::string program_name;
+struct itimerspec disarming_its, virtual_dl_timer_its;
+struct sigevent sev;
+int ret;
 
 // Define the name of the barrier used for synchronizing tasks after creation
 const std::string barrier_name = "RT_GOMP_CLUSTERING_BARRIER";
 const std::string barrier_name2 = "RT_GOMP_CLUSTERING_BARRIER2";
-int ret_val;
 
 bool needs_scheduling = false;
 Scheduler * scheduler;
@@ -35,11 +41,24 @@ pid_t process_group;
 bool add_last_task = true;
 TaskData * last_task;
 
-struct itimerspec disarming_its, virtual_dl_timer_its;
-//static timer_t vd_timer;
-struct sigevent sev;
+/************************************************************************************
+Objects
+*************************************************************************************/
 
-int ret;
+enum rt_gomp_clustering_launcher_error_codes
+{ 
+	RT_GOMP_CLUSTERING_LAUNCHER_SUCCESS,
+	RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR,
+	RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR,
+	RT_GOMP_CLUSTERING_LAUNCHER_UNSCHEDULABLE_ERROR,
+	RT_GOMP_CLUSTERING_LAUNCHER_FORK_EXECV_ERROR,
+	RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR,
+	RT_GOMP_CLUSTERING_LAUNCHER_ARGUMENT_ERROR
+};
+
+/************************************************************************************
+Functions
+*************************************************************************************/
 
 void scheduler_task()
 {
@@ -68,54 +87,111 @@ void scheduler_task()
 		}
 		get_time(&cur_time);
 	}
-
-	//print(std::cerr, "FINISHED!!\n");
 }
-
-enum rt_gomp_clustering_launcher_error_codes
-{ 
-	RT_GOMP_CLUSTERING_LAUNCHER_SUCCESS,
-	RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR,
-	RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR,
-	RT_GOMP_CLUSTERING_LAUNCHER_UNSCHEDULABLE_ERROR,
-	RT_GOMP_CLUSTERING_LAUNCHER_FORK_EXECV_ERROR,
-	RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR,
-	RT_GOMP_CLUSTERING_LAUNCHER_ARGUMENT_ERROR
-};
 
 void sigrt0_handler( int signum ){
 	needs_scheduling = true;
 }
 void sigrt1_handler( int signum ){
-
 }
 
 void sigrt2_handler(int signum){
-	//scheduler->add_task(last_task->get_min_work().tv_sec, last_task->get_min_work().tv_nsec, last_task->get_max_work().tv_sec, last_task->get_max_work().tv_nsec, last_task->get_span().tv_sec, last_task->get_span().tv_nsec, last_task->get_min_period().tv_sec, last_task->get_min_period().tv_nsec, last_task->get_max_period().tv_sec, last_task->get_max_period().tv_nsec, 0, 0, 0, 0, last_task->get_elasticity());				
 	kill(0, SIGRTMIN+0);	
-}               
+}          
 
+void init_signal_handlers(){
+	//Set up a signal handler for SIGRT0
+	void (*ret_handler)(int);
+
+	if( (ret_handler = signal(SIGRTMIN+0, sigrt0_handler)) == SIG_ERR ){
+		print(std::cerr, "ERROR: Call to Signal failed, reason: " , strerror(errno) , "\n");
+		exit(-1);
+	}
+
+	if( (ret_handler = signal(SIGRTMIN+1, sigrt1_handler)) == SIG_ERR ){
+		print(std::cerr, "ERROR: Call to Signal failed, reason: " , strerror(errno) , "\n");
+		exit(-1);
+	}
+}
+
+int get_scheduling_file(std::string name, std::ifstream &ifs){
+
+	// Determine the taskset and schedule (.rtps) filename from the program argument
+	std::string schedule_filename(name + ".rtps");
+
+	//check if file is present
+	ifs.open(schedule_filename);
+	if(!ifs.good())
+	{
+		print(std::cerr, "ERROR: Cannot find schedule file: " , schedule_filename , "\n");
+		return -1;
+	}
+	
+	// Open the schedule (.rtps) file
+	if (!ifs.is_open())
+	{
+		print(std::cerr, "ERROR: Cannot open schedule file.\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int read_scheduling_file(std::ifstream &ifs, bool* schedulable, unsigned* num_tasks, unsigned* sec_to_run, long* nsec_to_run){
+
+	std::string line;
+	unsigned num_lines; 
+	
+	getline(ifs, line);
+	std::istringstream firstline(line);
+	if(!(firstline >> *schedulable))
+	{
+		print(std::cerr, "ERROR: First line of .rtps file error.\n Format: <taskset schedulability>.\n");
+		return -1;
+	}
+	if(!schedulable)
+	{
+		print(std::cerr, "ERROR: Taskset deemed not schedulable by .rtps file. Exiting.\n");
+		return -1;
+	}
+
+	getline(ifs, line);
+	std::istringstream secondline(line);
+	if(!((secondline >> *num_tasks) && (secondline >> *sec_to_run) && (secondline >> *nsec_to_run)))
+	{
+		print(std::cerr, "ERROR: Second line of .rtps file error.\n Format: <number of tasks> <s to run> <ns to run>.\n");
+		return -1;
+	}
+
+	//Count the number of tasks present in file (skipping empty lines)
+	for(num_lines = 0; std::getline(ifs,line); num_lines += (!line.empty()));
+
+	if (!(num_lines == 2*(*num_tasks)) && ifs.peek() == EOF){
+		print(std::cerr, "ERROR: Found ", num_lines/2 , " tasks and expected " , *num_tasks , ".\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+/************************************************************************************
+
+Main Process:
+		Acts as a file parser and general launching mechanism. It reads in the data
+		contained in the .rtps file and launches the tasks basd on the periods found,
+		the modes provided, and the elasticity that each task can provide. 
+
+*************************************************************************************/
 int main(int argc, char *argv[])
 {
 	process_group = getpgrp();
 	std::vector<std::string> args(argv, argv+argc);
-
-	//int ret_val;
-
-	//Set up a signal handler for SIGRT0
-	void (*ret_handler)(int);
-	ret_handler = signal(SIGRTMIN+0, sigrt0_handler);
-
-	if( ret_handler == SIG_ERR ){
-		print(std::cerr, "ERROR: Call to Signal failed, reason: " , strerror(errno) , "\n");
-		exit(-1);
-	}
-
-	ret_handler = signal(SIGRTMIN+1, sigrt1_handler);
-	if( ret_handler == SIG_ERR ){
-		print(std::cerr, "ERROR: Call to Signal failed, reason: " , strerror(errno) , "\n");
-		exit(-1);
-	}
+	bool schedulable;
+	unsigned num_tasks=0;
+	unsigned sec_to_run=0;
+	long nsec_to_run=0;
+	std::string line;//, num_tasks_s, num_modes_s, sec_to_run_s, nsec_to_run;
+	std::ifstream ifs;
 
 	// Verify the number of arguments
 	if (argc != 2)
@@ -123,72 +199,21 @@ int main(int argc, char *argv[])
 		print(std::cerr, "ERROR: The program must receive a single argument which is the taskset/schedule filename without any extension.\n");
 		return RT_GOMP_CLUSTERING_LAUNCHER_ARGUMENT_ERROR;
 	}
+
+	//setup signal handlers
+	init_signal_handlers();
 	
-	// Determine the taskset and schedule (.rtps) filename from the program argument
-	std::string schedule_filename(args[1] + ".rtps");
-
-	// Make sure we have a .rtps file. Quit if not.
-	//struct stat schedule_stat; //struct stat still in from use of legacy .rtpt file when access date was used to create new .rtps files. This is OK.
-	//if ((stat(schedule_filename.c_str(), &schedule_stat)) == -1)
-
-	//just use ifstream good property....????
-	std::ifstream ifs(schedule_filename);
-	if(!ifs.good())
-	{
-		print(std::cerr, "ERROR: Cannot find schedule file: " , schedule_filename , "\n");
+	//open the scheduling file
+	if (get_scheduling_file(args[1], ifs) != 0)
 		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
-	}
-	
-	// Open the schedule (.rtps) file
-	if (!ifs.is_open())
-	{
-		print(std::cerr, "ERROR: Cannot open schedule file.\n");
-		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
-	}
 
-	bool schedulable;
-	unsigned num_tasks=0;
-	unsigned sec_to_run=0;
-	long nsec_to_run=0;
-	std::string line;//, num_tasks_s, num_modes_s, sec_to_run_s, nsec_to_run;
-
-	getline(ifs, line);
-	std::istringstream firstline(line);
-	if(!(firstline >> schedulable))
-	{
-		print(std::cerr, "ERROR: First line of .rtps file error.\n Format: <taskset schedulability>.\n");
-		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
-	}
-	if(!schedulable)
-	{
-		print(std::cerr, "ERROR: Taskset deemed not schedulable by .rtps file. Exiting.\n");
-		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
-	}
-
-	getline(ifs, line);
-	std::istringstream secondline(line);
-	if(!((secondline >> num_tasks) && (secondline >> sec_to_run) && (secondline >> nsec_to_run)))
-	{
-		print(std::cerr, "ERROR: Second line of .rtps file error.\n Format: <number of tasks> <s to run> <ns to run>.\n");
-		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
-	}
-
-	scheduler = new Scheduler(num_tasks,(int) std::thread::hardware_concurrency()-1); //Keep CPU 0 for scheduler.
-	
-	unsigned num_lines=0;
-	//Count the number of tasks
-	while (getline(ifs, line))
-	{       
-		if(line.empty())
-			{continue;}
-		num_lines  += 1;
-	}
-
-	if (!(num_lines == 2*num_tasks))
-	{
-		print(std::cerr, "ERROR: Found ", num_lines/2 , " tasks and expected " , num_tasks , ".\n");
+	//read the scheduling file
+	if (read_scheduling_file(ifs, &schedulable, &num_tasks, &sec_to_run, &nsec_to_run) != 0)
 		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
-	}
+
+	//create the scheduling object
+	//(retain CPU 0 for the scheduler)
+	scheduler = new Scheduler(num_tasks,(int) std::thread::hardware_concurrency()-1);
 
 	// Seek back to the beginning of the file
 	ifs.clear();
@@ -261,7 +286,6 @@ int main(int argc, char *argv[])
 			long period_nsec;
 			double elasticity;
 				
-
 			if (std::getline(ifs, task_timing_line))
 			{       
 				std::istringstream task_timing_stream(task_timing_line);
