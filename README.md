@@ -1,8 +1,6 @@
 # Elastic-Discrete Scheduler
 
-last updated: 7 November 2023
-
-Readme last updated by: Tyler Martin
+Readme last updated: 7 November 2023 by Tyler Martin
 
 ## Description
 This is a runtime system to run parallel elastic tasks with discrete candidate values of period T OR work C. 
