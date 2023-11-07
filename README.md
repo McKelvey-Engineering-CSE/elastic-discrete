@@ -1,6 +1,7 @@
 # Elastic-Discrete Scheduler
 
 last updated: 7 November 2023
+
 Updated by: Tyler Martin
 
 ## Description
@@ -47,8 +48,8 @@ RTPS File structure
 
 Once you have a .rtps file created, you can schedule and run your task using this scheduler. 
 
-# elastic-discrete-legacy-description
-
+## elastic-discrete-legacy-description
+```
 Author: James Orr
 Date: 5 September, 2018
 
@@ -59,3 +60,4 @@ See example.rtps for taskset representation.
 
 In order to get this running on Cybermech run the following 2 commands each session (also in init.sh): 
 export PATH=/home/james/bin:$PATH &&  export LD_LIBRARY_PATH=/home/james/lib64:$LD_LIBRARY_PATH && export GOMP_SPINCOUNT=0
+```
