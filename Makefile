@@ -1,7 +1,7 @@
 CC = g++ -std=c++14 -O0
 FLAGS = -Wall -g -gdwarf-3
 LIBS = -L. -lrt -lm -lclustering -fopenmp
-CLUSTERING_OBJECTS = process_barrier.o latch.o timespec_functions.o
+CLUSTERING_OBJECTS = process_barrier.o generic_barrier.o timespec_functions.o
 NIincludes = -I/usr/local/natinst/nidaqmxbase/include
 NIlibs=-lnidaqmxbase
 
@@ -48,8 +48,8 @@ schedule.o: schedule.cpp
 sharedMem.o: sharedMem.cpp
 	$(CC) $(FLAGS) -c sharedMem.cpp
 
-latch.o: latch.cpp
-	$(CC) $(FLAGS) -c latch.cpp
+generic_barrier.o: generic_barrier.cpp
+	$(CC) $(FLAGS) -c generic_barrier.cpp
 
 clustering_launcher: clustering_launcher.cpp
 	$(CC) $(FLAGS) taskData.o schedule.o scheduler.o sharedMem.o clustering_launcher.cpp -o clustering_launcher $(LIBS)

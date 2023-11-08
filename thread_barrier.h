@@ -15,7 +15,7 @@ The primary problem this barrier solves is that the internal state of the
 barrier can be changed at any time when high criticality mode is entered.
 
 
-Class : thread_barrier (inherits class latch)
+Class : thread_barrier (inherits class generic_barrier)
 
 		This class implements the barrier in a c++ idiomatic way.
         In the future, this class will implement atomic structures
@@ -29,7 +29,7 @@ Class : thread_barrier (inherits class latch)
 #include <mutex>
 
 #include "print.h"
-#include "latch.h"
+#include "generic_barrier.h"
 
 //#define USE_FUTEX
 #define USE_C11_CV
@@ -37,10 +37,10 @@ Class : thread_barrier (inherits class latch)
 #error "Cannot define both USE_FUTEX and USE_C11_CV!"
 #endif
 
-class thread_barrier : latch {
+class thread_barrier : generic_barrier {
 
     //grab all inherited constructors
-    using latch::latch; 
+    using generic_barrier::generic_barrier; 
 
 	//The aligned attribute ensures that this data field occupies a single
 	//cache line. The normal layout will put generation and total_threads

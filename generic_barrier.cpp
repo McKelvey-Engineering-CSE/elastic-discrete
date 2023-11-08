@@ -1,11 +1,11 @@
-#include "latch.h"
+#include "generic_barrier.h"
 
-void latch::init(int in){
+void generic_barrier::init(int in){
     std::lock_guard<std::mutex> lock(mut);
     count = in;
 }
 
-void latch::arrive_and_wait()
+void generic_barrier::arrive_and_wait()
 {
     //lock mutex
     std::unique_lock<std::mutex> lock(mut);
@@ -23,7 +23,7 @@ void latch::arrive_and_wait()
     return_function();
 }
 
-void latch::return_function(){
+void generic_barrier::return_function(){
 
     if (execute_function){
 

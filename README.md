@@ -7,7 +7,7 @@ This is a runtime system to run parallel elastic tasks with discrete candidate v
 Each task Tau has a constant span L, variable T or C, Elasticity coefficient E, and a finite set of discrete values of C or T
 
 ## Important Details
-All classes implemented for thread/process management are all based on the implemented "latch" class, which is an process and thread safe recreation of the std::barrier/std::latch. This custom type enables us to keep to C++ 11/C++14 without issue as well as giving us fine-grained control over the abilities of the latch/barrier. Currently, the latch can take in a function poiner for the exiting processes or threads to execute when they leave the barrier. 
+All classes implemented for thread/process management are all based on the implemented "generic_barrier" class, which is an process and thread safe recreation of the std::barrier/std::generic_barrier. This custom type enables us to keep to C++ 11/C++14 without issue as well as giving us fine-grained control over the abilities of the generic_barrier/barrier. Currently, the generic_barrier can take in a function poiner for the exiting processes or threads to execute when they leave the barrier. 
 
 Priting is all controlled by a custom print function notated print(stream, message/variables, ...). It itself is built off of std::cout/std::cerr, and therefore grants us the ability to overload the "<<" operator in any classes we want. It however uses an ostream to ensure we get a printf-like thread-defined behavior with minimal performance penalty over std::cout/std::cerr.
 

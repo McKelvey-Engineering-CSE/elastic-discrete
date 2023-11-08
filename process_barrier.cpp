@@ -12,7 +12,7 @@
 #include <cerrno>
 
 #include "print.h"
-#include "latch.h"
+#include "generic_barrier.h"
 
 
 //static function to create a new process_barrier

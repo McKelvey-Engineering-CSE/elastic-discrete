@@ -12,7 +12,7 @@
 
 /*************************************************************************
 
-latch.h
+generic_barrier.h
 
 Custom barrier object. Functions identically to C++20 barriers, but can be 
 stored in shared memory, reinitialized to a new count, and does not require 
@@ -23,11 +23,11 @@ scheduler mode, where only the scheduling process/thread executes the exit
 function, or on a per-thread basis where each process/thread executes the 
 function as it leaves.
 
-Objects : latch <template>
+Objects : generic_barrier <template>
 
 **************************************************************************/
 
-class latch 
+class generic_barrier 
 {
 
 std::mutex mut;
@@ -39,12 +39,12 @@ bool execute_function = false;
 
 public:
 
-    //construct latch
-    explicit latch() : count(1) { }
-    explicit latch(std::size_t incount) : count(incount) { }
-    explicit latch(std::size_t incount, std::function<void()> inret_func) : count(incount), ret_function(inret_func), execute_function(true) { }
-    explicit latch(std::size_t incount, std::function<void()> inret_func, bool all) : count(incount), ret_function(inret_func), scheduler_only(all), execute_function(true) { }
-    explicit latch(std::size_t incount, std::function<void()> inret_func, bool all, bool execute) : count(incount), ret_function(inret_func), scheduler_only(all), execute_function(execute) { }
+    //construct generic_barrier
+    explicit generic_barrier() : count(1) { }
+    explicit generic_barrier(std::size_t incount) : count(incount) { }
+    explicit generic_barrier(std::size_t incount, std::function<void()> inret_func) : count(incount), ret_function(inret_func), execute_function(true) { }
+    explicit generic_barrier(std::size_t incount, std::function<void()> inret_func, bool all) : count(incount), ret_function(inret_func), scheduler_only(all), execute_function(true) { }
+    explicit generic_barrier(std::size_t incount, std::function<void()> inret_func, bool all, bool execute) : count(incount), ret_function(inret_func), scheduler_only(all), execute_function(execute) { }
 
     //reinit for barrier mode
 	void init(int in);

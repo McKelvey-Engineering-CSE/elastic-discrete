@@ -190,7 +190,7 @@ void thread_barrier::mc_bar_wait( )
 
 	do_switch_protocol();
 
-	//From this point on, we do a regular latch arrive_and_wait()
+	//From this point on, we do a regular generic_barrier arrive_and_wait()
 
 	//We use the generation variable to indicate how many times this 
 	//barrier has been reset. This is so that, when a new thread starts

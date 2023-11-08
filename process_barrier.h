@@ -1,13 +1,13 @@
 #ifndef RT_GOMP_SINGLE_USE_BARRIER_H
 #define RT_GOMP_SINGLE_USE_BARRIER_H
 
-#include "latch.h"
+#include "generic_barrier.h"
 
 /*************************************************************************
 
 process_barrier.h
 
-This object is an extension of the latch object defined in latch.h
+This object is an extension of the generic_barrier object defined in generic_barrier.h
 It serves as a reinitializable barrier that can be used to synchronize 
 processes. It has multiple static methods which allow an unusual accessing
 pattern, as the constructor itself is only ever called by the object
@@ -17,7 +17,7 @@ objects:
 	enum: rt_gomp_single_use_barrier_error_codes
 		simple error codes for various functions
 
-	class: process_barrier (inheriting from latch)
+	class: process_barrier (inheriting from generic_barrier)
 		barrier for interprocess synchronization
 
 **************************************************************************/
@@ -31,7 +31,7 @@ enum rt_gomp_single_use_barrier_error_codes
 	RT_GOMP_SINGLE_USE_BARRIER_MMAP_FAILED_ERROR
 };
 
-class process_barrier : private latch {
+class process_barrier : private generic_barrier {
 
 	std::string name;
 	std::mutex destruction_mux;
@@ -39,7 +39,7 @@ class process_barrier : private latch {
 public:
 
 	//inherit constructors
-	using latch::latch; 
+	using generic_barrier::generic_barrier; 
 
 	//static function to destroy a barrier by force if needed
 	static process_barrier* create_process_barrier(std::string barrier_name, int num_tasks, std::function<void()> infunction = nullptr, bool inall = false, bool inexecution = false);
@@ -50,7 +50,7 @@ public:
 	//static function to unmap a barrier
 	static void unmap_process_barrier(process_barrier* barrier);
 
-	//await function that allows latch functionality
+	//await function that allows generic_barrier functionality
 	static int await_and_destroy_barrier(std::string barrier_name);
 };
 
