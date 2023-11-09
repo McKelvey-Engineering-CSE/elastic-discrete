@@ -19,10 +19,9 @@ Struct : task_t
 
 #include <condition_variable>
 #include <mutex>
-#include <atomic> //for atomic_bool
-#include "thread_barrier.h" //for mc_barrier
+#include <atomic>
 #include "thread_barrier.h"
-#include <sched.h> //for cpu_set_t
+#include <sched.h>
 #include "include.h"
 
 //#define TRACING
