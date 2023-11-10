@@ -33,7 +33,7 @@ class latch:
       reimplementation of a standard C++20 latch. Inherits from generic_barrier
       and has the ability to reinitialize it disabled
 **************************************************************************/
-class latch : generic_barrier {
+class latch : public generic_barrier {
 
 private:
 
@@ -42,7 +42,12 @@ private:
 public:
 
     //standard latch constructor
-    latch(inCount_): count(count_), ret_function(nullptr), execute_function(false){}
+    latch(size_t count_){
+        count = count_;
+        ret_function = nullptr;
+        execute_function = false;
+
+    }
 
     //return false only if counter = 0
     bool try_wait(){ return !count; }
@@ -60,7 +65,7 @@ public:
     }
 
     //generic constantexpr function to return value
-    static constexpr std::ptrdiff_t max(){ return (size_t)-1 }
+    static constexpr std::ptrdiff_t max(){ return (size_t)-1; }
 
 };
 
@@ -69,7 +74,7 @@ class latch:
       reimplementation of a standard C++20 latch. Inherits from generic_barrier
       and has the ability to reinitialize it disabled
 **************************************************************************/
-class barrier : generic_barrier {
+class barrier : public generic_barrier {
 
 private:
 
@@ -79,10 +84,23 @@ private:
         count = expected;
     }
 
+    void return_function(){
+
+        init();
+        ret_function();
+
+    }   
+
 public:
 
     //standard latch constructor
-    barrier(int inCount_, std::function<void()> returnFunction_): expected(count_), count(count_), ret_function(returnFunction_), scheduler_only(true), execute_function(true){}
+    barrier(size_t count_, std::function<void()> returnFunction_){
+        expected = count_;
+        count = count_;
+        ret_function = returnFunction_;
+        scheduler_only = true;
+        execute_function = true;
+    }
 
     //not correctly implemented yet
     void arrive(){
@@ -104,7 +122,7 @@ public:
     }
 
     //generic constantexpr function to return value
-    static constexpr std::ptrdiff_t max(){ return (size_t)-1 }
+    static constexpr std::ptrdiff_t max(){ return (size_t)-1; }
 
 };
  

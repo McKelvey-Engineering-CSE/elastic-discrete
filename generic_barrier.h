@@ -30,12 +30,13 @@ Objects : generic_barrier <template>
 class generic_barrier 
 {
 
-std::mutex mut;
-std::condition_variable cv;
-std::size_t count;
-std::function<void()> ret_function;
-bool scheduler_only = true;
-bool execute_function = false;
+protected:
+    std::mutex mut;
+    std::condition_variable cv;
+    std::size_t count;
+    std::function<void()> ret_function;
+    bool scheduler_only = true;
+    bool execute_function = false;
 
 public:
 
