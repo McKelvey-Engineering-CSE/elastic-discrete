@@ -3,6 +3,8 @@
 
 #include <sstream>
 
+#include "printBuffer.h"
+
 /*************************************************************************
 
 printing.h
@@ -14,6 +16,8 @@ for raceless printing as well without locking
 penalties: 
 
 std::cout/cerr - 50 microseconds
+printing to buffer - 50 microseconds to create buffer and print
+                   - 40 microseconds to print to extant buffer
 printf - 30 microseconds
 
 benefits: 
@@ -43,6 +47,26 @@ static void print(std::ostream& out, Arg&& arg, Args&&... args){
     
     //print to whatever we were given
     out << ss.str();
+}
+
+template <typename Arg, typename... Args>
+static void print(std::string bufferName, Arg&& arg, Args&&... args){
+
+    //creates the buffer if it does not exist
+    printBuffer* buffer = printBuffer::createBuffer(bufferName);
+    if (buffer == nullptr)
+        exit(-1);
+
+    //FIXME: try to avoid stringstream while mimicing the function
+    std::ostringstream ss;
+    
+    //expander boilerplate
+    ss << std::forward<Arg>(arg);
+    using expander = int[];
+    (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
+    
+    //print to whatever we were given
+    buffer->printToBuffer(ss.str());
 }
 
 #endif
