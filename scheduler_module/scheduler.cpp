@@ -1,6 +1,6 @@
 #include "scheduler.h"
 #include "taskData.h"
-#include "print.h"
+#include "print_module.h"
 
 #include <iostream>
 #include <cmath>
@@ -171,12 +171,12 @@ void Scheduler::do_schedule(){
 
 	//James Stop 10/4/18
 
-	print(std::cout, "Got this allocation: ", DP[NUMCPUS][schedule.count()].first, " ");
+	print_module::print(std::cout, "Got this allocation: ", DP[NUMCPUS][schedule.count()].first, " ");
 	for(unsigned int i=0; i<DP[NUMCPUS][schedule.count()].second.size(); i++)
 	{
-		print(std::cout, DP[NUMCPUS][schedule.count()].second[i], " ");
+		print_module::print(std::cout, DP[NUMCPUS][schedule.count()].second[i], " ");
 	}
-	print(std::cout, "\n");
+	print_module::print(std::cout, "\n");
 
 	for(int i=0; i<schedule.count(); i++)
 	{
@@ -193,7 +193,7 @@ void Scheduler::do_schedule(){
 		{
 			if((schedule.get_task(i))->get_current_lowest_CPU() > 0)
 			{
-				print(std::cerr, "Error in task ", i, ": all tasks should have had lowest CPU cleared.\n");
+				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest CPU cleared.\n");
 				killpg(process_group, SIGKILL);
                 return;
 			}
@@ -203,7 +203,7 @@ void Scheduler::do_schedule(){
 
 			if(next_CPU > num_CPUs+1)
 			{
-				print(std::cerr, "Error in task ", i, ": too many CPUs have been allocated.", next_CPU, " ", num_CPUs, " \n");
+				print_module::print(std::cerr, "Error in task ", i, ": too many CPUs have been allocated.", next_CPU, " ", num_CPUs, " \n");
 				killpg(process_group, SIGKILL);
 				return;
 			}		
@@ -303,7 +303,7 @@ void Scheduler::do_schedule(){
 
 								if(!used && k!=(schedule.get_task(i))->get_permanent_CPU() && !(schedule.get_task(i))->transfers(j,k) )
 								{
-									print(std::cerr, "Task ", i, " should be sending CPU ", k, " to task ", j, ".\n");
+									print_module::print(std::cerr, "Task ", i, " should be sending CPU ", k, " to task ", j, ".\n");
 									
 									(schedule.get_task(i))->set_transfer(j,k,true);
 
@@ -336,7 +336,7 @@ void Scheduler::do_schedule(){
 	
 								if(!used && k!=(schedule.get_task(i))->get_permanent_CPU() && !(schedule.get_task(i))->transfers(j,k))
 								{
-									print(std::cerr, "Task ", i, " should be sending CPU ", k, " to task ", j, ".\n");
+									print_module::print(std::cerr, "Task ", i, " should be sending CPU ", k, " to task ", j, ".\n");
 
 									(schedule.get_task(i))->set_transfer(j,k,true);
 									
@@ -404,7 +404,7 @@ void Scheduler::do_schedule(){
 									
 									(schedule.get_task(i))->set_receive(j,k,true);
 									
-									print(std::cerr, "Task ", j, "  should be sending CPU ", k, " to task ", i, ".\n");
+									print_module::print(std::cerr, "Task ", j, "  should be sending CPU ", k, " to task ", i, ".\n");
 
 									amount_gives--;
 
@@ -438,7 +438,7 @@ void Scheduler::do_schedule(){
 									
 									(schedule.get_task(i))->set_receive(j,k,true);
 									
-									print(std::cerr, "Task ", j, "  should be sending CPU ", k, " to task ", i, ".\n");
+									print_module::print(std::cerr, "Task ", j, "  should be sending CPU ", k, " to task ", i, ".\n");
 
 									amount_gives--;
 

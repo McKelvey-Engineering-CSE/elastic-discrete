@@ -30,7 +30,7 @@
 #include <sys/syscall.h>
 #include <limits.h> //for INT MAX
 #include <map>
-#include "print.h"
+#include "print_module.h"
 
 #include <chrono>
 using namespace std::chrono;
@@ -58,7 +58,7 @@ FILE * fd;
 
 //testing capturing faults and notifying before simply dying
 void exit_on_signal(int sig){
-	print(std::cerr, "Signal captured " , strsignal(sig) , ". Program cannot continue. Exiting.\n");
+	print_module::print(std::cerr, "Signal captured " , strsignal(sig) , ". Program cannot continue. Exiting.\n");
 	exit(-1);
 }
 
@@ -179,7 +179,7 @@ void reschedule()
 
 				if(ret_val < 0)
 				{
-					print(std::cerr, "ERROR: could not set priority.\n");
+					print_module::print(std::cerr, "ERROR: could not set priority.\n");
 				}
 				
 			}
@@ -203,10 +203,10 @@ void reschedule()
 						{
 							for(int i=1; i<=NUMCPUS; i++)
 							{
-								print(std::cout, active[i] , "\n");
+								print_module::print(std::cout, active[i] , "\n");
 							}	
 
-							print(std::cout, omp_thread_index[thread_locations[k]] , " " , thread_locations[k]  , " "  ,  k , "\n");							
+							print_module::print(std::cout, omp_thread_index[thread_locations[k]] , " " , thread_locations[k]  , " "  ,  k , "\n");							
 
 							active[omp_thread_index[thread_locations[k]]] = true;
 							schedule.get_task(iindex)->clr_passive(k);
@@ -262,7 +262,7 @@ int main(int argc, char *argv[])
 		command_string += argv[i];
 	}
 
-	print(std::cerr,  "Task " , getpid() , " started with command string:\n>" , command_string.c_str() , "\n");
+	print_module::print(std::cerr,  "Task " , getpid() , " started with command string:\n>" , command_string.c_str() , "\n");
 
 	//Get our own PID and store it
 	mypid = getpid();
@@ -276,13 +276,13 @@ int main(int argc, char *argv[])
 	void (*ret_handler)(int);
 	ret_handler = signal(SIGRTMIN+0, sigrt0_handler);
 	if( ret_handler == SIG_ERR ){
-		print(std::cerr,  "ERROR: Call to Signal failed, reason: " , strerror(errno) , "\n");
+		print_module::print(std::cerr,  "ERROR: Call to Signal failed, reason: " , strerror(errno) , "\n");
 		exit(-1);
 	}
 
 	ret_handler = signal(SIGRTMIN+1, sigrt1_handler);
 	if( ret_handler == SIG_ERR ){
-		print(std::cerr,  "ERROR: Call to Signal failed, reason: " , strerror(errno) , "\n");
+		print_module::print(std::cerr,  "ERROR: Call to Signal failed, reason: " , strerror(errno) , "\n");
 		exit(-1);
 	}
 
@@ -295,7 +295,7 @@ int main(int argc, char *argv[])
         (std::istringstream(argv[4]) >> end_nsec) &&
 		(std::istringstream(argv[5]) >> iindex)))
 	{
-		print(std::cerr,  "ERROR: Cannot parse input argument for task " , task_name , "\n");
+		print_module::print(std::cerr,  "ERROR: Cannot parse input argument for task " , task_name , "\n");
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_ARG_PARSE_ERROR;
 	}
@@ -311,7 +311,7 @@ int main(int argc, char *argv[])
 	
 	if ((ret_val = process_barrier::await_and_destroy_barrier("RT_GOMP_CLUSTERING_BARRIER2")) != 0)
 	{
-		print(std::cerr,  "ERROR: Barrier error for task " , task_name , "\n");
+		print_module::print(std::cerr,  "ERROR: Barrier error for task " , task_name , "\n");
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_BARRIER_ERROR;
 	}
@@ -330,7 +330,7 @@ int main(int argc, char *argv[])
 	
 	{
 	lock_guard<mutex> lk(con_mut);
-	print(std::cerr,  "Task " , getpid() , " lowest CPU: " , schedule.get_task(iindex)->get_current_lowest_CPU() , ", currentCPUS, " , schedule.get_task(iindex)->get_current_CPUs() , " minCPUS: " , schedule.get_task(iindex)->get_min_CPUs() , ", maxCPUS: " , schedule.get_task(iindex)->get_max_CPUs() , ", practical max: " , schedule.get_task(iindex)->get_practical_max_CPUs() , ", " , schedule.get_task(iindex)->get_current_period().tv_nsec , "ns\n");
+	print_module::print(std::cerr,  "Task " , getpid() , " lowest CPU: " , schedule.get_task(iindex)->get_current_lowest_CPU() , ", currentCPUS, " , schedule.get_task(iindex)->get_current_CPUs() , " minCPUS: " , schedule.get_task(iindex)->get_min_CPUs() , ", maxCPUS: " , schedule.get_task(iindex)->get_max_CPUs() , ", practical max: " , schedule.get_task(iindex)->get_practical_max_CPUs() , ", " , schedule.get_task(iindex)->get_current_period().tv_nsec , "ns\n");
 	}
 
 	struct sched_param param;
@@ -338,7 +338,7 @@ int main(int argc, char *argv[])
 	ret_val = sched_setscheduler(getpid(), SCHED_RR, &param);
 	if (ret_val != 0)
 	{
- 		print(std::cerr,  "WARNING: " , getpid() , " Could not set priority. Returned: " , errno , "  (" , strerror(errno) , ")\n");
+ 		print_module::print(std::cerr,  "WARNING: " , getpid() , " Could not set priority. Returned: " , errno , "  (" , strerror(errno) , ")\n");
 	}
 
 	// OMP settings
@@ -388,7 +388,7 @@ int main(int argc, char *argv[])
             ret_val = pthread_setschedparam(threads[j], SCHED_RR, &global_param);
 			thread_locations[p]=threads[j];
 
-			print(std::cerr,  iindex ," setting " , p , " to active.\n");
+			print_module::print(std::cerr,  iindex ," setting " , p , " to active.\n");
 
 			schedule.get_task(iindex)->set_active(p);
 			CPU_ZERO(&global_cpuset);
@@ -410,7 +410,7 @@ int main(int argc, char *argv[])
 			thread_locations[p]=threads[j];
 			schedule.get_task(iindex)->set_passive(p);
 
-			print(std::cerr,  iindex , " setting " , p , " to passive.\n");
+			print_module::print(std::cerr,  iindex , " setting " , p , " to passive.\n");
 
 			CPU_ZERO(&global_cpuset);
 			CPU_SET(p,&global_cpuset);
@@ -434,26 +434,26 @@ int main(int argc, char *argv[])
 		ret_val = task.init(task_argc, task_argv);
 		if (ret_val != 0)
 		{
-			print(std::cerr,   "ERROR: Task initialization failed for task " , task_name ,"\n");
+			print_module::print(std::cerr,   "ERROR: Task initialization failed for task " , task_name ,"\n");
 			kill(0, SIGTERM);
 			return RT_GOMP_TASK_MANAGER_INIT_TASK_ERROR;
 		}
 	}
 	
-	bufferSet memBuffer("bufferOne", "bufferTwo", "BufferThree");
+	print_module::bufferSet memBuffer("bufferOne", "bufferTwo", "BufferThree");
 
 	auto start = high_resolution_clock::now();
-	print(memBuffer,   "Task " , task_name , " reached barrier\n");
+	print_module::print(memBuffer,   "Task " , task_name , " reached barrier\n");
 	auto end = high_resolution_clock::now();
 
 	auto duration = duration_cast<microseconds>(end - start).count();
 
-	print(std::cerr, "time taken to print to buffers ", memBuffer, " : ", duration, "\n");
+	print_module::print(std::cerr, "time taken to print to buffers ", memBuffer, " : ", duration, "\n");
 
 	// Wait at barrier for the other tasks
 	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name)) != 0)
 	{
-		print(std::cerr,   "ERROR: Barrier error for task " , task_name , "\n");
+		print_module::print(std::cerr,   "ERROR: Barrier error for task " , task_name , "\n");
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_BARRIER_ERROR;
 	}
@@ -503,7 +503,7 @@ int main(int argc, char *argv[])
 		get_time(&period_finish);
 		if (ret_val != 0)
 		{
-			print(std::cerr,  "ERROR: Task run failed for task " , task_name, "\n");
+			print_module::print(std::cerr,  "ERROR: Task run failed for task " , task_name, "\n");
 			return RT_GOMP_TASK_MANAGER_RUN_TASK_ERROR;
 		}
 		
@@ -560,7 +560,7 @@ int main(int argc, char *argv[])
 
 				reschedule();
 				
-				print(std::cerr,  "thread " , iindex, ": finished reschedule\n");	
+				print_module::print(std::cerr,  "thread " , iindex, ": finished reschedule\n");	
 
 				#ifdef TRACING
 				fprintf( fd, "thread %d: finished reschedule\n", getpid());
@@ -573,7 +573,7 @@ int main(int argc, char *argv[])
 			else
 			{
 				//Gaining a processor that wasn't ready yet.
-				print(std::cerr,  "task " , getpid() , " can't reschedule!\n");
+				print_module::print(std::cerr,  "task " , getpid() , " can't reschedule!\n");
 			}
 		}
 
@@ -600,14 +600,14 @@ int main(int argc, char *argv[])
 		ret_val = task.finalize(task_argc, task_argv);
 		if (ret_val != 0)
 		{
-			print(std::cerr,   "WARNING: Task finalization failed for task " , task_name , "\n");
+			print_module::print(std::cerr,   "WARNING: Task finalization failed for task " , task_name , "\n");
 		}
 	}
 
 	//Print out useful information.
-	print(std::cerr,  "(" , mypid , ") Deadlines missed for task " , task_name , ": " , deadlines_missed , "/" , num_iters , "\n");
-	print(std::cerr,  "(" , mypid , ") Max running time for task " , task_name , ": " , (int)max_period_runtime.tv_sec , " sec  " , max_period_runtime.tv_nsec , " nsec\n");
-	print(std::cerr,  "(" , mypid , ") Avg running time for task " , task_name , ": " , (total_nsec/(num_iters))/1000000.0 , " msec\n");
+	print_module::print(std::cerr,  "(" , mypid , ") Deadlines missed for task " , task_name , ": " , deadlines_missed , "/" , num_iters , "\n");
+	print_module::print(std::cerr,  "(" , mypid , ") Max running time for task " , task_name , ": " , (int)max_period_runtime.tv_sec , " sec  " , max_period_runtime.tv_nsec , " nsec\n");
+	print_module::print(std::cerr,  "(" , mypid , ") Avg running time for task " , task_name , ": " , (total_nsec/(num_iters))/1000000.0 , " msec\n");
 
 	
 	#ifdef PER_PERIOD_VERBOSE
@@ -621,7 +621,7 @@ int main(int argc, char *argv[])
 	outfile.close();
 	#endif
 	
-	print(std::cout, deadlines_missed, " ", num_iters, " ", omp_get_num_threads(), " ", max_period_runtime, "\n");
+	print_module::print(std::cout, deadlines_missed, " ", num_iters, " ", omp_get_num_threads(), " ", max_period_runtime, "\n");
 
 	fflush(stdout);
 	fflush(stderr);

@@ -141,7 +141,7 @@ void TaskData::set_current_mode(int new_mode, bool disable)
 	}
 	else
 	{
-		print(std::cerr, "Error: Task ", get_index(), " was told to go to invalid mode ", new_mode, ". Ignoring.\n");
+		print_module::print(std::cerr, "Error: Task ", get_index(), " was told to go to invalid mode ", new_mode, ". Ignoring.\n");
 	}
 }
 

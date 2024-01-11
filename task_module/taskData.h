@@ -26,7 +26,7 @@ Class : TaskData
 #include <vector>
 #include "timespec_functions.h"
 #include "include.h"
-#include "print.h"
+#include "print_module.h"
 
 class TaskData{
 private:
@@ -85,7 +85,7 @@ public:
 	{
 		if(num_modes > MAXMODES)
 		{
-			print(std::cerr, "ERROR: No task can have more than ", MAXMODES,  " modes.\n");
+			print_module::print(std::cerr, "ERROR: No task can have more than ", MAXMODES,  " modes.\n");
 			kill(0, SIGTERM);
 		}
 
@@ -97,7 +97,7 @@ public:
 		}			
 		for(int i=0; i<num_modes; i++)
 		{	
-			print(std::cout, work[i], " ", span[i], " ", period[i], "\n");	
+			print_module::print(std::cout, work[i], " ", span[i], " ", period[i], "\n");	
 		}	
 
 		timespec numerator;

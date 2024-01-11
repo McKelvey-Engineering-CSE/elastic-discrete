@@ -79,7 +79,7 @@ void thread_barrier::mc_bar_to_low_crit( uint32_t additional_hc_threads )
 {	
 	__atomic_store_n( &locked , true, __ATOMIC_RELEASE);
 	if( expected != total_threads ){
-		print(std::cerr, "ERROR: Tried to update barrier during corrupted state! Exiting...\n");
+		print_module::print(std::cerr, "ERROR: Tried to update barrier during corrupted state! Exiting...\n");
 		abort();
 	}
 	

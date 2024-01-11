@@ -28,7 +28,7 @@ Class : thread_barrier (inherits class generic_barrier)
 #include <condition_variable>
 #include <mutex>
 
-#include "print.h"
+#include "print_module.h"
 #include "generic_barrier.h"
 
 //#define USE_FUTEX

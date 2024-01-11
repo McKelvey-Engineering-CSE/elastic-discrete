@@ -17,10 +17,12 @@ setup:
 	$(shell find . -name \*.cpp -not -path "./.git/*" -exec cp {} build \;)
 	$(shell find . -name \*.h -not -path "./.git/*" -exec cp {} build \;)
 	$(shell find . -name \*.hpp -not -path "./.git/*" -exec cp {} build \;)
+	$(shell find . -name \*.rtps -not -path "./.git/*" -exec cp {} bin \;)
 	$(shell find . Makefile -not -path "./.git/*" -exec cp {} build \;)
 
 finish:
 	$(shell cp ./james ./clustering_launcher ../bin/)
+	$(shell find . -name *.rtps -not -path "./.git/*" -exec cp {} bin \;)
 	$(shell rm -rf ../build)
 
 clean:
@@ -28,18 +30,18 @@ clean:
 #########################################################################
 
 synthetic_task: synthetic_task.cpp
-	$(CC) $(FLAGS) -fopenmp synthetic_task.cpp sharedMem.o task.o task_manager.o printBuffer.o thread_barrier.o schedule.o taskData.o -o synthetic_task $(LIBS)
+	$(CC) $(FLAGS) -fopenmp synthetic_task.cpp sharedMem.o task.o task_manager.o print_library.o thread_barrier.o schedule.o taskData.o -o synthetic_task $(LIBS)
 
 synthetic_task_gd: synthetic_task_gd.cpp
-	$(CC) $(FLAGS) -fopenmp synthetic_task_gd.cpp sharedMem.o task_manager.o printBuffer.o task.o thread_barrier.o  -o st_gd $(LIBS)
+	$(CC) $(FLAGS) -fopenmp synthetic_task_gd.cpp sharedMem.o task_manager.o print_library.o task.o thread_barrier.o  -o st_gd $(LIBS)
 
 synthetic_task_gd_extra: synthetic_task_gd_extra.cpp
-	$(CC) $(FLAGS) -fopenmp synthetic_task_gd_extra.cpp sharedMem.o task_manager.o printBuffer.o task.o thread_barrier.o  -o st_extra $(LIBS)
+	$(CC) $(FLAGS) -fopenmp synthetic_task_gd_extra.cpp sharedMem.o task_manager.o print_library.o task.o thread_barrier.o  -o st_extra $(LIBS)
 
 thread_barrier.o: thread_barrier.cpp
 	$(CC) $(FLAGS) -c thread_barrier.cpp
 
-clustering_distribution: libclustering.a sharedMem.o schedule.o scheduler.o task.o taskData.o task_manager.o thread_barrier.o printBuffer.o clustering_launcher synthetic_task james
+clustering_distribution: libclustering.a sharedMem.o schedule.o scheduler.o task.o taskData.o task_manager.o thread_barrier.o print_library.o clustering_launcher synthetic_task james
 
 libclustering.a: $(CLUSTERING_OBJECTS)
 	ar rcsf libclustering.a $(CLUSTERING_OBJECTS)
@@ -71,11 +73,17 @@ sharedMem.o: sharedMem.cpp
 generic_barrier.o: generic_barrier.cpp
 	$(CC) $(FLAGS) -c generic_barrier.cpp
 
+print_library.o: print_module.o printBuffer.o
+	ld -relocatable print_module.o printBuffer.o -o print_library.o
+
 printBuffer.o: printBuffer.cpp
 	$(CC) $(FLAGS) -c printBuffer.cpp
+
+print_module.o: print_module.cpp
+	$(CC) $(FLAGS) -c print_module.cpp 
 
 clustering_launcher: clustering_launcher.cpp
 	$(CC) $(FLAGS) taskData.o schedule.o scheduler.o sharedMem.o clustering_launcher.cpp -o clustering_launcher $(LIBS)
 
 james: james.cpp task_manager.o
-	$(CC) $(FLAGS) james.cpp sharedMem.o scheduler.o schedule.o taskData.o task.o task_manager.o printBuffer.o thread_barrier.o -o james $(LIBS)
+	$(CC) $(FLAGS) james.cpp sharedMem.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o thread_barrier.o -o james $(LIBS)

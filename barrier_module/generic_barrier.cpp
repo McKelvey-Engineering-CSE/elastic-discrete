@@ -27,7 +27,7 @@ void generic_barrier::return_function(){
 
     if (execute_function){
 
-        print(std::cerr, "running exit function\n");
+        print_module::print(std::cerr, "running exit function\n");
 
         //if "scheduler" is the only one doing it
         if (scheduler_only){

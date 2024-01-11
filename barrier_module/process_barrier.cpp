@@ -11,7 +11,7 @@
 #include <iostream>
 #include <cerrno>
 
-#include "print.h"
+#include "print_module.h"
 #include "generic_barrier.h"
 
 

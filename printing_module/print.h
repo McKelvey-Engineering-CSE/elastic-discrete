@@ -29,59 +29,38 @@ with C++ 20 idiomatic methods, but I want to keep
 this all C++17 at the absolute worst
 
 
-Function :  print(ostream, args...)
-            print(const char[], args...)
-            print(bufferSet, args...)
+Function :  print_module::print(ostream, args...)
+            print_module::print(const char[], args...)
+            print_module::print(bufferSet, args...)
 
 **************************************************************************/
 
-template <typename Arg, typename... Args>
-static void print(std::ostream& out, Arg&& arg, Args&&... args){   
-    
-    //ostringstream seems to have lowest possible 
-    //overhead
-    std::ostringstream ss;
-    
-    //expander boilerplate
-    ss << std::forward<Arg>(arg);
-    using expander = int[];
-    (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
-    
-    //print to whatever we were given
-    out << ss.str();
-}
+namespace print_module {
 
-template <typename Arg, typename... Args>
-static void print(const char bufferChar[], Arg&& arg, Args&&... args){
+    template <typename Arg, typename... Args>
+    static void print(std::ostream& out, Arg&& arg, Args&&... args){   
+        
+        //ostringstream seems to have lowest possible 
+        //overhead
+        std::ostringstream ss;
+        
+        //expander boilerplate
+        ss << std::forward<Arg>(arg);
+        using expander = int[];
+        (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
+        
+        //print to whatever we were given
+        out << ss.str();
+    }
 
-    //char to string
-    std::string bufferName(bufferChar);
+    template <typename Arg, typename... Args>
+    static void print(const char bufferChar[], Arg&& arg, Args&&... args){
 
-    //creates the buffer if it does not exist
-    printBuffer* buffer = printBuffer::createBuffer(bufferName);
-    if (buffer == nullptr)
-        exit(-1);
-
-    //FIXME: try to avoid stringstream while mimicing the function
-    std::ostringstream ss;
-    
-    //expander boilerplate
-    ss << std::forward<Arg>(arg);
-    using expander = int[];
-    (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
-    
-    //print to whatever we were given
-    buffer->printToBuffer(ss.str());
-}
-
-template <typename Arg, typename... Args>
-static void print(bufferSet bufferNames, Arg&& arg, Args&&... args){
-
-    //loop over all the handles in the buffer
-    for (std::string name : bufferNames.fetch()){
+        //char to string
+        std::string bufferName(bufferChar);
 
         //creates the buffer if it does not exist
-        printBuffer* buffer = printBuffer::createBuffer(name);
+        printBuffer* buffer = printBuffer::openBuffer(bufferName);
         if (buffer == nullptr)
             exit(-1);
 
@@ -96,6 +75,30 @@ static void print(bufferSet bufferNames, Arg&& arg, Args&&... args){
         //print to whatever we were given
         buffer->printToBuffer(ss.str());
     }
-}
 
+    template <typename Arg, typename... Args>
+    static void print(bufferSet bufferNames, Arg&& arg, Args&&... args){
+
+        //loop over all the handles in the buffer
+        for (std::string name : bufferNames.fetch()){
+
+            //creates the buffer if it does not exist
+            printBuffer* buffer = printBuffer::openBuffer(name);
+            if (buffer == nullptr)
+                exit(-1);
+
+            //FIXME: try to avoid stringstream while mimicing the function
+            std::ostringstream ss;
+            
+            //expander boilerplate
+            ss << std::forward<Arg>(arg);
+            using expander = int[];
+            (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
+            
+            //print to whatever we were given
+            buffer->printToBuffer(ss.str());
+        }
+    }
+
+}
 #endif

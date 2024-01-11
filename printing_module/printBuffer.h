@@ -16,48 +16,50 @@
 #include <sstream>
 #include <vector>
 
-class bufferSet {
+namespace print_module {
 
-    private:
-        std::vector<std::string> list_of_buffers;
+    class bufferSet {
 
-    public:
-        template <typename Arg, typename... Args>
-        bufferSet(std::string firstName, Arg&& arg, Args&&... args){
-            
-            //expander boilerplate
-            list_of_buffers.push_back(firstName);
-            list_of_buffers.push_back(std::forward<Arg>(arg));
-            using expander = int[];
-            (void)expander{0, (void(list_of_buffers.push_back(std::forward<Args>(args))), 0)...};
+        private:
+            std::vector<std::string> list_of_buffers;
 
-        }
+        public:
+            template <typename Arg, typename... Args>
+            bufferSet(std::string firstName, Arg&& arg, Args&&... args){
+                
+                //expander boilerplate
+                list_of_buffers.push_back(firstName);
+                list_of_buffers.push_back(std::forward<Arg>(arg));
+                using expander = int[];
+                (void)expander{0, (void(list_of_buffers.push_back(std::forward<Args>(args))), 0)...};
 
-        std::vector<std::string> fetch();
+            }
 
-        friend std::ostream& operator<<(std::ostream& os, bufferSet const & inputSet){
+            std::vector<std::string> fetch();
 
-            std::string list_name = "";
+            friend std::ostream& operator<<(std::ostream& os, bufferSet const & inputSet){
 
-            for(std::string name : inputSet.list_of_buffers)
-                list_name += name + " ";
+                std::string list_name = "";
 
-            return os << list_name;
-        }
-};
+                for(std::string name : inputSet.list_of_buffers)
+                    list_name += name + " ";
 
-class printBuffer {
+                return os << list_name;
+            }
+    };
 
-    private:
-        int position = 0;
-        std::mutex lock;
-        std::vector<std::string> buffer = std::vector<std::string>(255, std::string(" ", 255));
+    class printBuffer {
 
-    public:
-        static printBuffer* createBuffer(std::string);
-        static void deleteBuffer(std::string);
-        void printToBuffer(std::string);
-        std::string dumpBuffer();
-};
+        private:
+            int position = 0;
+            std::mutex lock;
+            std::vector<std::string> buffer = std::vector<std::string>(255, std::string(" ", 255));
 
+        public:
+            static printBuffer* openBuffer(std::string);
+            void printToBuffer(std::string);
+            std::string dumpBuffer();
+    };
+
+}
 #endif
