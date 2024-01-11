@@ -14,10 +14,10 @@ build: clustering_distribution finish
 
 setup:
 	$(shell mkdir -p $(DIRS))
-	$(shell find . -name \*.cpp -exec cp {} build \;)
-	$(shell find . -name \*.h -exec cp {} build \;)
-	$(shell find . -name \*.hpp -exec cp {} build \;)
-	$(shell find . Makefile -exec cp {} build \;)
+	$(shell find . -name \*.cpp -not -path "./.git/*" -exec cp {} build \;)
+	$(shell find . -name \*.h -not -path "./.git/*" -exec cp {} build \;)
+	$(shell find . -name \*.hpp -not -path "./.git/*" -exec cp {} build \;)
+	$(shell find . Makefile -not -path "./.git/*" -exec cp {} build \;)
 
 finish:
 	$(shell cp ./james ./clustering_launcher ../bin/)
