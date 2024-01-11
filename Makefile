@@ -10,7 +10,7 @@ DIRS=build bin
 all: setup
 	make -C build build
 
-build: clustering_distribution
+build: clustering_distribution finish
 
 setup:
 	$(shell mkdir -p $(DIRS))
@@ -18,6 +18,12 @@ setup:
 	$(shell find . -name \*.h -exec cp {} build \;)
 	$(shell find . -name \*.hpp -exec cp {} build \;)
 	$(shell find . -name Makefile -exec cp {} build \;)
+
+finish:
+	$(shell cp ./james ../bin/)
+
+clean:
+	rm -rf ./build ./bin
 #########################################################################
 
 synthetic_task: synthetic_task.cpp
@@ -72,8 +78,3 @@ clustering_launcher: clustering_launcher.cpp
 
 james: james.cpp task_manager.o
 	$(CC) $(FLAGS) james.cpp sharedMem.o scheduler.o schedule.o taskData.o task.o task_manager.o printBuffer.o thread_barrier.o -o james $(LIBS)
-	cp james phil
-
-clean:
-	rm -f *.o  *.pyc libclustering.a clustering_launcher synthetic_task_gd synthetic_task synthetic_task_gd_extra mixed_crit_test james phil
-	rm -rf ./build ./bin
