@@ -440,11 +440,15 @@ int main(int argc, char *argv[])
 		}
 	}
 	
+	bufferSet memBuffer("bufferOne", "bufferTwo", "BufferThree");
+
 	auto start = high_resolution_clock::now();
-	print("bufferPrint",   "Task " , task_name , " reached barrier\n");
+	print(memBuffer,   "Task " , task_name , " reached barrier\n");
 	auto end = high_resolution_clock::now();
+
 	auto duration = duration_cast<microseconds>(end - start).count();
-	print(std::cerr, "time taken: ",duration);
+
+	print(std::cerr, "time taken to print to buffers ", memBuffer, " : ", duration, "\n");
 
 	// Wait at barrier for the other tasks
 	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name)) != 0)

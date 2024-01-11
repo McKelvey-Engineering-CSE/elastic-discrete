@@ -33,21 +33,16 @@ class bufferSet {
 
         }
 
-        std::vector<std::string> fetch(){
-            return list_of_buffers;
-        }
+        std::vector<std::string> fetch();
 
-        std::ostream& operator <<(std::ostream& s){
-            
-            //string to hold all names
-            std::string list = "";
+        friend std::ostream& operator<<(std::ostream& os, bufferSet const & inputSet){
 
-            //aggregate
-            for (std::string i : list_of_buffers)
-                list += i + " ";
+            std::string list_name = "";
 
-            s << list;
-            return s;
+            for(std::string name : inputSet.list_of_buffers)
+                list_name += name + " ";
+
+            return os << list_name;
         }
 };
 

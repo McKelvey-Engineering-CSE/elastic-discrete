@@ -64,3 +64,7 @@ std::string printBuffer::dumpBuffer(){
 
     return ret_str;
 }
+
+std::vector<std::string> bufferSet::fetch(){
+	return list_of_buffers;
+}
