@@ -1,5 +1,0 @@
-<Taskset schedulable?>
-<number of tasks> <s to run> <ns to run>
-<process name> <process args (may be null)> 
-<elastic coefficient> <number of modes of operation (1+)> [<work seconds> <work nanoseconds> <span seconds> <span nanoseconds> <period seconds> <period nanoseconds> (Repeat once per mode of operation)]
-##REPEAT LINES 3-4 as needed. Together they form a task.

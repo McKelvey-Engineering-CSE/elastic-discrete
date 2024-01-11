@@ -17,10 +17,10 @@ setup:
 	$(shell find . -name \*.cpp -exec cp {} build \;)
 	$(shell find . -name \*.h -exec cp {} build \;)
 	$(shell find . -name \*.hpp -exec cp {} build \;)
-	$(shell find . -name Makefile -exec cp {} build \;)
+	$(shell find . Makefile -exec cp {} build \;)
 
 finish:
-	$(shell cp ./james ../bin/)
+	$(shell cp ./james ./clustering_launcher ../bin/)
 
 clean:
 	rm -rf ./build ./bin
