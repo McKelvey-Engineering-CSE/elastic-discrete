@@ -16,6 +16,41 @@
 #include <sstream>
 #include <vector>
 
+class bufferSet {
+
+    private:
+        std::vector<std::string> list_of_buffers;
+
+    public:
+        template <typename Arg, typename... Args>
+        bufferSet(std::string firstName, Arg&& arg, Args&&... args){
+            
+            //expander boilerplate
+            list_of_buffers.push_back(firstName);
+            list_of_buffers.push_back(std::forward<Arg>(arg));
+            using expander = int[];
+            (void)expander{0, (void(list_of_buffers.push_back(std::forward<Args>(args))), 0)...};
+
+        }
+
+        std::vector<std::string> fetch(){
+            return list_of_buffers;
+        }
+
+        std::ostream& operator <<(std::ostream& s){
+            
+            //string to hold all names
+            std::string list = "";
+
+            //aggregate
+            for (std::string i : list_of_buffers)
+                list += i + " ";
+
+            s << list;
+            return s;
+        }
+};
+
 class printBuffer {
 
     private:

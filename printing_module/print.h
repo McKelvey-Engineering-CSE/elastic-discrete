@@ -29,7 +29,9 @@ with C++ 20 idiomatic methods, but I want to keep
 this all C++17 at the absolute worst
 
 
-Function : cprint(args...)
+Function :  print(ostream, args...)
+            print(const char[], args...)
+            print(bufferSet, args...)
 
 **************************************************************************/
 
@@ -50,7 +52,10 @@ static void print(std::ostream& out, Arg&& arg, Args&&... args){
 }
 
 template <typename Arg, typename... Args>
-static void print(std::string bufferName, Arg&& arg, Args&&... args){
+static void print(const char bufferChar[], Arg&& arg, Args&&... args){
+
+    //char to string
+    std::string bufferName(bufferChar);
 
     //creates the buffer if it does not exist
     printBuffer* buffer = printBuffer::createBuffer(bufferName);
@@ -67,6 +72,30 @@ static void print(std::string bufferName, Arg&& arg, Args&&... args){
     
     //print to whatever we were given
     buffer->printToBuffer(ss.str());
+}
+
+template <typename Arg, typename... Args>
+static void print(bufferSet bufferNames, Arg&& arg, Args&&... args){
+
+    //loop over all the handles in the buffer
+    for (std::string name : bufferNames.fetch()){
+
+        //creates the buffer if it does not exist
+        printBuffer* buffer = printBuffer::createBuffer(name);
+        if (buffer == nullptr)
+            exit(-1);
+
+        //FIXME: try to avoid stringstream while mimicing the function
+        std::ostringstream ss;
+        
+        //expander boilerplate
+        ss << std::forward<Arg>(arg);
+        using expander = int[];
+        (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
+        
+        //print to whatever we were given
+        buffer->printToBuffer(ss.str());
+    }
 }
 
 #endif
