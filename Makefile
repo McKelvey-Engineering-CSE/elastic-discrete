@@ -21,9 +21,10 @@ setup:
 
 finish:
 	$(shell cp ./james ./clustering_launcher ../bin/)
+	$(shell rm -rf ../build)
 
 clean:
-	rm -rf ./build ./bin
+	$(shell rm -rf ./build ./bin)
 #########################################################################
 
 synthetic_task: synthetic_task.cpp
