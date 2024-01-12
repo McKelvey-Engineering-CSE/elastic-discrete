@@ -4,6 +4,9 @@
 #include "print.h"
 #include "printBuffer.h"
 
+//short hand name
+namespace pm = print_module;
+
 namespace print_module {
 
     printBuffer* createBuffer(std::string);
