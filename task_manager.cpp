@@ -441,9 +441,11 @@ int main(int argc, char *argv[])
 	}
 	
 	print_module::bufferSet memBuffer("bufferOne", "bufferTwo", "BufferThree");
+	print_module::createBuffer(memBuffer);
 
 	auto start = high_resolution_clock::now();
 	print_module::print(memBuffer,   "Task " , task_name , " reached barrier\n");
+	print_module::print(std::cerr,   "Task " , task_name , " reached barrier\n");
 	auto end = high_resolution_clock::now();
 
 	auto duration = duration_cast<microseconds>(end - start).count();

@@ -437,7 +437,7 @@ int main(int argc, char *argv[])
 	
 	// Wait until all child processes have terminated
 	while (!(wait(NULL) == -1 && errno == ECHILD));
-	
+
 	t.join();
 
 	print_module::print(std::cerr, "All tasks finished.\n");

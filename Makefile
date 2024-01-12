@@ -9,8 +9,9 @@ DIRS=build bin
 #########################################################################
 all: setup
 	make -C build build
+	make -C build finish
 
-build: clustering_distribution finish
+build: clustering_distribution
 
 setup:
 	$(shell mkdir -p $(DIRS))
@@ -23,7 +24,7 @@ setup:
 finish:
 	$(shell cp ./james ./clustering_launcher ../bin/)
 	$(shell find . -name *.rtps -not -path "./.git/*" -exec cp {} bin \;)
-	$(shell rm -rf ../build)
+#	$(shell rm -rf ../build)
 
 clean:
 	$(shell rm -rf ./build ./bin)
