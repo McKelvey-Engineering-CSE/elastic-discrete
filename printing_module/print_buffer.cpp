@@ -1,12 +1,12 @@
-#include "printBuffer.h"
+#include "print_buffer.h"
 #include "memory_allocator.h"
 
 namespace print_module {
 
-	printBuffer* printBuffer::openBuffer(std::string bufferName){
+	print_buffer* print_buffer::openBuffer(std::string bufferName){
 
 		//call the memory allocator
-		printBuffer *buffer = shared_memory_module::allocate<printBuffer>(bufferName);
+		print_buffer *buffer = shared_memory_module::allocate<print_buffer>(bufferName);
 
 		if (buffer == nullptr){
 			exit(-1);
@@ -15,7 +15,7 @@ namespace print_module {
 		return buffer;
 	}
 
-	void printBuffer::printToBuffer(std::string input){
+	void print_buffer::printToBuffer(std::string input){
 
 		//grab lock
 		std::lock_guard<std::mutex> lkguard(lock);
@@ -25,7 +25,7 @@ namespace print_module {
 		position += 1;
 	}
 
-	std::string printBuffer::dumpBuffer(){
+	std::string print_buffer::dumpBuffer(){
 
 		std::string ret_str = "";
 
@@ -36,7 +36,7 @@ namespace print_module {
 		return ret_str;
 	}
 
-	std::vector<std::string> bufferSet::fetch(){
+	std::vector<std::string> buffer_set::fetch(){
 		return list_of_buffers;
 	}
 }

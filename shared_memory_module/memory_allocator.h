@@ -1,6 +1,22 @@
 #ifndef MEMORY_ALLOCATOR_H
 #define MEMORY_ALLOCATOR_H
 
+/*************************************************************************
+
+memory_allocator.h
+
+A template for constructing any object we want in a unified way. All objects
+are memory mapped and then constructed in place before returning a pointer
+to the object. 
+
+The function takes in a class type for construction and it takes a memory 
+segment name and any number of arguments which will be passed to the
+constructor of the object for construction.
+
+Functions: allocate <template> 
+
+**************************************************************************/
+
 namespace shared_memory_module{
 
     template <class T, typename... Args>

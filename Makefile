@@ -74,11 +74,11 @@ sharedMem.o: sharedMem.cpp
 generic_barrier.o: generic_barrier.cpp
 	$(CC) $(FLAGS) -c generic_barrier.cpp
 
-print_library.o: print_module.o printBuffer.o
-	ld -relocatable print_module.o printBuffer.o -o print_library.o
+print_library.o: print_module.o print_buffer.o
+	ld -relocatable print_module.o print_buffer.o -o print_library.o
 
-printBuffer.o: printBuffer.cpp
-	$(CC) $(FLAGS) -c printBuffer.cpp
+print_buffer.o: print_buffer.cpp
+	$(CC) $(FLAGS) -c print_buffer.cpp
 
 print_module.o: print_module.cpp
 	$(CC) $(FLAGS) -c print_module.cpp 

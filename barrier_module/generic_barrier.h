@@ -42,10 +42,22 @@ public:
 
     //construct generic_barrier
     explicit generic_barrier() : count(1) { }
+    
     explicit generic_barrier(std::size_t incount) : count(incount) { }
-    explicit generic_barrier(std::size_t incount, std::function<void()> inret_func) : count(incount), ret_function(inret_func), execute_function(true) { }
-    explicit generic_barrier(std::size_t incount, std::function<void()> inret_func, bool all) : count(incount), ret_function(inret_func), scheduler_only(all), execute_function(true) { }
-    explicit generic_barrier(std::size_t incount, std::function<void()> inret_func, bool all, bool execute) : count(incount), ret_function(inret_func), scheduler_only(all), execute_function(execute) { }
+
+    explicit generic_barrier(std::size_t incount, std::function<void()> inret_func) :   count(incount), 
+                                                                                        ret_function(inret_func), 
+                                                                                        execute_function(true) { }
+
+    explicit generic_barrier(std::size_t incount, std::function<void()> inret_func, bool all) : count(incount), 
+                                                                                                ret_function(inret_func), 
+                                                                                                scheduler_only(all), 
+                                                                                                execute_function(true) { }
+
+    explicit generic_barrier(std::size_t incount, std::function<void()> inret_func, bool all, bool execute) :   count(incount), 
+                                                                                                                ret_function(inret_func), 
+                                                                                                                scheduler_only(all), 
+                                                                                                                execute_function(execute) { }
 
     //reinit for barrier mode
 	void init(int in);

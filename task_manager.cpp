@@ -440,7 +440,7 @@ int main(int argc, char *argv[])
 		}
 	}
 	
-	print_module::bufferSet memBuffer("bufferOne", "bufferTwo", "BufferThree");
+	print_module::buffer_set memBuffer("bufferOne", "bufferTwo", "BufferThree");
 	print_module::createBuffer(memBuffer);
 
 	auto start = high_resolution_clock::now();
