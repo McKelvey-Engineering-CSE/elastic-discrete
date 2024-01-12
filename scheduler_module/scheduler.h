@@ -9,7 +9,7 @@ This object contains the Scheduler object itself along with the scheduling
 algorithm employed to schedule elastic tasks.
 
 
-Class : sharedMem
+Class : shared_mem
 
 		This class contains all of the scheduling algorithm logic
 		as well as the actual driver code for deploying a derived schedule.

@@ -1,4 +1,4 @@
-#include "sharedMem.h"
+#include "shared_mem.h"
 #include <unistd.h>
 #include <sys/types.h>
 #include <iostream>
@@ -51,7 +51,7 @@ guard3 -> guard
 
 *********************************************************************************/
 
-sharedMem::sharedMem(std::string proper, access_mode mode, size_t size_bytes) {
+shared_mem::shared_mem(std::string proper, access_mode mode, size_t size_bytes) {
 
 	//We add a little bit of padding for bookeeping purposes:
 	//There is an overhead struct containing data values we want to use
@@ -167,26 +167,26 @@ sharedMem::sharedMem(std::string proper, access_mode mode, size_t size_bytes) {
 
 //Check the guard values against the supposed value, if any are modified,
 //then something has probably gone wrong
-bool sharedMem::valid(){
+bool shared_mem::valid(){
 	return ( *guard1 == GUARD_VALUE &&
                  *guard2 == GUARD_VALUE &&
                  *guard3 == GUARD_VALUE);
 }
 
-void* sharedMem::getMapping(){
+void* shared_mem::getMapping(){
 	return ptr;
 }
 
-bool sharedMem::is_owner(){
+bool shared_mem::is_owner(){
 	return this->owner;
 }
 
-struct overhead* sharedMem::getOverhead(){
+struct overhead* shared_mem::getOverhead(){
 	return extras;
 }
 
 //Deconstructor must reference count and call shm_unlink
-sharedMem::~sharedMem(){
+shared_mem::~shared_mem(){
 
 	extras->reference_count.fetch_sub(1);
 

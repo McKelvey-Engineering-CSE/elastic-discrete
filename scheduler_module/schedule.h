@@ -20,7 +20,7 @@ Class : Schedule
 
 **************************************************************************/
 
-#include "sharedMem.h"
+#include "shared_mem.h"
 #include "taskData.h"
 #include "include.h"
 
@@ -28,7 +28,7 @@ Class : Schedule
 
 const int INVALID_INDEX=-1;
 
-class Schedule : sharedMem {
+class Schedule : shared_mem {
 
 public: 
 	Schedule(std::string name_);	

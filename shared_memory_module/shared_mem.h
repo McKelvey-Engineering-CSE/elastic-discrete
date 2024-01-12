@@ -3,7 +3,7 @@
 
 /*************************************************************************
 
-SharedMem.h
+shared_mem.h
 
 This object encapsulates the concept of a memory region shared between
 processes. It provides for construction, access, and destruction of such
@@ -18,7 +18,7 @@ Struct : overhead
 
         Values that we want to keep in the shared memory region for our own purposes
 
-Class : sharedMem
+Class : shared_mem
 
         This class encapsulates the creation of and access to a region of shared
         memory. Multiple processes can share this memory assuming they use the same
@@ -51,11 +51,11 @@ struct overhead {
 	std::atomic<int>	utility; //count tasks
 };
 
-class sharedMem{
+class shared_mem{
 
 public:
-        sharedMem(std::string name, access_mode mode_, size_t size_bytes);
-        ~sharedMem();
+        shared_mem(std::string name, access_mode mode_, size_t size_bytes);
+        ~shared_mem();
 
         void* getMapping();
         struct overhead* getOverhead();
