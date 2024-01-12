@@ -3,7 +3,7 @@
 
 #include <sstream>
 
-#include "printBuffer.h"
+#include "print_buffer.h"
 
 /*************************************************************************
 
@@ -31,7 +31,7 @@ this all C++17 at the absolute worst
 
 Function :  print_module::print(ostream, args...)
             print_module::print(const char[], args...)
-            print_module::print(bufferSet, args...)
+            print_module::print(buffer_set, args...)
 
 **************************************************************************/
 
@@ -60,7 +60,7 @@ namespace print_module {
         std::string bufferName(bufferChar);
 
         //creates the buffer if it does not exist
-        printBuffer* buffer = printBuffer::openBuffer(bufferName);
+        print_buffer* buffer = print_buffer::openBuffer(bufferName);
         if (buffer == nullptr)
             exit(-1);
 
@@ -77,13 +77,13 @@ namespace print_module {
     }
 
     template <typename Arg, typename... Args>
-    static void print(bufferSet bufferNames, Arg&& arg, Args&&... args){
+    static void print(buffer_set bufferNames, Arg&& arg, Args&&... args){
 
         //loop over all the handles in the buffer
         for (std::string name : bufferNames.fetch()){
 
             //creates the buffer if it does not exist
-            printBuffer* buffer = printBuffer::openBuffer(name);
+            print_buffer* buffer = print_buffer::openBuffer(name);
             if (buffer == nullptr)
                 exit(-1);
 
