@@ -36,15 +36,18 @@ Class : sharedMem
 
 #include <string>
 #include <atomic>
-
+#include <mutex>
+#include <condition_variable>
 
 enum access_mode {READ_ONLY, READ_WRITE};
 
 struct overhead {
 	int			num_tasks;
-	int 			init_lock;
+        int 		        init_lock;
+	std::mutex 		init_mux;
+        std::condition_variable cv;
         bool 			has_owner;
-	unsigned int 		reference_count;
+        std::atomic<int> 	reference_count;
 	std::atomic<int>	utility; //count tasks
 };
 
