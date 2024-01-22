@@ -37,7 +37,7 @@ process_barrier* process_barrier::get_process_barrier(std::string inname, int *e
 {
 
 	//call the memory allocator
-	process_barrier *barrier = shared_memory_module::allocate<process_barrier>(inname, 1, infunction, inall, inexecution);
+	process_barrier *barrier = shared_memory_module::allocate<process_barrier>(inname, size_t(1), infunction, inall, inexecution);
 
 	if (barrier == nullptr){
 		print_module::print(std::cerr, "Cannot continue, a print buffer could not be allocated\n");

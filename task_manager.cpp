@@ -24,7 +24,7 @@
 #include <pthread.h>
 #include <atomic> //For std::atomic_bool
 #include <list>
-
+#include "include.h"
 #include "thread_barrier.h" 
 #include <sys/types.h>
 #include <sys/syscall.h>
@@ -35,22 +35,12 @@
 #include <chrono>
 using namespace std::chrono;
 
-#include "include.h"
-
-#define gettid() syscall(SYS_gettid)
-
-extern const int NUMCPUS;
-extern const int MAXTASKS;
-
-//#define TRACING
-//#define DAVID
-
 extern "C" 
 {
 #include "dl_syscalls.h"
 }
 
-using namespace std;
+#define gettid() syscall(SYS_gettid)
 
 #ifdef TRACING
 FILE * fd;
@@ -62,6 +52,10 @@ void exit_on_signal(int sig){
 	exit(-1);
 }
 
+//task and cpu params
+extern const int NUMCPUS;
+extern const int MAXTASKS;
+
 //There are one trillion nanoseconds in a second, or one with nine zeroes
 const unsigned nsec_in_sec = 1000000000; 
 
@@ -70,7 +64,6 @@ const unsigned FINALIZE_PRIORITY = 1;
 
 //The priority that we use when sleeping.
 const unsigned SLEEP_PRIORITY = 97;
-
 
 //These variables are declared extern in task.h, but need to be
 //visible in both places
@@ -124,17 +117,17 @@ struct sched_param sp;
 bool active[64];
 bool needs_reschedule=false;
 
-mutex con_mut;
+std::mutex con_mut;
 Schedule schedule(std::string("EFSschedule"));
 
 //has pthread_t at omp_thread index
-vector<pthread_t> threads;
+std::vector<pthread_t> threads;
 
 //tells which thread is on a CPU
-map<int, pthread_t> thread_locations;
+std::map<int, pthread_t> thread_locations;
 
 //tells OMP number of thread
-map<pthread_t, int> omp_thread_index;
+std::map<pthread_t, int> omp_thread_index;
 
 void sigrt0_handler(int signum){}
 
@@ -249,6 +242,7 @@ int main(int argc, char *argv[])
 
 	#ifdef TRACING
 	fd = fopen( "/sys/kernel/debug/tracing/trace_marker", "a" );
+	
 	if( fd == NULL ){
 		std::perror("Error: TRACING is defined and you are not using trace-cmd.");
 		return -1;
@@ -257,12 +251,10 @@ int main(int argc, char *argv[])
 
 
 	std::string command_string;	
-	for( int i = 0; i < argc; i++ ){
-		command_string += " ";
-		command_string += argv[i];
-	}
+	for(int i = 0; i < argc; i++)
+		command_string += std::string(argv[i]) + " ";
 
-	print_module::print(std::cerr,  "Task " , getpid() , " started with command string:\n>" , command_string.c_str() , "\n");
+	print_module::print(std::cerr,  "Task " , getpid() , " started with command string:\n>" , command_string, "\n");
 
 	//Get our own PID and store it
 	mypid = getpid();
@@ -328,21 +320,17 @@ int main(int argc, char *argv[])
 		CPU_SET(schedule.get_task(iindex)->get_current_lowest_CPU() + i,&current_cpu_mask);
 	}
 	
-	{
-	lock_guard<mutex> lk(con_mut);
+	std::lock_guard<std::mutex> lk(con_mut);
 	print_module::print(std::cerr,  "Task " , getpid() , " lowest CPU: " , schedule.get_task(iindex)->get_current_lowest_CPU() , ", currentCPUS, " , schedule.get_task(iindex)->get_current_CPUs() , " minCPUS: " , schedule.get_task(iindex)->get_min_CPUs() , ", maxCPUS: " , schedule.get_task(iindex)->get_max_CPUs() , ", practical max: " , schedule.get_task(iindex)->get_practical_max_CPUs() , ", " , schedule.get_task(iindex)->get_current_period().tv_nsec , "ns\n");
-	}
 
 	struct sched_param param;
 	param.sched_priority = 7;//rtprio;
 	ret_val = sched_setscheduler(getpid(), SCHED_RR, &param);
+
 	if (ret_val != 0)
-	{
  		print_module::print(std::cerr,  "WARNING: " , getpid() , " Could not set priority. Returned: " , errno , "  (" , strerror(errno) , ")\n");
-	}
 
 	// OMP settings
-	//NOTE: LOOK BACK AT THIS DURING UPGRADE PROCEDURE
 	omp_set_nested(0);
 	omp_set_dynamic(0);
 	omp_set_schedule(omp_sched_dynamic, 1);	
@@ -355,10 +343,8 @@ int main(int argc, char *argv[])
 		schedule.get_task(iindex)->clr_passive(t);
 	}
 
-	for(unsigned int j=0;j<std::thread::hardware_concurrency();j++)
-	{
+	for(unsigned int j = 0; j < std::thread::hardware_concurrency(); j++)
 		active[j] = false;
-	}
  
 	threads.reserve(NUMCPUS);
 	#pragma omp parallel
@@ -369,20 +355,19 @@ int main(int argc, char *argv[])
 
 
 	//Determine which threads are active and passive. Pin, etc.
-	for(int j=0;j<num_threads;j++)
+	for(int j = 0; j < num_threads; j++)
   	{
 		//The first threads are active
 		if(j < schedule.get_task(iindex)->get_current_CPUs())
 		{
 			active[j]=true;
+
 			//What processor does it go on?
 			int p = (schedule.get_task(iindex)->get_current_lowest_CPU() + j -1) % (NUMCPUS) + 1;
 
 			//First one doesn't move.  
 			if(j==0)
-			{
 				schedule.get_task(iindex)->set_permanent_CPU(p);
-			}
 				
 			global_param.sched_priority=7;
             ret_val = pthread_setschedparam(threads[j], SCHED_RR, &global_param);
@@ -392,9 +377,9 @@ int main(int argc, char *argv[])
 
 			schedule.get_task(iindex)->set_active(p);
 			CPU_ZERO(&global_cpuset);
-			CPU_SET(p,&global_cpuset);
+			CPU_SET(p, &global_cpuset);
 
-			pthread_setaffinity_np(threads[j],sizeof(cpu_set_t),&global_cpuset);
+			pthread_setaffinity_np(threads[j], sizeof(cpu_set_t), &global_cpuset);
  
 		}
 		//We're done with the Active threads. Rest are passive.
@@ -413,9 +398,9 @@ int main(int argc, char *argv[])
 			print_module::print(std::cerr,  iindex , " setting " , p , " to passive.\n");
 
 			CPU_ZERO(&global_cpuset);
-			CPU_SET(p,&global_cpuset);
+			CPU_SET(p, &global_cpuset);
 
-			pthread_setaffinity_np(threads[j],sizeof(cpu_set_t),&global_cpuset);
+			pthread_setaffinity_np(threads[j], sizeof(cpu_set_t), &global_cpuset);
 
 		}
   	}
@@ -424,8 +409,7 @@ int main(int argc, char *argv[])
 	bar.mc_bar_init(schedule.get_task(iindex)->get_current_CPUs());
 
 	#ifdef PER_PERIOD_VERBOSE
-	//Create storage for per-job timings --THIS NO LONGER WORKS!! num_iters is no longer static --James 9/8/18
-	uint64_t *period_timings = (uint64_t*) malloc(num_iters * sizeof(uint64_t));
+		std::vector<uint64_t> period_timings;
 	#endif
 	
 	// Initialize the task
@@ -440,17 +424,17 @@ int main(int argc, char *argv[])
 		}
 	}
 	
-	print_module::buffer_set memBuffer("bufferOne", "bufferTwo", "BufferThree");
-	print_module::createBuffer(memBuffer);
-
-	auto start = high_resolution_clock::now();
-	print_module::print(memBuffer,   "Task " , task_name , " reached barrier\n");
-	print_module::print(std::cerr,   "Task " , task_name , " reached barrier\n");
-	auto end = high_resolution_clock::now();
-
-	auto duration = duration_cast<microseconds>(end - start).count();
-
-	print_module::print(std::cerr, "time taken to print to buffers ", memBuffer, " : ", duration, "\n");
+	//buffers test - Tyler 
+	{
+		print_module::buffer_set memBuffer("bufferOne", "bufferTwo", "BufferThree");
+		print_module::createBuffer(memBuffer);
+		auto start = high_resolution_clock::now();
+		print_module::print(memBuffer,   "Task " , task_name , " reached barrier\n");
+		print_module::print(std::cerr,   "Task " , task_name , " reached barrier\n");
+		auto end = high_resolution_clock::now();
+		auto duration = duration_cast<microseconds>(end - start).count();
+		print_module::print(std::cerr, "time taken to print to buffers ", memBuffer, " : ", duration, "\n");
+	}
 
 	// Wait at barrier for the other tasks
 	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name)) != 0)
@@ -486,8 +470,8 @@ int main(int argc, char *argv[])
 		sleep_until_ts(correct_period_start);
 
         #ifdef TRACING
-		fprintf( fd, "thread %ld: starting iteration %d\n", gettid() ,num_iters);
-		fflush( fd );
+			fprintf( fd, "thread %ld: starting iteration %d\n", gettid() ,num_iters);
+			fflush( fd );
         #endif
 
 		//when we start doing the work
@@ -497,14 +481,12 @@ int main(int argc, char *argv[])
 		__atomic_store_n( &total_remain, num_threads, __ATOMIC_RELEASE ); //JAMES ORIGINAL 10/3/17
 
 		if(schedule.get_task(iindex))
-		{
 			ret_val = task.run(task_argc, task_argv);
-		}
 
 		//Get the finishing time of the current period
 		get_time(&period_finish);
-		if (ret_val != 0)
-		{
+		if (ret_val != 0){
+			
 			print_module::print(std::cerr,  "ERROR: Task run failed for task " , task_name, "\n");
 			return RT_GOMP_TASK_MANAGER_RUN_TASK_ERROR;
 		}
@@ -518,8 +500,8 @@ int main(int argc, char *argv[])
 			missed_dl=true;
 
 			#ifdef TRACING
-			fprintf( fd, "thread %d: missed deadline iteration %d\n", getpid() ,num_iters);
-			fflush( fd );
+				fprintf( fd, "thread %d: missed deadline iteration %d\n", getpid() ,num_iters);
+				fflush( fd );
             #endif
 		}
 		else
@@ -556,8 +538,8 @@ int main(int argc, char *argv[])
 			if(ready)
 			{
 				#ifdef TRACING
-				fprintf( fd, "thread %d: starting reschedule\n", getpid());
-				fflush( fd );
+					fprintf( fd, "thread %d: starting reschedule\n", getpid());
+					fflush( fd );
 				#endif
 
 				reschedule();
@@ -565,8 +547,8 @@ int main(int argc, char *argv[])
 				print_module::print(std::cerr,  "thread " , iindex, ": finished reschedule\n");	
 
 				#ifdef TRACING
-				fprintf( fd, "thread %d: finished reschedule\n", getpid());
-				fflush( fd );
+					fprintf( fd, "thread %d: finished reschedule\n", getpid());
+					fflush( fd );
 				#endif
 
 				schedule.get_task(iindex)->set_num_adaptations(schedule.get_task(iindex)->get_num_adaptations()+1);
@@ -593,7 +575,7 @@ int main(int argc, char *argv[])
 	}
 	
 	#ifdef TRACING
-	fclose(fd);
+		fclose(fd);
 	#endif
 
 	// Finalize the task
@@ -613,14 +595,15 @@ int main(int argc, char *argv[])
 
 	
 	#ifdef PER_PERIOD_VERBOSE
-	std::ofstream outfile;
-	outfile.open("time_results.txt", std::ios::out | std::ios::app);
-	outfile << omp_get_num_procs();
-	for(unsigned i = 0; i < num_iters; i++){
-		outfile , " " , period_timings[i];
-	}
-	outfile << std::endl;
-	outfile.close();
+		std::ofstream outfile("time_results.txt", std::ios::out | std::ios::app);
+
+		print_module::print(outfile, omp_get_num_procs());
+
+		for(auto period_timing : period_timings)
+			print_module::print(outfile, " ", period_timing);
+		
+		print_module::print(outfile, "\n");
+		outfile.close();
 	#endif
 	
 	print_module::print(std::cout, deadlines_missed, " ", num_iters, " ", omp_get_num_threads(), " ", max_period_runtime, "\n");
