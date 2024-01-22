@@ -15,19 +15,18 @@ build: clustering_distribution
 
 setup:
 	$(shell mkdir -p $(DIRS))
-	$(shell find . -name \*.cpp -not -path "./.git/*" -exec cp {} build \;)
-	$(shell find . -name \*.h -not -path "./.git/*" -exec cp {} build \;)
-	$(shell find . -name \*.hpp -not -path "./.git/*" -exec cp {} build \;)
-	$(shell find . -name \*.rtps -not -path "./.git/*" -exec cp {} bin \;)
-	$(shell find . Makefile -not -path "./.git/*" -exec cp {} build \;)
+	$(shell find . -name \*.cpp -not -path "./.git/*" -exec cp {} build 2>/dev/null \;)
+	$(shell find . -name \*.h -not -path "./.git/*" -exec cp {} build 2>/dev/null \;)
+	$(shell find . -name \*.hpp -not -path "./.git/*" -exec cp {} build 2>/dev/null \;)
+	$(shell find . -name \*.rtps -not -path "./.git/*" -exec cp {} bin 2>/dev/null \;)
+	$(shell find . Makefile -not -path "./.git/*" -exec cp {} build 2>/dev/null \;)
 
 finish:
 	$(shell cp ./james ./clustering_launcher ../bin/)
-	$(shell find . -name *.rtps -not -path "./.git/*" -exec cp {} bin \;)
-#	$(shell rm -rf ../build)
+	$(shell find . -name "*.rtps" -not -path "./.git/*" -exec cp {} bin \;)
 
 clean:
-	$(shell rm -rf ./build ./bin)
+	$(shell rm -r ./build ./bin)
 #########################################################################
 
 synthetic_task: synthetic_task.cpp
