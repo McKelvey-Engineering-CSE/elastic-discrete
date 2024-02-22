@@ -31,8 +31,8 @@ struct sigevent sev;
 int ret;
 
 // Define the name of the barrier used for synchronizing tasks after creation
-const std::string barrier_name = "RT_GOMP_CLUSTERING_BARRIER";
-const std::string barrier_name2 = "RT_GOMP_CLUSTERING_BARRIER2";
+const std::string barrier_name = "BARRIER";
+const std::string barrier_name2 = "BARRIER_2";
 
 bool needs_scheduling = false;
 Scheduler * scheduler;
@@ -70,7 +70,7 @@ void scheduler_task()
 	pthread_setaffinity_np(pthread_self(),sizeof(cpu_set_t),&mask);
 
 	//Make sure all tasks are ready. Wait at barrier.
-	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name.c_str())) != 0)
+	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name)) != 0)
 	{
 		print_module::print(std::cerr, "ERROR: Barrier error for scheduling task.\n");
 		kill(0, SIGTERM);
@@ -293,7 +293,7 @@ int main(int argc, char *argv[])
 	
 	//Initialize two barriers to synchronize the tasks after creation
 	if (process_barrier::create_process_barrier(barrier_name, num_tasks + 1) == nullptr || 
-		process_barrier::create_process_barrier(barrier_name2, num_tasks + 1) == nullptr)
+		process_barrier::create_process_barrier(barrier_name2, num_tasks) == nullptr)
 	{
 		print_module::print(std::cerr, "ERROR: Failed to initialize barrier.\n");
 		return RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR;

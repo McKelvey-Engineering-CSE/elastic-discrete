@@ -10,13 +10,17 @@ void generic_barrier::arrive_and_wait()
     //lock mutex
     std::unique_lock<std::mutex> lock(mut);
 
+    print_module::print(std::cerr, "Barrier Count: ", count, " | ", getppid(), "\n");
+
     //check if exit or wait
     if (--count == 0) {
         cv.notify_all();
     } 
     
     else {
-        cv.wait(lock, [this] { return count == 0;});
+        lock.unlock();
+        while(count != 0);
+        //cv.wait(lock, [this] { return count == 0;});
     }
 
     //handle return function

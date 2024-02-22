@@ -20,24 +20,30 @@
 process_barrier* process_barrier::create_process_barrier(std::string barrier_name, int num_tasks, std::function<void()> infunction, bool inall, bool inexecution){
 
 	int ret_val = 0;
-	process_barrier* barrier = get_process_barrier(barrier_name.c_str(), &ret_val, infunction, inall, inexecution);
+	process_barrier* barrier = get_process_barrier(barrier_name, &ret_val, infunction, inall, inexecution, true);
 
 	if (ret_val == -1){
 		std::perror("FAILURE: creation of a process barrier has failed. Program will now exit\n");
 		return nullptr;
 	}
 
-	barrier->init(num_tasks+1);
+	barrier->init(num_tasks);
 	return (barrier);
 
 }
 
 //static function to grab a barrier from shared memory based on the name
-process_barrier* process_barrier::get_process_barrier(std::string inname, int *error_flag, std::function<void()> infunction, bool inall, bool inexecution)
+process_barrier* process_barrier::get_process_barrier(std::string inname, int *error_flag, std::function<void()> infunction, bool inall, bool inexecution, bool create)
 {
 
 	//call the memory allocator
-	process_barrier *barrier = shared_memory_module::allocate<process_barrier>(inname, size_t(1), infunction, inall, inexecution);
+	process_barrier *barrier;
+
+	if (create)
+		barrier = shared_memory_module::allocate<process_barrier>(inname, size_t(1), infunction, inall, inexecution);
+
+	else
+		barrier = shared_memory_module::fetch<process_barrier>(inname);
 
 	if (barrier == nullptr){
 		print_module::print(std::cerr, "Cannot continue, a print buffer could not be allocated\n");
@@ -66,16 +72,21 @@ int process_barrier::await_and_destroy_barrier(std::string barrier_name)
 
 	if (ret_val != 0)
 		return ret_val;
-
+	bool destroy = true;
 	barrier->arrive_and_wait();
-	
-	unmap_process_barrier(barrier);
 
-	ret_val = shm_unlink(barrier_name.c_str());
+	//not sure if we can race on this
+	if (destroy){
 
-	if (ret_val == -1 && errno != ENOENT)
-	{
-		std::perror("WARNING: process_barrier call to shm_unlink failed\n");
+		//while(barrier->passed_processes.load() < barrier->count - 1);
+		barrier->passed_processes.fetch_add(1);
+		//shared_memory_module::detatch<process_barrier>(barrier);
+		//shared_memory_module::delete_memory<process_barrier>(barrier_name);
+
+	}
+	else{
+		barrier->passed_processes.fetch_add(1);
+		//shared_memory_module::detatch<process_barrier>(barrier);
 	}
 
 	return 0;

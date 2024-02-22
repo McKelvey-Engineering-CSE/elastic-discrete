@@ -36,6 +36,9 @@ class process_barrier : private generic_barrier {
 	std::string name;
 	std::mutex destruction_mux;
 
+	//variable for destruction
+	std::atomic_uint64_t passed_processes;
+
 public:
 
 	//inherit constructors
@@ -45,7 +48,7 @@ public:
 	static process_barrier* create_process_barrier(std::string barrier_name, int num_tasks, std::function<void()> infunction = nullptr, bool inall = false, bool inexecution = false);
 
 	//static function to get a barrier object by name
-	static process_barrier* get_process_barrier(std::string inname, int *error_flag, std::function<void()> infunction = nullptr, bool inall = false, bool inexecution = false);
+	static process_barrier* get_process_barrier(std::string inname, int *error_flag, std::function<void()> infunction = nullptr, bool inall = false, bool inexecution = false, bool create = false);
 
 	//static function to unmap a barrier
 	static void unmap_process_barrier(process_barrier* barrier);
