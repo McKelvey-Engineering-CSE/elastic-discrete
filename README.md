@@ -1,6 +1,6 @@
 # Elastic-Discrete Scheduler
 
-Readme last updated: 11 January 2024 by Tyler Martin
+Readme last updated: 22 February 2024 by Tyler Martin
 
 ## Description
 This is a runtime system to run parallel elastic tasks with discrete candidate values of period T OR work C. 
@@ -9,12 +9,36 @@ Each task Tau has a constant span L, variable T or C, Elasticity coefficient E, 
 ## Important Details
 All classes implemented for thread/process management are all based on the implemented "generic_barrier" class, which is an process and thread safe recreation of the std::barrier/std::generic_barrier. This custom type enables us to keep to C++ 11/C++14 without issue as well as giving us fine-grained control over the abilities of the generic_barrier/barrier. Currently, the generic_barrier can take in a function poiner for the exiting processes or threads to execute when they leave the barrier. 
 
+All barriers currently spin on the value associated with processes that have entered the barrier. This will be exchanged for a pthread condition variable once a better way to integrate it has been designed.
+
 Priting is all controlled by a custom print function notated print_module::print(stream | buffer name | buffer name set, message/variables, ...)
 (See section below for breakdown of printing module)
 
 All code is currently being rewritten to ensure only C++11/C++14 idioms are used, and that we do not have any issues with OpenMP and the more modern C++ versions (there have been no issues so far).
 
 As I continue working, this readme will be updated with more information
+
+## Memory allocation
+All memory allocation is handled through the shared_memory_module. This provides many differnt functions for easily creating, fetching, destroying, and detatching from shared memory. The signatures for each can be seen below:
+
+Functions Provided:
+```
+
+//provides the basis for the key system. Can be used statically as well to generate keys from strings
+template <typename T> key_t nameToKey(T name);
+
+//allocate memory block (Args correspond to constructor values for the new block)
+template <class T, typename... Args> T* allocate(std::string bufferName, Args&&... args);
+
+//fetch memory block from key associated string
+template <class T> T* fetch(std::string bufferName);
+
+//detatch from memory associated with string
+template <class T> int detatch(T* mem_seg);
+
+//delete memory segment
+template <class T> void delete_memory(std::string bufferName);
+```
 
 ## Printing
 
