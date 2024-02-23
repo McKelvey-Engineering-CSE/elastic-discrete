@@ -72,22 +72,10 @@ int process_barrier::await_and_destroy_barrier(std::string barrier_name)
 
 	if (ret_val != 0)
 		return ret_val;
-	bool destroy = true;
 	barrier->arrive_and_wait();
 
-	//not sure if we can race on this
-	if (destroy){
-
-		//while(barrier->passed_processes.load() < barrier->count - 1);
-		barrier->passed_processes.fetch_add(1);
-		//shared_memory_module::detatch<process_barrier>(barrier);
-		//shared_memory_module::delete_memory<process_barrier>(barrier_name);
-
-	}
-	else{
-		barrier->passed_processes.fetch_add(1);
-		//shared_memory_module::detatch<process_barrier>(barrier);
-	}
+	shared_memory_module::detatch<process_barrier>(barrier);
+	shared_memory_module::delete_memory<process_barrier>(barrier_name);
 
 	return 0;
 }

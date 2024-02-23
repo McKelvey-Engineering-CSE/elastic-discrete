@@ -37,7 +37,8 @@ class process_barrier : private generic_barrier {
 	std::mutex destruction_mux;
 
 	//variable for destruction
-	std::atomic_uint64_t passed_processes;
+	uint64_t passed_processes = 0;
+	std::mutex passed_lock;
 
 public:
 
