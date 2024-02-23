@@ -1,14 +1,17 @@
+##### Compiler Settings ##########################################################
 CC = g++ -std=c++14 -O0 -I.
 HEADERS = $(addprefix -iquote ,$(shell find . -type d -not -path "*/\.*"))
 FLAGS = -Wall -g -gdwarf-3 $(HEADERS)
 LIBS = -L. -lrt -lm -lclustering -fopenmp
 CLUSTERING_OBJECTS = process_barrier.o generic_barrier.o timespec_functions.o
-
 ##################################################################################
+
+##### Task Configuration #########################################################
 TARGET_TASK=james
 RTPS_FILE=./target_task/james.rtps
 ##################################################################################
 
+##### Rules ######################################################################
 all: clustering_distribution finish
 
 finish:
@@ -70,3 +73,4 @@ clustering_launcher: ./main_binaries/clustering_launcher.cpp
 
 james: ./target_task/james.cpp task_manager.o
 	$(CC) $(FLAGS) ./target_task/james.cpp shared_mem.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o thread_barrier.o -o james $(LIBS)
+##################################################################################
