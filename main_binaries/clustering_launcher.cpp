@@ -90,6 +90,11 @@ void scheduler_task()
 	}
 }
 
+void exit_on_signal(int sig){
+	print_module::print(std::cerr, "Signal captured from child. Schedule cannot continue. Exiting.\n");
+	exit(-1);
+}
+
 void sigrt0_handler( int signum ){
 	needs_scheduling = true;
 }
@@ -276,6 +281,9 @@ int main(int argc, char *argv[])
 
 	//setup signal handlers
 	init_signal_handlers();
+
+	//set custom signal handler for task hangup
+	signal(1, exit_on_signal);
 	
 	//open the scheduling file
 	if (get_scheduling_file(args[1], ifs) != 0) return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;

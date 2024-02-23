@@ -49,6 +49,7 @@ FILE * fd;
 //testing capturing faults and notifying before simply dying
 void exit_on_signal(int sig){
 	print_module::print(std::cerr, "Signal captured " , strsignal(sig) , ". Program cannot continue. Exiting.\n");
+	kill(getppid(), 1);
 	exit(-1);
 }
 
