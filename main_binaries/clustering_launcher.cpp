@@ -92,6 +92,10 @@ void scheduler_task()
 
 void exit_on_signal(int sig){
 	print_module::print(std::cerr, "Signal captured from child. Schedule cannot continue. Exiting.\n");
+	process_barrier::destroy_barrier(barrier_name);
+	process_barrier::destroy_barrier(barrier_name2);
+	kill(0, SIGKILL);
+	delete scheduler;
 	exit(-1);
 }
 
