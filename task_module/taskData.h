@@ -81,72 +81,9 @@ private:
 
 public:
 
-	TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_) : index(counter++), changeable(true), can_reschedule(false), num_adaptations(0),  elasticity(elasticity_), num_modes(num_modes_), max_utilization(0), max_CPUs(0), min_CPUs(NUMCPUS),  CPUs_gained(0), practical_max_utilization(max_utilization),  practical_max_CPUs(max_CPUs), current_lowest_CPU(-1), percentage_workload(1.0), current_period({0,0}), current_work({0,0}), current_span({0,0}), current_utilization(0.0), current_CPUs(0), previous_CPUs(0), permanent_CPU(-1), current_mode(0), max_work({0,0})
-	{
-		if(num_modes > MAXMODES)
-		{
-			print_module::print(std::cerr, "ERROR: No task can have more than ", MAXMODES,  " modes.\n");
-			kill(0, SIGTERM);
-		}
+	TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_);
 
-		for(int i=0; i<num_modes; i++)
-		{
-			work[i] = *(work_+i); 
-			span[i] = *(span_+i); 
-			period[i] = *(period_+i); 
-		}			
-		for(int i=0; i<num_modes; i++)
-		{	
-			print_module::print(std::cout, work[i], " ", span[i], " ", period[i], "\n");	
-		}	
-
-		timespec numerator;
-		timespec denominator;
-
-		for(int i=0; i<num_modes; i++)
-		{   
-			if(work[i]/period[i] > max_utilization)
-			{
-				max_utilization=work[i]/period[i];
-			}
-			ts_diff(work[i],span[i],numerator);
-			ts_diff(period[i],span[i],denominator);
-			CPUs[i] = (int) ceil(numerator/denominator);
-		
-			if(CPUs[i] > max_CPUs)
-			{
-				max_CPUs = CPUs[i];
-			}
-
-			if(CPUs[i] < min_CPUs)
-			{
-				min_CPUs = CPUs[i];
-			}
-
-			if(work[i] > max_work)
-			{
-				max_work = work[i];
-			}
-		}
-		current_CPUs = min_CPUs;
-
-		for(int i=0; i<MAXTASKS; i++)
-		{
-			
-			give[i]=0;
-			for(int j=1; j<=NUMCPUS; j++)
-			{
-				transfer[i][j] = false;
-				receive[i][j] = false;
-				active[i]=false;
-				passive[i]=false;
-			}
-		}
-	}
-
-	~TaskData()
-	{
-	}
+	~TaskData();
 
 	int get_num_modes();	
 	int get_index();
