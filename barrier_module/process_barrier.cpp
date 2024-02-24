@@ -79,3 +79,8 @@ int process_barrier::await_and_destroy_barrier(std::string barrier_name)
 
 	return 0;
 }
+
+//static function that allows for barrier destruction
+int process_barrier::destroy_barrier(std::string barrier_name){
+	return shared_memory_module::delete_memory<process_barrier>(barrier_name);
+}
