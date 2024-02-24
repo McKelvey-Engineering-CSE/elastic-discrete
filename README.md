@@ -1,6 +1,6 @@
 # Elastic-Discrete Scheduler
 
-Readme last updated: 22 February 2024 by Tyler Martin
+Readme last updated: 24 February 2024 by Tyler Martin
 
 ## Description
 This is a runtime system to run parallel elastic tasks with discrete candidate values of period T OR work C. 
@@ -17,6 +17,29 @@ Priting is all controlled by a custom print function notated print_module::print
 All code is currently being rewritten to ensure only C++11/C++14 idioms are used, and that we do not have any issues with OpenMP and the more modern C++ versions (there have been no issues so far).
 
 As I continue working, this readme will be updated with more information
+
+## Concurrency Primitives
+All concurrency uses a custom p_mutex and p_condition_variable class. These classes mirror their std::mutex and std::condition_variable counterparts in functionality, but they ensure process safety without undefined behavior. They are really only used in the barriers, but as with all libraries, they can be used for synchronization within and between target tasks when compiling.
+
+Classes Provided:
+```
+p_mutex
+
+p_condition_variable
+```
+
+Functions Provided:
+```
+p_mutex::lock();
+
+p_mutex::unlock();
+
+p_condition_variable::wait(p_mutex);
+
+p_condition_variable(p_mutex, bool (*Functionptr));
+
+p_condition_variable::notify_all();
+```
 
 ## Memory allocation
 All memory allocation is handled through the shared_memory_module. This provides many differnt functions for easily creating, fetching, destroying, and detatching from shared memory. The signatures for each can be seen below:
