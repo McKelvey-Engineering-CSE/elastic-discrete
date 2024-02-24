@@ -1,4 +1,5 @@
 #include "generic_barrier.h"
+#include <iostream>
 
 void generic_barrier::init(int in){
     std::lock_guard<std::mutex> lock(mut);
@@ -14,13 +15,15 @@ void generic_barrier::arrive_and_wait()
 
     //check if exit or wait
     if (--count == 0) {
+        lock.unlock();
         cv.notify_all();
     } 
     
     else {
         lock.unlock();
-        while(count != 0);
-        //cv.wait(lock, [this] { return count == 0;});
+        while(count != 0){
+            cv.wait(r_mutex);
+        }
     }
 
     //handle return function

@@ -7,8 +7,10 @@
 #include <shared_mutex>
 #include <iostream>
 #include <functional>
+#include <pthread.h>
 
 #include "print_module.h"
+#include "process_primitives.h"
 
 /*************************************************************************
 
@@ -32,7 +34,9 @@ class generic_barrier
 
 protected:
     std::mutex mut;
-    std::condition_variable cv;
+    pthread_mutex_t& mut_handle = *(pthread_mutex_t*)mut.native_handle();
+    p_mutex r_mutex;
+    p_condition_variable cv;
     std::size_t count;
     std::function<void()> ret_function;
     bool scheduler_only = true;
@@ -41,23 +45,23 @@ protected:
 public:
 
     //construct generic_barrier
-    explicit generic_barrier() : count(1) { }
+    explicit generic_barrier() : count(1) {  }
     
-    explicit generic_barrier(std::size_t incount) : count(incount) { }
+    explicit generic_barrier(std::size_t incount) : count(incount) {  }
 
     explicit generic_barrier(std::size_t incount, std::function<void()> inret_func) :   count(incount), 
                                                                                         ret_function(inret_func), 
-                                                                                        execute_function(true) { }
+                                                                                        execute_function(true) {  }
 
     explicit generic_barrier(std::size_t incount, std::function<void()> inret_func, bool all) : count(incount), 
                                                                                                 ret_function(inret_func), 
                                                                                                 scheduler_only(all), 
-                                                                                                execute_function(true) { }
+                                                                                                execute_function(true) {  }
 
     explicit generic_barrier(std::size_t incount, std::function<void()> inret_func, bool all, bool execute) :   count(incount), 
                                                                                                                 ret_function(inret_func), 
                                                                                                                 scheduler_only(all), 
-                                                                                                                execute_function(execute) { }
+                                                                                                                execute_function(execute) {  }
 
     //reinit for barrier mode
 	void init(int in);

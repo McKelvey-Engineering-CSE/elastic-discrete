@@ -56,8 +56,13 @@ schedule.o: ./scheduler_module/schedule.cpp
 shared_mem.o: ./shared_memory_module/shared_mem.cpp
 	$(CC) $(FLAGS) -c ./shared_memory_module/shared_mem.cpp
 
-generic_barrier.o: ./barrier_module/generic_barrier.cpp
+generic_barrier.o: process_primitives.o ./barrier_module/generic_barrier.cpp
 	$(CC) $(FLAGS) -c ./barrier_module/generic_barrier.cpp
+	mv generic_barrier.o generic_barrier_inc.o
+	ld -relocatable process_primitives.o generic_barrier_inc.o -o generic_barrier.o
+
+process_primitives.o: ./barrier_module/process_primitives.cpp
+	$(CC) $(FLAGS) -c ./barrier_module/process_primitives.cpp
 
 print_library.o: print_module.o print_buffer.o
 	ld -relocatable print_module.o print_buffer.o -o print_library.o
@@ -69,7 +74,7 @@ print_module.o: ./printing_module/print_module.cpp
 	$(CC) $(FLAGS) -c ./printing_module/print_module.cpp 
 
 clustering_launcher: ./main_binaries/clustering_launcher.cpp
-	$(CC) $(FLAGS) taskData.o schedule.o scheduler.o shared_mem.o ./main_binaries/clustering_launcher.cpp -o clustering_launcher $(LIBS)
+	$(CC) $(FLAGS) taskData.o schedule.o scheduler.o shared_mem.o process_barrier.o ./main_binaries/clustering_launcher.cpp -o clustering_launcher $(LIBS)
 
 james: ./target_task/james.cpp task_manager.o
 	$(CC) $(FLAGS) ./target_task/james.cpp shared_mem.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o thread_barrier.o -o james $(LIBS)
