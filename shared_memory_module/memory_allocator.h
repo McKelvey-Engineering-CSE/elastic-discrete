@@ -122,10 +122,10 @@ namespace shared_memory_module{
     }
 
     template <class T>
-    void delete_memory(std::string bufferName){
+    int delete_memory(std::string bufferName){
         
         //remove barrier object
-        shmctl(shmget(shared_memory_module::nameToKey<std::string>(bufferName), sizeof(T), 0666), IPC_RMID, NULL);
+        return shmctl(shmget(shared_memory_module::nameToKey<std::string>(bufferName), sizeof(T), 0666), IPC_RMID, NULL);
     }
 
     template <class T>
