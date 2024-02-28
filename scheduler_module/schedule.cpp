@@ -36,4 +36,3 @@ class TaskData * Schedule::get_task(int n)
 int Schedule::count(){
 	return ((struct overhead *) shared_mem::getOverhead())->utility;
 }
-

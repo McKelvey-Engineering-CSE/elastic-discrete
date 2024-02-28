@@ -91,6 +91,9 @@ void scheduler_task()
 }
 
 void exit_on_signal(int sig){
+	
+	//tell the shared memory that we have to terminate immediately
+	scheduler->setTermination();
 	print_module::print(std::cerr, "Signal captured from child. Schedule cannot continue. Exiting.\n");
 	process_barrier::destroy_barrier(barrier_name);
 	process_barrier::destroy_barrier(barrier_name2);

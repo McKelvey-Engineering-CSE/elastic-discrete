@@ -60,6 +60,7 @@ public:
         void* getMapping();
         struct overhead* getOverhead();
         bool valid();
+        void setTermination();
 
 protected:
 
@@ -78,6 +79,10 @@ protected:
         /*Specifies if this process was the one that successfully 
         created the shared memory object with shm_open*/
         bool  owner; 
+
+        //specifies is a fault has occurred in a scheduled task and the task system must end
+        //bypasses all clean memory checks 
+        bool terminate = false;
 };
 
 

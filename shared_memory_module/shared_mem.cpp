@@ -185,14 +185,20 @@ struct overhead* shared_mem::getOverhead(){
 	return extras;
 }
 
+void shared_mem::setTermination(){
+	shm_unlink(name.c_str());
+	terminate = true;
+}
+
 //Deconstructor must reference count and call shm_unlink
 shared_mem::~shared_mem(){
 
-	extras->reference_count.fetch_sub(1);
+	if (!terminate){
+		extras->reference_count.fetch_sub(1);
 
-	if(extras->reference_count == 0) { 
-	    shm_unlink(name.c_str());
+		if(extras->reference_count == 0) { 
+			shm_unlink(name.c_str());
+		}
 	}
-
 }
 

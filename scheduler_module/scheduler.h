@@ -81,6 +81,8 @@ public:
 
 	void do_schedule();
 
+	void setTermination();
+
 	class Schedule * get_schedule();
 
 	TaskData * add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_);

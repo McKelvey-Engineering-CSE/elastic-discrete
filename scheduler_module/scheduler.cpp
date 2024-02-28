@@ -457,3 +457,7 @@ void Scheduler::do_schedule(){
 	}
 	first_time = false;
 }
+
+void Scheduler::setTermination(){
+	schedule.setTermination();
+}

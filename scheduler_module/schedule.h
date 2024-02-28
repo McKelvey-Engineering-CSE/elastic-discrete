@@ -28,7 +28,7 @@ Class : Schedule
 
 const int INVALID_INDEX=-1;
 
-class Schedule : shared_mem {
+class Schedule : public shared_mem {
 
 public: 
 	Schedule(std::string name_);	
