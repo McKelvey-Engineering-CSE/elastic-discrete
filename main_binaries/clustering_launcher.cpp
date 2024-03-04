@@ -30,6 +30,9 @@ struct itimerspec disarming_its, virtual_dl_timer_its;
 struct sigevent sev;
 int ret;
 
+//control if we are running in a clustered launcher mode
+bool clustered_operation_mode = false;
+
 // Define the name of the barrier used for synchronizing tasks after creation
 const std::string barrier_name = "BARRIER";
 const std::string barrier_name2 = "BARRIER_2";
@@ -151,7 +154,7 @@ int get_scheduling_file(std::string name, std::ifstream &ifs){
 }
 
 int read_scheduling_file(std::ifstream &ifs, 
-						bool* schedulable, 
+						int* schedulable, 
 						unsigned* num_tasks, 
 						unsigned* sec_to_run, 
 						long* nsec_to_run, 
@@ -169,10 +172,15 @@ int read_scheduling_file(std::ifstream &ifs,
 		print_module::print(std::cerr, "ERROR: First line of .rtps file error.\n Format: <taskset schedulability>.\n");
 		return -1;
 	}
-	if(!schedulable)
+	if(*schedulable == 0)
 	{
 		print_module::print(std::cerr, "ERROR: Taskset deemed not schedulable by .rtps file. Exiting.\n");
 		return -1;
+	}
+	else if (*schedulable == 2){
+
+		//set clustered operation
+		clustered_operation_mode = true;
 	}
 
 	//read in second line and check for the task run allowance parameters
@@ -201,7 +209,7 @@ int parse_task_timing_parameters(std::string task_timing_line,
 								std::vector<timespec>* work, 
 								std::vector<timespec>* span, 
 								std::vector<timespec>* period, 
-								int t, std::string program_name){
+								int t, std::string program_name, int* iterations){
 	int num_modes;
 	time_t work_sec;
 	long work_nsec;
@@ -216,6 +224,14 @@ int parse_task_timing_parameters(std::string task_timing_line,
 	//Read in elasticity coefficient and number of modes.
 	if((task_timing_stream >> elasticity) && (task_timing_stream >> num_modes))
 	{
+
+		//check if clustered behavior
+		if (clustered_operation_mode){
+			*iterations = elasticity;
+			elasticity = 1;
+		}
+			
+
 		//Make sure we have at least 1 mode.
 		if(num_modes <= 0)
 		{
@@ -271,7 +287,7 @@ int main(int argc, char *argv[])
 {
 	process_group = getpgrp();
 	std::vector<std::string> args(argv, argv+argc);
-	bool schedulable;
+	int schedulable;
 	unsigned num_tasks=0;
 	unsigned sec_to_run=0;
 	long nsec_to_run=0;
@@ -353,8 +369,17 @@ int main(int argc, char *argv[])
 				task_manager_argvector.push_back(program_name);
 				task_manager_argvector.push_back(std::to_string(start_time.tv_sec).c_str());
 				task_manager_argvector.push_back(std::to_string(start_time.tv_nsec).c_str());
-				task_manager_argvector.push_back(std::to_string(end_time.tv_sec).c_str());
-				task_manager_argvector.push_back(std::to_string(end_time.tv_nsec).c_str());	
+
+				//check for clustered launching 
+
+				if (clustered_operation_mode){
+					task_manager_argvector.push_back(std::to_string(-1).c_str());
+					task_manager_argvector.push_back(std::to_string(0).c_str());	
+				}
+				else{
+					task_manager_argvector.push_back(std::to_string(end_time.tv_sec).c_str());
+					task_manager_argvector.push_back(std::to_string(end_time.tv_nsec).c_str());	
+				}
 			}
 			else
 			{
@@ -367,11 +392,12 @@ int main(int argc, char *argv[])
 			std::vector <timespec> work;
 			std::vector <timespec> span;
 			std::vector <timespec> period;
+			int iterations_file = 0;
 			
 			//parse the input file to obtain the task arguments
 			if (std::getline(ifs, task_timing_line))
 			{       
-				if (parse_task_timing_parameters(task_timing_line, &task_manager_argvector, &work, &span, &period, t, program_name) != 0)
+				if (parse_task_timing_parameters(task_timing_line, &task_manager_argvector, &work, &span, &period, t, program_name, &iterations_file) != 0)
 					return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 			}
 			else	
@@ -380,6 +406,10 @@ int main(int argc, char *argv[])
 				kill(0, SIGTERM);
 				return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 			}
+
+			//set iteration count if clustered operation
+			if (clustered_operation_mode)
+				task_manager_argvector.at(4) = std::to_string(iterations_file).c_str();	
 			
 			// Add the barrier name to the argument vector
 			task_manager_argvector.push_back(barrier_name);

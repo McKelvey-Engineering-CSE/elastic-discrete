@@ -229,6 +229,15 @@ void reschedule()
 	bar.mc_bar_reinit(schedule.get_task(iindex)->get_current_CPUs());		
 }
 
+bool execution_condition(bool clustered, timespec current_time, timespec end_time, int iterations, int current_iterations)
+{
+	if (clustered)
+		return current_iterations != iterations;
+	
+	else
+		return current_time < end_time;
+};
+
 int main(int argc, char *argv[])
 {
 	fflush(stdout);
@@ -281,7 +290,9 @@ int main(int argc, char *argv[])
 
 	// Process command line arguments	
 	const char *task_name = argv[0];
-
+	int iterations = 0;
+	bool clustered_operation_mode = false;
+	
 	if(!((std::istringstream(argv[1]) >> start_sec) &&
 		(std::istringstream(argv[2]) >> start_nsec) &&
 		(std::istringstream(argv[3]) >> end_sec) &&
@@ -291,6 +302,18 @@ int main(int argc, char *argv[])
 		print_module::print(std::cerr,  "ERROR: Cannot parse input argument for task " , task_name , "\n");
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_ARG_PARSE_ERROR;
+	}
+
+	//check to see if we are running in clustered mode
+	if (end_sec == -1){
+
+		//update our stopping condition
+		clustered_operation_mode = true;
+		iterations = end_nsec;
+
+		//set to (un)reasonable values
+		end_sec = 1000;
+		end_nsec = 1000;
 	}
 
 	start_time = {start_sec, start_nsec};
@@ -448,7 +471,7 @@ int main(int argc, char *argv[])
 	timespec max_period_runtime = { 0, 0 };
 	uint64_t total_nsec = 0;
 
-	while(current_time < end_time)	
+	while(execution_condition(clustered_operation_mode, current_time, end_time, iterations, num_iters))	
 	{
 		if(schedule.get_task(iindex))
 		{

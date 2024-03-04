@@ -129,6 +129,16 @@ RTPS File structure
 ##REPEAT LINES 3-4 as needed. Together they form a task.
 ```
 
+RTPS File structure (Clustered Behavior)
+```
+2
+<number of tasks> <s for scheduler to run> <ns for scheduler to run>
+<process name> <process args (may be null)> 
+<iterations> 1 <work seconds> <work nanoseconds> <span seconds> <span nanoseconds> <period seconds> <period nanoseconds>
+##REPEAT LINES 3-4 as needed. Together they form a task.
+##work seconds / span seconds == core assignment for this task
+```
+
 Once you have a .rtps file created, you can schedule and run your task using this scheduler. 
 
 ## Elastic Discrete Legacy Description

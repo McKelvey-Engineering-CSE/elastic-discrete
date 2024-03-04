@@ -40,7 +40,7 @@ int init(int argc, char *argv[])
 int run(int argc, char *argv[]){
 	//*(int * ) 0 = 0;
 
-	std::cout << "Executing Matrix Manipulations" << std::endl;
+	//std::cout << "Executing Matrix Manipulations" << std::endl;
 
 	#if defined(__x86_64__) || defined(_M_X64)
 		//Example Vector workload
