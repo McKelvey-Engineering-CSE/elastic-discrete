@@ -10,6 +10,7 @@
 #include <math.h>
 #include <iostream>
 #include <vector>
+#include <bitset>
 
 /*************************************************************************
 
@@ -31,60 +32,47 @@ namespace shared_memory_module{
 
     template <typename T>
     key_t nameToKey(T name){
-        std::vector<unsigned long long> partials;
-        partials.push_back(0);
-        unsigned long long value = 0;
-        int p = 17;
-        long m = 1000000009;
-        int current_pos = 0;
-
-        if (pow(p, name.length()-1) * name[name.length()-1] > (pow(2, 64) - 1)){
-            std::cout << "ERROR: NAME FOR SEGMENT TOO LONG: " << name << " EXITING\n";
+        
+        //take in the string and make sure it's less than 10 chars
+        if (name.length() > 10){
+            std::perror("ERROR: key names must be shorter than 10 characters\n");
             exit(-1);
         }
 
+        std::string bits = "";
+
+        //otherwise, make a number representing the string
         for (size_t i = 0; i < name.length(); i++){
 
-            //assume no overflow
-            partials[current_pos] += int(name[i]) * pow(p, i);
+            //if it's a digit
+            if (name[i] >= 48 && name[i] <= 57){
+                std::bitset<6> binaryRepresentation(name[i] - 48);
+                bits += binaryRepresentation.to_string();
+            }
 
-            //check for overflow
-            if (partials[current_pos] > value){
-                value = partials[current_pos];
+            else if (name[i] >= 65 && name[i] <= 90){
+                std::bitset<6> binaryRepresentation(name[i] - 55);
+                bits += binaryRepresentation.to_string();
+            }
+
+            else if (name[i] >= 97 && name[i] <= 122){
+                std::bitset<6> binaryRepresentation(name[i] - 61);
+                bits += binaryRepresentation.to_string();
+            }
+
+            else if (name[i] == 95){
+                std::bitset<6> binaryRepresentation(62);
+                bits += binaryRepresentation.to_string();
             }
 
             else{
-                partials[current_pos] = value;
-                partials.push_back(0);
-                current_pos += 1;
-                partials[current_pos] += int(name[i]) * pow(p, i);
-                value = partials[current_pos];
-            }
-        }
-
-        //calc the partial mods and add them
-        for (size_t i = 0; i < partials.size(); i++){
-            partials.at(i) = partials.at(i) % m;
-        }
-
-        value = 0;
-        unsigned long long pastValue = 0;
-
-        for (size_t i = 0; i < partials.size(); i++){
-
-            value += partials.at(i);
-
-            //make sure we are not overflowing even here
-            if (value < pastValue){
-                std::cout << "ERROR: NAME FOR SEGMENT TOO LONG: " << name << " EXITING\n";
+                std::perror("ERROR: key names must only contain alphanumeric values and underscores\n");
                 exit(-1);
             }
-            else{
-                pastValue = value;
-            }
+
         }
 
-        return (key_t)(value & 0xFFFFFFFF);
+        return (key_t)(std::bitset<64>(bits).to_ullong());
     }
 
     template <class T, typename... Args>
