@@ -5,6 +5,12 @@
 
 #include "print_buffer.h"
 
+#if __cplusplus > 201703L
+
+    #include <syncstream>
+
+#endif
+
 /*************************************************************************
 
 printing.h
@@ -37,53 +43,29 @@ Function :  print_module::print(ostream, args...)
 
 namespace print_module {
 
-    template <typename Arg, typename... Args>
-    static void print(std::ostream& out, Arg&& arg, Args&&... args){   
-        
-        //ostringstream seems to have lowest possible 
-        //overhead
-        std::ostringstream ss;
-        
-        //expander boilerplate
-        ss << std::forward<Arg>(arg);
-        using expander = int[];
-        (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
-        
-        //print to whatever we were given
-        out << ss.str();
-    }
+    #if __cplusplus > 201703L
 
-    template <typename Arg, typename... Args>
-    static void print(const char bufferChar[], Arg&& arg, Args&&... args){
+        template <typename Arg, typename... Args>
+        static void print(std::ostream& out, Arg&& arg, Args&&... args){   
+            
+            //basic_osyncstream if we support it
+            std::basic_osyncstream oss(out);
+            
+            //expander boilerplate
+            oss << std::forward<Arg>(arg);
+            using expander = int[];
+            (void)expander{0, (void(oss << std::forward<Args>(args)), 0)...};
+            
+        }
 
-        //char to string
-        std::string bufferName(bufferChar);
+        template <typename Arg, typename... Args>
+        static void print(const char bufferChar[], Arg&& arg, Args&&... args){
 
-        //creates the buffer if it does not exist
-        print_buffer* buffer = print_buffer::openBuffer(bufferName);
-        if (buffer == nullptr)
-            exit(-1);
-
-        //FIXME: try to avoid stringstream while mimicing the function
-        std::ostringstream ss;
-        
-        //expander boilerplate
-        ss << std::forward<Arg>(arg);
-        using expander = int[];
-        (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
-        
-        //print to whatever we were given
-        buffer->printToBuffer(ss.str());
-    }
-
-    template <typename Arg, typename... Args>
-    static void print(buffer_set bufferNames, Arg&& arg, Args&&... args){
-
-        //loop over all the handles in the buffer
-        for (std::string name : bufferNames.fetch()){
+            //char to string
+            std::string bufferName(bufferChar);
 
             //creates the buffer if it does not exist
-            print_buffer* buffer = print_buffer::openBuffer(name);
+            print_buffer* buffer = print_buffer::openBuffer(bufferName);
             if (buffer == nullptr)
                 exit(-1);
 
@@ -98,7 +80,97 @@ namespace print_module {
             //print to whatever we were given
             buffer->printToBuffer(ss.str());
         }
-    }
+
+        template <typename Arg, typename... Args>
+        static void print(buffer_set bufferNames, Arg&& arg, Args&&... args){
+
+            //loop over all the handles in the buffer
+            for (std::string name : bufferNames.fetch()){
+
+                //creates the buffer if it does not exist
+                print_buffer* buffer = print_buffer::openBuffer(name);
+                if (buffer == nullptr)
+                    exit(-1);
+
+                //FIXME: try to avoid stringstream while mimicing the function
+                std::ostringstream ss;
+                
+                //expander boilerplate
+                ss << std::forward<Arg>(arg);
+                using expander = int[];
+                (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
+                
+                //print to whatever we were given
+                buffer->printToBuffer(ss.str());
+            }
+        }
+
+    #else
+
+        template <typename Arg, typename... Args>
+        static void print(std::ostream& out, Arg&& arg, Args&&... args){   
+            
+            //ostringstream seems to have lowest possible 
+            //overhead
+            std::ostringstream ss;
+            
+            //expander boilerplate
+            ss << std::forward<Arg>(arg);
+            using expander = int[];
+            (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
+            
+            //print to whatever we were given
+            out << ss.str();
+        }
+
+        template <typename Arg, typename... Args>
+        static void print(const char bufferChar[], Arg&& arg, Args&&... args){
+
+            //char to string
+            std::string bufferName(bufferChar);
+
+            //creates the buffer if it does not exist
+            print_buffer* buffer = print_buffer::openBuffer(bufferName);
+            if (buffer == nullptr)
+                exit(-1);
+
+            //FIXME: try to avoid stringstream while mimicing the function
+            std::ostringstream ss;
+            
+            //expander boilerplate
+            ss << std::forward<Arg>(arg);
+            using expander = int[];
+            (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
+            
+            //print to whatever we were given
+            buffer->printToBuffer(ss.str());
+        }
+
+        template <typename Arg, typename... Args>
+        static void print(buffer_set bufferNames, Arg&& arg, Args&&... args){
+
+            //loop over all the handles in the buffer
+            for (std::string name : bufferNames.fetch()){
+
+                //creates the buffer if it does not exist
+                print_buffer* buffer = print_buffer::openBuffer(name);
+                if (buffer == nullptr)
+                    exit(-1);
+
+                //FIXME: try to avoid stringstream while mimicing the function
+                std::ostringstream ss;
+                
+                //expander boilerplate
+                ss << std::forward<Arg>(arg);
+                using expander = int[];
+                (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
+                
+                //print to whatever we were given
+                buffer->printToBuffer(ss.str());
+            }
+        }
+
+    #endif 
 
 }
 #endif
