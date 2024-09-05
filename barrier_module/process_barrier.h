@@ -57,6 +57,9 @@ public:
 	//await function that allows generic_barrier functionality
 	static int await_and_destroy_barrier(std::string barrier_name);
 
+	//await function that allows generic_barrier functionality
+	static int await_and_rearm_barrier(std::string barrier_name);
+
 	//static function to destroy a barrier in worst-case situations
 	static int destroy_barrier(std::string barrier_name);
 };

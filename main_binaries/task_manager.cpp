@@ -324,7 +324,7 @@ int main(int argc, char *argv[])
 	char **task_argv = &argv[7];
 
 	//Wait at barrier for the other tasks but mainly to make sure scheduler has finished
-	if ((ret_val = process_barrier::await_and_destroy_barrier("BARRIER_2")) != 0)
+	if ((ret_val = process_barrier::await_and_destroy_barrier("BAR_2")) != 0)
 	{
 		print_module::print(std::cerr,  "ERROR: Barrier error for task " , task_name , "\n");
 		kill(0, SIGTERM);

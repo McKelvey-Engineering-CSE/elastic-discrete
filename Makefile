@@ -1,5 +1,5 @@
 ##### Compiler Settings ##########################################################
-CC = g++ -std=c++14 -O0 -I.
+CC = g++ -std=c++20 -O0 -I.
 HEADERS = $(addprefix -iquote ,$(shell find . -type d -not -path "*/\.*"))
 FLAGS = -Wall -g -gdwarf-3 $(HEADERS)
 LIBS = -L. -lrt -lm -lclustering -fopenmp

@@ -9,7 +9,6 @@
 #include <functional>
 #include <pthread.h>
 
-#include "print_module.h"
 #include "process_primitives.h"
 
 /*************************************************************************
@@ -36,11 +35,12 @@ protected:
     std::mutex mut;
     pthread_mutex_t& mut_handle = *(pthread_mutex_t*)mut.native_handle();
     p_mutex r_mutex;
-    p_condition_variable cv;
     std::size_t count;
+    std::size_t initial_count;
     std::function<void()> ret_function;
     bool scheduler_only = true;
     bool execute_function = false;
+    int generation = 0;
 
 public:
 
@@ -67,7 +67,7 @@ public:
 	void init(int in);
 
     //arrive at the barrier and wait
-    void arrive_and_wait();
+    void arrive_and_wait(bool rearm = false);
 
     //execute return function
     void return_function();
