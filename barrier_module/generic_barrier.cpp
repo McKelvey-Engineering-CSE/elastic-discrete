@@ -1,66 +1,75 @@
 #include "generic_barrier.h"
 #include <iostream>
+#include <unistd.h> 
 
-//#define LOG_STATES
+#ifdef LOG_STATES
+
+#include "print_module.h"
+
+#endif
 
 void generic_barrier::init(int in){
-    std::lock_guard<std::mutex> lock(mut);
+    r_mutex.lock();
     count = in;
+    initial_count = count;
+    r_mutex.unlock();
 }
 
-void generic_barrier::arrive_and_wait()
+void generic_barrier::arrive_and_wait(bool rearm)
 {
     //lock mutex
     #ifdef LOG_STATES 
-        std::cout << "waiting at lock" << std::endl;
+        print_module::print(std::cout, getpid(), " | waiting at lock\n");
     #endif 
 
     r_mutex.lock();
 
     #ifdef LOG_STATES 
-        std::cout << "Lock Grabbed" << std::endl; 
-    #endif
-
-    #ifdef LOG_STATES 
-        print_module::print(std::cerr, "Barrier Count: ", count, " | ", getppid(), "\n");
+        print_module::print(std::cout, getpid(), " | Lock Grabbed\n");
     #endif
 
     //check if exit or wait
     if (--count == 0) {
 
         #ifdef LOG_STATES 
-            std::cout << "Notifying All Waiting" << std::endl;
+            print_module::print(std::cout, getpid(), " | Notifying All Waiting\n");
         #endif 
 
+        if (rearm)
+            count = initial_count;
+
+        generation += 1;
+
+        r_mutex.notify_all();
         r_mutex.unlock();
-        cv.notify_all();
     } 
     
     else {
-        r_mutex.unlock();
-        while(count != 0){
+        int my_generation = generation;
+
+        while(count != 0 && generation == my_generation){
 
             #ifdef LOG_STATES 
-                std::cout << "Checking before wait..." << std::endl;
+                print_module::print(std::cout, getpid(), " | Checking before wait...\n");
             #endif
 
-            cv.wait(r_mutex);
+            r_mutex.wait();
+
+            #ifdef LOG_STATES 
+                print_module::print(std::cout, getpid(), " | got notified..\n");
+            #endif
         }
 
         #ifdef LOG_STATES 
-            std::cout << "out of wait" << std::endl;
+            print_module::print(std::cout, getpid(), " | out of wait\n");
         #endif
     }
 
-    //handle return function
-    return_function();
 }
 
 void generic_barrier::return_function(){
 
     if (execute_function){
-
-        print_module::print(std::cerr, "running exit function\n");
 
         //if "scheduler" is the only one doing it
         if (scheduler_only){

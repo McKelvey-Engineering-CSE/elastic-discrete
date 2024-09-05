@@ -31,8 +31,8 @@ struct sigevent sev;
 int ret;
 
 // Define the name of the barrier used for synchronizing tasks after creation
-const std::string barrier_name = "BARRIER";
-const std::string barrier_name2 = "BARRIER_2";
+const std::string barrier_name = "BAR";
+const std::string barrier_name2 = "BAR_2";
 
 bool needs_scheduling = false;
 Scheduler * scheduler;

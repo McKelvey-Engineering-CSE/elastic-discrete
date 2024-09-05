@@ -11,10 +11,14 @@
 #include <iostream>
 #include <cerrno>
 
-#include "print_module.h"
 #include "generic_barrier.h"
 #include "memory_allocator.h"
 
+#ifdef LOG_STATES
+
+#include "print_module.h"
+
+#endif
 
 //static function to create a new process_barrier
 process_barrier* process_barrier::create_process_barrier(std::string barrier_name, int num_tasks, std::function<void()> infunction, bool inall, bool inexecution){
@@ -46,7 +50,6 @@ process_barrier* process_barrier::get_process_barrier(std::string inname, int *e
 		barrier = shared_memory_module::fetch<process_barrier>(inname);
 
 	if (barrier == nullptr){
-		print_module::print(std::cerr, "Cannot continue, a print buffer could not be allocated\n");
 		exit(-1);
 	}
 	
@@ -67,6 +70,10 @@ void process_barrier::unmap_process_barrier(process_barrier *barrier)
 int process_barrier::await_and_destroy_barrier(std::string barrier_name)
 {
 
+	#ifdef LOG_STATES 
+		print_module::print(std::cout, getpid(), " | waiting at barrier: ", barrier_name, "\n");
+	#endif
+
 	int ret_val=0;
 	process_barrier* barrier = get_process_barrier(barrier_name, &ret_val);
 
@@ -76,6 +83,23 @@ int process_barrier::await_and_destroy_barrier(std::string barrier_name)
 
 	shared_memory_module::detatch<process_barrier>(barrier);
 	shared_memory_module::delete_memory<process_barrier>(barrier_name);
+
+	return 0;
+}
+
+//static function that allows waiting at the process_barrier
+int process_barrier::await_and_rearm_barrier(std::string barrier_name)
+{
+	#ifdef LOG_STATES 
+		print_module::print(std::cout, getpid(), " | waiting at barrier: ", barrier_name, "\n");
+	#endif
+
+	int ret_val=0;
+	process_barrier* barrier = get_process_barrier(barrier_name, &ret_val);
+
+	if (ret_val != 0)
+		return ret_val;
+	barrier->arrive_and_wait(true);
 
 	return 0;
 }
