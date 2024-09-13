@@ -161,35 +161,49 @@ int read_scheduling_file(std::ifstream &ifs,
 						std::vector<int>* line_lengths){
 
 	std::string line;
-	unsigned num_lines; 
-	
-	//read in the first line and check for a scheduability boolean
+	unsigned num_lines;
+
+	//get mode flag;
+
 	getline(ifs, line);
-	std::istringstream firstline(line);
+	std::istringstream modeline(line);
 	line_lengths->push_back(line.length() + 1);
-	if(!(firstline >> *schedulable))
+	if (!(modeline >> clustered_operation_mode))
+	{
+		print_module::print(std::cerr, "ERROR: Invalid mode flag in first line of .rtps\n");
+	}
+
+	if (clustered_operation_mode)
+	{
+		print_module::print(std::cout, "INFO: running in clustered mode\n");
+	}
+	else
+	{
+		print_module::print(std::cout, "INFO: running in elastic mode\n");
+	}
+	
+	//check for a scheduability boolean
+	getline(ifs, line);
+	std::istringstream schedline(line);
+	line_lengths->push_back(line.length() + 1);
+	if(!(schedline >> *schedulable))
 	{
 		print_module::print(std::cerr, "ERROR: First line of .rtps file error.\n Format: <taskset schedulability>.\n");
 		return -1;
 	}
-	if(*schedulable == 0)
+	if(*schedulable == 0 && !clustered_operation_mode)
 	{
-		print_module::print(std::cerr, "ERROR: Taskset deemed not schedulable by .rtps file. Exiting.\n");
+		print_module::print(std::cerr, "ERROR: In elastic mode and taskset deemed not schedulable by .rtps file. Exiting.\n");
 		return -1;
-	}
-	else if (*schedulable == 2){
-
-		//set clustered operation
-		clustered_operation_mode = true;
 	}
 
 	//read in second line and check for the task run allowance parameters
 	getline(ifs, line);
-	std::istringstream secondline(line);
+	std::istringstream sched_opts(line);
 	line_lengths->push_back(line.length() + 1);
-	if(!((secondline >> *num_tasks) && (secondline >> *sec_to_run) && (secondline >> *nsec_to_run)))
+	if(!((sched_opts >> *num_tasks) && (sched_opts >> *sec_to_run) && (sched_opts >> *nsec_to_run)))
 	{
-		print_module::print(std::cerr, "ERROR: Second line of .rtps file error.\n Format: <number of tasks> <s to run> <ns to run>.\n");
+		print_module::print(std::cerr, "ERROR: invalid scheduler options of .rtps file.\n Format: <number of tasks> <s to run> <ns to run>.\n");
 		return -1;
 	}
 
@@ -320,7 +334,7 @@ int main(int argc, char *argv[])
 
 	//Seek back to the start of the process lines
 	ifs.clear();
-	ifs.seekg(line_lengths[0] + line_lengths[1], std::ios::beg);
+	ifs.seekg(line_lengths[0] + line_lengths[1] + line_lengths[2], std::ios::beg);
 	
 	//Initialize two barriers to synchronize the tasks after creation
 	if (process_barrier::create_process_barrier(barrier_name, num_tasks + 1) == nullptr || 

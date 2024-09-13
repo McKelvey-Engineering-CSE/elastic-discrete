@@ -122,6 +122,7 @@ Once you have this set up, generate a scheduling file (.rtps) file that is the s
 
 RTPS File structure
 ```
+0
 <Taskset schedulable?>
 <number of tasks> <s to run> <ns to run>
 <process name> <process args (may be null)> 
@@ -131,7 +132,8 @@ RTPS File structure
 
 RTPS File structure (Clustered Behavior)
 ```
-2
+1
+<Taskset schedulable?>
 <number of tasks> <s for scheduler to run> <ns for scheduler to run>
 <process name> <process args (may be null)> 
 <iterations> 1 <work seconds> <work nanoseconds> <span seconds> <span nanoseconds> <period seconds> <period nanoseconds>
