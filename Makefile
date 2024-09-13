@@ -2,6 +2,11 @@
 CC = g++ -std=c++20 -O0 -I.
 HEADERS = $(addprefix -iquote ,$(shell find . -type d -not -path "*/\.*"))
 FLAGS = -Wall -g -gdwarf-3 $(HEADERS)
+
+ifneq (,$(findstring x86_64, $(shell $(CC) -dumpmachine)))
+	FLAGS := $(FLAGS) -mavx2
+endif
+
 LIBS = -L. -lrt -lm -lclustering -fopenmp
 CLUSTERING_OBJECTS = process_barrier.o generic_barrier.o timespec_functions.o
 ##################################################################################
@@ -15,7 +20,7 @@ RTPS_FILE=./target_task/james.rtps
 all: clustering_distribution finish
 
 finish:
-	mkdir ./bin
+	mkdir -p ./bin
 	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./bin
 
 clean:
