@@ -15,6 +15,8 @@
 #include "scheduler.h"
 #include "print_module.h"
 
+#include "libyaml-cpp/include/yaml-cpp/yaml.h"
+
 /************************************************************************************
 Globals
 *************************************************************************************/
@@ -159,6 +161,8 @@ int read_scheduling_file(std::ifstream &ifs,
 						unsigned* sec_to_run, 
 						long* nsec_to_run, 
 						std::vector<int>* line_lengths){
+
+	YAML::Node node = YAML::Load("[1, 2, 3]");
 
 	std::string line;
 	unsigned num_lines;
