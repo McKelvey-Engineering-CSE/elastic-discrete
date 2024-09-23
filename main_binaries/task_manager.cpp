@@ -229,13 +229,12 @@ void reschedule()
 	bar.mc_bar_reinit(schedule.get_task(iindex)->get_current_CPUs());		
 }
 
-bool execution_condition(bool clustered, timespec current_time, timespec end_time, int iterations, int current_iterations)
+bool execution_condition(timespec current_time, timespec end_time, int iterations, int current_iterations)
 {
-	if (clustered)
-		return current_iterations != iterations;
-	
-	else
-		return current_time < end_time;
+	if (end_time.tv_sec != 0 && end_time.tv_nsec != 0 && current_time >= end_time) {
+		return false;
+	}
+	return current_iterations != iterations;
 };
 
 int main(int argc, char *argv[])
@@ -291,37 +290,25 @@ int main(int argc, char *argv[])
 	// Process command line arguments	
 	const char *task_name = argv[0];
 	int iterations = 0;
-	bool clustered_operation_mode = false;
 	
 	if(!((std::istringstream(argv[1]) >> start_sec) &&
 		(std::istringstream(argv[2]) >> start_nsec) &&
-		(std::istringstream(argv[3]) >> end_sec) &&
-        (std::istringstream(argv[4]) >> end_nsec) &&
-		(std::istringstream(argv[5]) >> iindex)))
+		(std::istringstream(argv[3]) >> iterations) &&
+		(std::istringstream(argv[4]) >> end_sec) &&
+        (std::istringstream(argv[5]) >> end_nsec) &&
+		(std::istringstream(argv[6]) >> iindex)))
 	{
 		print_module::print(std::cerr,  "ERROR: Cannot parse input argument for task " , task_name , "\n");
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_ARG_PARSE_ERROR;
 	}
 
-	//check to see if we are running in clustered mode
-	if (end_sec == -1){
-
-		//update our stopping condition
-		clustered_operation_mode = true;
-		iterations = end_nsec;
-
-		//set to (un)reasonable values
-		end_sec = 1000;
-		end_nsec = 1000;
-	}
-
 	start_time = {start_sec, start_nsec};
 	end_time = {end_sec, end_nsec};
 	
-	char *barrier_name = argv[6];
-	int task_argc = argc - 7;                                             
-	char **task_argv = &argv[7];
+	char *barrier_name = argv[7];
+	int task_argc = argc - 8;                                             
+	char **task_argv = &argv[8];
 
 	//Wait at barrier for the other tasks but mainly to make sure scheduler has finished
 	if ((ret_val = process_barrier::await_and_destroy_barrier("BAR_2")) != 0)
@@ -471,7 +458,7 @@ int main(int argc, char *argv[])
 	timespec max_period_runtime = { 0, 0 };
 	uint64_t total_nsec = 0;
 
-	while(execution_condition(clustered_operation_mode, current_time, end_time, iterations, num_iters))	
+	while(execution_condition(current_time, end_time, iterations, num_iters))	
 	{
 		if(schedule.get_task(iindex))
 		{

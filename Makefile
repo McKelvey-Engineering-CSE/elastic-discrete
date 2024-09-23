@@ -13,7 +13,7 @@ CLUSTERING_OBJECTS = process_barrier.o generic_barrier.o timespec_functions.o
 
 ##### Task Configuration #########################################################
 TARGET_TASK=james
-RTPS_FILE=./target_task/james.rtps
+RTPS_FILE=./target_task/james.yaml
 ##################################################################################
 
 ##### Rules ######################################################################
