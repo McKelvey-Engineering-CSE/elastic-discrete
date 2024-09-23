@@ -117,31 +117,25 @@ task_t task = { init, run, finalize };
 
 Once you have this structure, compile your task against the task_manager object to enable the scheduler to use it.
 
-Once you have this set up, generate a scheduling file (.rtps) file that is the same name as the executable
-(The Cybermech repository grants you a way to turn a .rtp file into a .rtps file for elastic scheduling)
-
-RTPS File structure
+Next define a configuration YAML file. File structure:
 ```
-0
-<Taskset schedulable?>
-<number of tasks> <s to run> <ns to run>
-<process name> <process args (may be null)> 
-<elastic coefficient> <number of modes of operation (1+)> [<work seconds> <work nanoseconds> <span seconds> <span nanoseconds> <period seconds> <period nanoseconds> (Repeat once per mode of operation)]
-##REPEAT LINES 3-4 as needed. Together they form a task.
-```
-
-RTPS File structure (Clustered Behavior)
-```
-1
-<Taskset schedulable?>
-<number of tasks> <s for scheduler to run> <ns for scheduler to run>
-<process name> <process args (may be null)> 
-<iterations> 1 <work seconds> <work nanoseconds> <span seconds> <span nanoseconds> <period seconds> <period nanoseconds>
-##REPEAT LINES 3-4 as needed. Together they form a task.
-##work seconds / span seconds == core assignment for this task
+schedulable: true/false
+maxRuntime: {sec: 0, ns: 0} # optional
+tasks:
+  - program:
+      name: "executable file name"
+      args: "these are arguments"
+    elasticity: 150 # For non-elastic mode set to 1
+    maxIterations: 100 # Optional
+    modes:
+      - work: {sec: 5, nsec: 0}
+        span: {sec: 1, nsec: 0}
+        period: {sec: 0, nsec: 3000000}
 ```
 
-Once you have a .rtps file created, you can schedule and run your task using this scheduler. 
+A task will run until either it reaches the maximum number of iterations, or the global maximum runtime is reached - if neither is specified it will run forever.
+
+To emulate the behavior of the old clustering launcher, set `elasticity: 1` for every task.
 
 ## Elastic Discrete Legacy Description
 ```
