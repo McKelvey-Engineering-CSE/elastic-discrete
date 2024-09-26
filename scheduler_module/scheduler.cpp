@@ -11,125 +11,72 @@
 #include <map>
 #include <tuple>
 
-//lazy 
-struct Item {
-    double cpuLoss;
-    double gpuLoss;
-    size_t cores;
-    size_t sms;
-};
-
-
-#ifdef SCHED_PAIR_HEAP
-
-	/*October 23 2023 - moved class to be nested inside in-case it actually is needed
-	in the future. I doubt this, and am leaving it non-compiling for the meantime.
-	If it turns out the inner class "sched_pair" is needed, these functions should be
-	moved back out of the class so that we can use references.
-
-	(Also, make them idiomatic in the future if we actually need them)
-	*/
-	bool Scheduler::sched_pair::operator>(const Scheduler::sched_pair& rhs){
-	
-	return(this->weight > rhs.weight);
-
-	}
-
-	bool Scheduler::sched_pair::operator<(const Scheduler::sched_pair& rhs){
-	
-	return(this->weight < rhs.weight);
-
-	}
-
-	bool Scheduler::sched_pair::operator==(const Scheduler::sched_pair& rhs){
-	
-	return(this->weight == rhs.weight);
-
-	}
-
-	bool Scheduler::sched_pair::operator<=(const Scheduler::sched_pair& rhs){
-	
-	return (this->weight < rhs.weight) || (this->weight == rhs.weight);
-
-	}
-
-	bool Scheduler::sched_pair::operator>=(const Scheduler::sched_pair& rhs){
-	
-	return (this->weight > rhs.weight) || (this->weight == rhs.weight);
-
-	}
-
-	bool Scheduler::sched_pair::operator!=(const Scheduler::sched_pair& rhs){
-	
-	return(!(this->weight == rhs.weight));
-
-	}
-
-#endif
-
 class Schedule * Scheduler::get_schedule(){
 	return &schedule;
 }
 
-TaskData * Scheduler::add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_){
+TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_){
 	
-	return schedule.add_task(elasticity_, num_modes_, work_, span_, period_);
+	//add the task to the legacy schedule object, but also add to vector
+	//to make the scheduler much easier to read and work with.
+	auto taskData_object = schedule.add_task(elasticity_, num_modes_, work_, span_, period_);
+
+	task_table.push_back(std::vector<task_mode>());
+
+	for (int j = 0; j < num_modes_; j++){
+
+		task_mode item;
+		item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - (taskData_object->get_work(j) / taskData_object->get_period(j)), 2)));
+		item.gpuLoss = 0;
+		item.cores = taskData_object->get_CPUs(j);
+		item.sms = 0;
+
+		task_table.at(task_table.size() - 1).push_back(item);
+
+	}
+
+	return taskData_object;
 }
+
+//static vector size
+std::vector<std::vector<Scheduler::task_mode>> Scheduler::task_table(100, std::vector<task_mode>(100));
 
 //Implement scheduling algorithm
 void Scheduler::do_schedule(size_t maxCPU, size_t maxSMS){
 
-	//FIXME: CALCULATING THIS DURING THE KNPSACK IS STUPID AND MAKES IT INCREDIBLY HARD TO READ! DO AT BEGINNING
-	std::vector<std::vector<Item>> classes;
-	for (int l = 0; l < schedule.count(); l++){
-		
-		classes.push_back(std::vector<Item>());
-
-		for (int j = 0; j < (schedule.get_task(l))->get_num_modes(); j++){
-
-			Item item;
-			item.cpuLoss = (1.0/(schedule.get_task(l))->get_elasticity() * (std::pow((schedule.get_task(l))->get_max_utilization() - ((schedule.get_task(l)->get_work(j)) / (schedule.get_task(l)->get_period(j))) , 2)));
-			item.gpuLoss = 0;
-			item.cores = (schedule.get_task(l))->get_CPUs(j);
-			item.sms = 0;
-
-			classes[l].push_back(item);
-		}
-	}
-
 	//dynamic programming table
-	int N = classes.size();
+	int N = task_table.size();
     std::vector<std::vector<std::vector<std::pair<double, double>>>> dp(N + 1, std::vector<std::vector<std::pair<double, double>>>(maxCPU + 1, std::vector<std::pair<double, double>>(maxSMS + 1, {100000, 100000})));
     std::map<std::tuple<int,int,int>, std::vector<int>> solutions;
 
-	//First time through Make sure we have enough CPUs in the system and determine practical max for each task.	
-	if(first_time)
-	{
+	//First time through Make sure we have enough CPUs 
+	//in the system and determine practical max for each task.	
+	if(first_time) {
+
 		int min_required = 0;
 
 		//Determine minimum required processors
-		for(int i=0; i<schedule.count(); i++)
-		{
+		for(int i=0; i<schedule.count(); i++){
+
 			min_required += (schedule.get_task(i))->get_min_CPUs();
 			(schedule.get_task(i))->set_CPUs_gained(0);
+
 		}
 
 		//Determine the practical maximum. This is how many are left after each task has been given its minimum.
-		for(int i=0; i<schedule.count(); i++)
-		{
+		for(int i=0; i<schedule.count(); i++){
+
 			if((NUMCPUS - min_required + (schedule.get_task(i))->get_min_CPUs()) < (schedule.get_task(i))->get_max_CPUs())
-			{
 				(schedule.get_task(i))->set_practical_max_CPUs( NUMCPUS - min_required + (schedule.get_task(i))->get_min_CPUs());
-			}
+
 			else
-			{
 				(schedule.get_task(i))->set_practical_max_CPUs((schedule.get_task(i))->get_max_CPUs());
-			}
+
 		}
 	}
 
 	//Execute double knapsack algorithm
-    for (size_t i = 1; i <= classes.size(); i++) {
+    for (size_t i = 1; i <= num_tasks; i++) {
 
         for (size_t w = 0; w <= maxCPU; w++) {
 
@@ -143,7 +90,7 @@ void Scheduler::do_schedule(size_t maxCPU, size_t maxSMS){
 				//looking at the current mode.
 				if(!(schedule.get_task(i - 1))->get_changeable()){
 
-						auto item = classes.at(i - 1).at((schedule.get_task(i - 1))->get_current_mode());
+						auto item = task_table.at(i - 1).at((schedule.get_task(i - 1))->get_current_mode());
 
 						//if item fits in both sacks
 						if ((w >= item.cores) && (v >= item.sms) && (dp[i - 1][w - item.cores][v - item.sms].first != -1)) {
@@ -166,9 +113,9 @@ void Scheduler::do_schedule(size_t maxCPU, size_t maxSMS){
 				else{
 
 					//for each item in class
-					for (size_t j = 0; j < classes.at(i - 1).size(); j++) {
+					for (size_t j = 0; j < task_table.at(i - 1).size(); j++) {
 
-						auto item = classes.at(i - 1).at(j);
+						auto item = task_table.at(i - 1).at(j);
 
 						//if item fits in both sacks
 						if ((w >= item.cores) && (v >= item.sms) && (dp[i - 1][w - item.cores][v - item.sms].first != -1)) {
@@ -197,11 +144,10 @@ void Scheduler::do_schedule(size_t maxCPU, size_t maxSMS){
 	solutions.clear();
 
 	//update the tasks
-	print_module::print(std::cout, "Got this allocation: ");
+	std::string mode_strings = "";
 	for (size_t i = 0; i < result.size(); i++)
-		print_module::print(std::cout, result.at(i), " ");
-
-	print_module::print(std::cout, "\n");
+		mode_strings += "Task " + std::to_string(i) + " is now in mode: " + std::to_string(result.at(i)) + "\n";
+	print_module::print(std::cout, "========================= \nNew Schedule Layout:\n", mode_strings, "Total Loss from Mode Change: ", 100000 - dp[N][maxCPU][maxSMS].first, "\n=========================\n");
 
 	for (int i=0; i<schedule.count(); i++)
 		(schedule.get_task(i))->set_current_mode(result.at(i), false);

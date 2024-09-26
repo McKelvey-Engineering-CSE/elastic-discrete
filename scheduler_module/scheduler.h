@@ -31,56 +31,33 @@ Class : shared_mem
 
 class Scheduler{
 
-	//October 23 2023- moved struct to class along with comparison 
-	//operators and locked behind flag due to seemingly no
-	//functionality in code besides *possible* memory alignment?
-	#ifdef SCHED_PAIR_HEAP
-
-		class sched_pair {
-			int index; //Index of the task
-			double weight; //Potential benefit to the schedule
-
-			sched_pair(int index_, double weight_) : index(index_), weight(weight_) {}
-
-			//comparison operators
-			bool operator>(const sched_pair& rhs);
-			bool operator<(const sched_pair& rhs);
-			bool operator==(const sched_pair& rhs);
-			bool operator<=(const sched_pair& rhs);
-			bool operator>=(const sched_pair& rhs);
-			bool operator!=(const sched_pair& rhs);
-		};
-
-		std::vector<sched_pair> sched_heap;
-
-	#endif
+	//structure for internal knapsack scheduler
+	struct task_mode {
+		double cpuLoss;
+		double gpuLoss;
+		size_t cores;
+		size_t sms;
+	};
 
 	pid_t process_group;
 	class Schedule schedule;
-	int num_tasks;
+	size_t num_tasks;
 	int num_CPUs;
 	bool first_time;
 
-	//Dynamic Programming table. DP[d][l].first contains the optimal value
-	//of trying to schedule the first l tasks on d CPUs.
-	//DP[d][l].second is the modes of operation for each task.
-	std::pair<double,std::vector<int>> DP[NUMCPUS+1][MAXTASKS+1];
+	//each entry is a task with each item in the vector representing a mode
+	static std::vector<std::vector<task_mode>> task_table;
 	
 public:
 
-	//October 23 2023 - Removed the sched_pair heap due to seemingly no use. Memory is reserved for it though
-	//so if it turns out that the memory reservation is being used for alignment, the solution for fixing the code is 
-	//reenabling the SCHED_PAIR_HEAP flag
+	//reserve the necessary space for the class (task) table
 	Scheduler(int num_tasks_, int num_CPUs_) : process_group(getpgrp()), schedule("EFSschedule"), num_tasks(num_tasks_), num_CPUs(num_CPUs_), first_time(true) {
-		#ifdef SCHED_PAIR_HEAP
-			sched_heap.reserve(num_tasks);
-		#endif
 
-		for (int i = 0; i < NUMCPUS+1; i++) {
-			for (int j = 0; j < MAXTASKS+1; j++) {
-				DP[i][j].second.reserve(num_tasks);
-			}
-		}
+		//clear the vector of vectors (should retain static memory allocation)
+		for (int i = 0; i < num_tasks_; i++)
+			task_table.at(i).clear();
+		task_table.clear();
+
  	}
 
 	~Scheduler(){}
