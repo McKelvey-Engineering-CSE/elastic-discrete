@@ -75,11 +75,17 @@ public:
 		#ifdef SCHED_PAIR_HEAP
 			sched_heap.reserve(num_tasks);
 		#endif
+
+		for (int i = 0; i < NUMCPUS+1; i++) {
+			for (int j = 0; j < MAXTASKS+1; j++) {
+				DP[i][j].second.reserve(num_tasks);
+			}
+		}
  	}
 
 	~Scheduler(){}
 
-	void do_schedule();
+	void do_schedule(size_t maxCPU = 16, size_t maxSMS = 16);
 
 	void setTermination();
 

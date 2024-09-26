@@ -8,6 +8,17 @@
 #include <algorithm>
 #include <cerrno>
 #include <float.h>
+#include <map>
+#include <tuple>
+
+//lazy 
+struct Item {
+    double cpuLoss;
+    double gpuLoss;
+    size_t cores;
+    size_t sms;
+};
+
 
 #ifdef SCHED_PAIR_HEAP
 
@@ -66,7 +77,30 @@ TaskData * Scheduler::add_task (double elasticity_,  int num_modes_, timespec * 
 }
 
 //Implement scheduling algorithm
-void Scheduler::do_schedule(){
+void Scheduler::do_schedule(size_t maxCPU, size_t maxSMS){
+
+	//FIXME: CALCULATING THIS DURING THE KNPSACK IS STUPID AND MAKES IT INCREDIBLY HARD TO READ! DO AT BEGINNING
+	std::vector<std::vector<Item>> classes;
+	for (int l = 0; l < schedule.count(); l++){
+		
+		classes.push_back(std::vector<Item>());
+
+		for (int j = 0; j < (schedule.get_task(l))->get_num_modes(); j++){
+
+			Item item;
+			item.cpuLoss = (1.0/(schedule.get_task(l))->get_elasticity() * (std::pow((schedule.get_task(l))->get_max_utilization() - ((schedule.get_task(l)->get_work(j)) / (schedule.get_task(l)->get_period(j))) , 2)));
+			item.gpuLoss = 0;
+			item.cores = (schedule.get_task(l))->get_CPUs(j);
+			item.sms = 0;
+
+			classes[l].push_back(item);
+		}
+	}
+
+	//dynamic programming table
+	int N = classes.size();
+    std::vector<std::vector<std::vector<std::pair<double, double>>>> dp(N + 1, std::vector<std::vector<std::pair<double, double>>>(maxCPU + 1, std::vector<std::pair<double, double>>(maxSMS + 1, {100000, 100000})));
+    std::map<std::tuple<int,int,int>, std::vector<int>> solutions;
 
 	//First time through Make sure we have enough CPUs in the system and determine practical max for each task.	
 	if(first_time)
@@ -94,121 +128,113 @@ void Scheduler::do_schedule(){
 		}
 	}
 
-	//James Start 10/4/18
-	
-	//Assign initial  score of infinity.
-	for(int l=0; l<=(schedule.count()); l++)
-	{
-		for(int d=0; d<=NUMCPUS; d++)
-		{
-			DP[d][l].first=std::numeric_limits<double>::max();
-		}
-	}
-	
-	//Consider scheduling on d processors.
-	for(int d=1; d<=NUMCPUS; d++)
-	{
-		//Consider scheduling first l tasks.
-		for(int l=1; l<=schedule.count(); l++)
-		{
+	//Execute double knapsack algorithm
+    for (size_t i = 1; i <= classes.size(); i++) {
 
-			//TODO: FIGURE OUT WHAT TO DO IN ORDER TO SKIP A TASK!!
-			if(!(schedule.get_task(l-1))->get_changeable())
-			{
-				if(l==1)
-				{
-					std::vector<int> temp;
-					temp.push_back((schedule.get_task(l-1))->get_current_mode());
-					DP[d][l]=std::make_pair(std::numeric_limits<double>::max(),temp);
-				}
-				else
-				{
-					std::vector<int> temp = DP[d-(schedule.get_task(l-1)->get_CPUs((schedule.get_task(l-1))->get_current_mode()))][l-1].second;
-					temp.push_back((schedule.get_task(l-1))->get_current_mode());
-                	DP[d][l]=std::make_pair(DP[d-(schedule.get_task(l-1)->get_CPUs((schedule.get_task(l-1))->get_current_mode()))][l-1].first,temp);
-				}
-			}
-			else
-			{
-				//Assign the minimum to be infinity.
-				double MIN=std::numeric_limits<double>::max();
-				int selection=-1;
+        for (size_t w = 0; w <= maxCPU; w++) {
 
-				//Consider mode j
-				for(int j=0; j<(schedule.get_task(l-1))->get_num_modes(); j++)
-				{
-					//Make sure there are enough remaining processors for the mode we're considering.
-					if(d-(schedule.get_task(l-1)->get_CPUs(j)) >= 0)
-					{
-						//Special case for the first task. Assign MIN score of just this task.
-						//We chose mode j.
-						if(l==1 && (1.0/(schedule.get_task(l-1))->get_elasticity()*(std::pow((schedule.get_task(l-1))->get_max_utilization()-((schedule.get_task(l-1)->get_work(j))/(schedule.get_task(l-1)->get_period(j))),2))) < MIN)
-						{
-							MIN= (1.0/(schedule.get_task(l-1))->get_elasticity()*(std::pow((schedule.get_task(l-1))->get_max_utilization()-((schedule.get_task(l-1)->get_work(j))/(schedule.get_task(l-1)->get_period(j))),2)));
-							selection=j;
+            for (size_t v = 0; v <= maxSMS; v++) {
+
+                //invalid state
+                dp[i][w][v] = {-1, -1};  
+                
+				//if the class we are considering is not allowed to switch modes
+				//just treat it as though we did check it normally, and only allow
+				//looking at the current mode.
+				if(!(schedule.get_task(i - 1))->get_changeable()){
+
+						auto item = classes.at(i - 1).at((schedule.get_task(i - 1))->get_current_mode());
+
+						//if item fits in both sacks
+						if ((w >= item.cores) && (v >= item.sms) && (dp[i - 1][w - item.cores][v - item.sms].first != -1)) {
+
+							int newCPULoss = dp[i - 1][w - item.cores][v - item.sms].first - item.cpuLoss;
+							int newGPULoss = dp[i - 1][w - item.cores][v - item.sms].second - item.gpuLoss;
+							
+							//if found solution is better, update
+							if ((newCPULoss + newGPULoss) > (dp[i][w][v].first + dp[i][w][v].second)) {
+
+								dp[i][w][v] = {newCPULoss, newGPULoss};
+
+								solutions[{i, w, v}] = solutions[{i - 1, w - item.cores, v - item.sms}];
+								solutions[{i, w, v}].push_back((schedule.get_task(i - 1))->get_current_mode());
+
+							}
 						}
-						//Otherwise must consider score from first prior tasks when finding the minimum.
-						//We chose mode j.
-						else if(DP[(d-(schedule.get_task(l-1)->get_CPUs(j)))][l-1].first + (1.0/(schedule.get_task(l-1))->get_elasticity()*(std::pow((schedule.get_task(l-1))->get_max_utilization()-((schedule.get_task(l-1)->get_work(j))/(schedule.get_task(l-1)->get_period(j))),2))) < MIN)
-						{
-							MIN = DP[(d-(schedule.get_task(l-1)->get_CPUs(j)))][l-1].first + (1.0/(schedule.get_task(l-1))->get_elasticity()*(std::pow((schedule.get_task(l-1))->get_max_utilization()-((schedule.get_task(l-1)->get_work(j))/(schedule.get_task(l-1)->get_period(j))),2)));
-							selection=j;
-						}//endif
-					}//endif	
-				}//endfor j
+					}
 
-				//Update DP.				
-				if(d-(schedule.get_task(l-1)->get_CPUs(selection)) >= 0)
-				{
-					std::vector<int> temp = DP[d-(schedule.get_task(l-1)->get_CPUs(selection))][l-1].second;
-					temp.push_back(selection);
-					DP[d][l]=std::make_pair(std::min(MIN,DP[d-1][l].first),temp);
+				else{
+
+					//for each item in class
+					for (size_t j = 0; j < classes.at(i - 1).size(); j++) {
+
+						auto item = classes.at(i - 1).at(j);
+
+						//if item fits in both sacks
+						if ((w >= item.cores) && (v >= item.sms) && (dp[i - 1][w - item.cores][v - item.sms].first != -1)) {
+
+							int newCPULoss = dp[i - 1][w - item.cores][v - item.sms].first - item.cpuLoss;
+							int newGPULoss = dp[i - 1][w - item.cores][v - item.sms].second - item.gpuLoss;
+							
+							//if found solution is better, update
+							if ((newCPULoss + newGPULoss) > (dp[i][w][v].first + dp[i][w][v].second)) {
+
+								dp[i][w][v] = {newCPULoss, newGPULoss};
+
+								solutions[{i, w, v}] = solutions[{i - 1, w - item.cores, v - item.sms}];
+								solutions[{i, w, v}].push_back(j);
+
+							}
+						}
+					}
 				}
-			}
-		}//endfor l
-	}//endfor d
+            }
+        }
+    }
 
+    //return optimal solution
+	auto result = solutions[{N, maxCPU, maxSMS}];
+	solutions.clear();
 
-	//James Stop 10/4/18
+	//update the tasks
+	print_module::print(std::cout, "Got this allocation: ");
+	for (size_t i = 0; i < result.size(); i++)
+		print_module::print(std::cout, result.at(i), " ");
 
-	print_module::print(std::cout, "Got this allocation: ", DP[NUMCPUS][schedule.count()].first, " ");
-	for(unsigned int i=0; i<DP[NUMCPUS][schedule.count()].second.size(); i++)
-	{
-		print_module::print(std::cout, DP[NUMCPUS][schedule.count()].second[i], " ");
-	}
 	print_module::print(std::cout, "\n");
 
-	for(int i=0; i<schedule.count(); i++)
-	{
-		(schedule.get_task(i))->set_current_mode(DP[NUMCPUS][schedule.count()].second[i],false);
-	}
+	for (int i=0; i<schedule.count(); i++)
+		(schedule.get_task(i))->set_current_mode(result.at(i), false);
 
-	//give_cpus:
-	//First allocate from CPU1 and go up from there.
-	if(first_time)
-	{
-		int next_CPU=1;
+	//greedily give cpus on first run
+	if(first_time) {
+
+		int next_CPU = 1;
+
 		//Actually assign CPUs to tasks. Start with 1.
-		for(int i=0; i<schedule.count(); i++)
-		{
-			if((schedule.get_task(i))->get_current_lowest_CPU() > 0)
-			{
-				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest CPU cleared.\n");
+		for(int i = 0; i < schedule.count(); i++){
+
+			if((schedule.get_task(i))->get_current_lowest_CPU() > 0){
+
+				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest CPU cleared. (this likely means memory was not cleaned up)\n");
 				killpg(process_group, SIGKILL);
                 return;
+
 			}
 
 			(schedule.get_task(i))->set_current_lowest_CPU(next_CPU);
 			next_CPU += (schedule.get_task(i))->get_current_CPUs();
 
-			if(next_CPU > num_CPUs+1)
-			{
+			if(next_CPU > num_CPUs + 1){
+
 				print_module::print(std::cerr, "Error in task ", i, ": too many CPUs have been allocated.", next_CPU, " ", num_CPUs, " \n");
 				killpg(process_group, SIGKILL);
 				return;
+
 			}		
 		}
 	}
+
 	//Transfer as efficiently as possible.
 	else
 	{
@@ -267,6 +293,7 @@ void Scheduler::do_schedule(){
 				}
 			}
 		}
+		
 		//Now determine which CPUs are transfered.
 		for(int i=0; i<schedule.count(); i++)
         {
