@@ -71,7 +71,7 @@ const unsigned SLEEP_PRIORITY = 97;
 int futex_val;
 thread_barrier bar;
 bool missed_dl=false;
-int num_threads;
+int practical_max_cpus;
 volatile int total_remain __attribute__ (( aligned (64) ));
 double percentile = 1.0;
 
@@ -99,24 +99,25 @@ enum rt_gomp_task_manager_error_codes
 	RT_GOMP_TASK_MANAGER_ARG_COUNT_ERROR
 };
 
-time_t start_sec=0, end_sec=0;
-long start_nsec=0, end_nsec=0;
+time_t start_sec = 0, end_sec = 0;
+long start_nsec = 0, end_nsec = 0;
 timespec start_time, end_time, current_period, current_work, current_span, deadline;
-int iindex=-1;
+int task_index = -1;
 int current_mode = -1;
-unsigned num_iters=0;
+unsigned num_iters = 0;
 
 // Let scheduler know we need a rescheduling.
 // Do this by sending signal SIGRTMIN+0.
-void initiate_reschedule()
-{
-        killpg(process_group, SIGRTMIN+0);
+void initiate_reschedule(){
+
+	killpg(process_group, SIGRTMIN+0);
+
 }
 
 cpu_set_t current_cpu_mask;
 struct sched_param sp;
-bool active[64];
-bool needs_reschedule=false;
+bool active_threads[64];
+bool needs_reschedule = false;
 
 std::mutex con_mut;
 Schedule schedule(std::string("EFSschedule"));
@@ -125,7 +126,7 @@ Schedule schedule(std::string("EFSschedule"));
 std::vector<pthread_t> threads;
 
 //tells which thread is on a CPU
-std::map<int, pthread_t> thread_locations;
+std::map<int, pthread_t> thread_at_cpu;
 
 //tells OMP number of thread
 std::map<pthread_t, int> omp_thread_index;
@@ -139,82 +140,117 @@ void sigrt1_handler(int signum){
 }
 
 void modify_self(int new_mode){
-	schedule.get_task(iindex)->set_current_mode(new_mode,true);
+	schedule.get_task(task_index)->set_current_mode(new_mode, true);
 	killpg(process_group, SIGRTMIN+0);
 }
 
 void allow_change(){
-	schedule.get_task(iindex)->reset_changeable();
+	schedule.get_task(task_index)->reset_changeable();
 	killpg(process_group, SIGRTMIN+0);
 }
 
-void reschedule()
-{
+//function to either pass off resources or take them from other tasks
+void reschedule(){
+
 	// Set up everything to begin as scheduled.
-    current_period = schedule.get_task(iindex)->get_current_period();
-    current_work = schedule.get_task(iindex)->get_current_work();
-	current_mode = schedule.get_task(iindex)->get_current_mode();
+    current_period = schedule.get_task(task_index)->get_current_period();
+    current_work = schedule.get_task(task_index)->get_current_work();
+	current_mode = schedule.get_task(task_index)->get_current_mode();
 	deadline = current_period;
-	percentile = schedule.get_task(iindex)->get_percentage_workload();
+	percentile = schedule.get_task(task_index)->get_percentage_workload();
 
-	for(int i = 0; i < schedule.count();i++){
+	for (int selected_task = 0; selected_task < schedule.count(); selected_task++){
 
-		for(int j = 1; j <= NUMCPUS; j++){
+		for (int cpu_under_consideration = 1; cpu_under_consideration <= NUMCPUS; cpu_under_consideration++){
 
-			if(schedule.get_task(iindex)->transfers(i, j)){
+			//if we are giving up a CPU and making it passive
+			if (schedule.get_task(task_index)->transfers(selected_task, cpu_under_consideration)){
 
-				schedule.get_task(iindex)->clr_active(j);
-				
-				schedule.get_task(iindex)->set_passive(j);
-				active[omp_thread_index[thread_locations[j]]] = false;
-	
-				global_param.sched_priority=SLEEP_PRIORITY;
-	            ret_val = pthread_setschedparam(thread_locations[j], SCHED_RR, &global_param);
+				//mark the CPU as passive
+				schedule.get_task(task_index)->clr_active_cpu(cpu_under_consideration);
+				schedule.get_task(task_index)->set_passive_cpu(cpu_under_consideration);
 
-				if(ret_val < 0)
-					print_module::print(std::cerr, "ERROR: could not set priority.\n");
+				//remove it from our active table...
+				//FIXME: These two tables should not be separate when switching between passive and active... just combine them
+				active_threads[omp_thread_index[thread_at_cpu[cpu_under_consideration]]] = false;
+
+				//set thread priority to sleep
+				global_param.sched_priority = SLEEP_PRIORITY;
+	            ret_val = pthread_setschedparam(thread_at_cpu[cpu_under_consideration], SCHED_RR, &global_param);
+
+				if (ret_val < 0)
+					print_module::print(std::cerr, "ERROR: could not set sleep priority when making thread passive.\n");
 				
 			}
 			
-			else if (schedule.get_task(iindex)->receives(i,j)){
+			//if another task has given up a CPU for us to receive and mark active
+			else if (schedule.get_task(task_index)->receives(selected_task, cpu_under_consideration)){
 
-				if(schedule.get_task(iindex)->get_passive(j)){
+				//if this cpu was already one of our passive threads
+				if (schedule.get_task(task_index)->get_passive_cpu(cpu_under_consideration)){
 
-					schedule.get_task(iindex)->clr_passive(j);
-					schedule.get_task(iindex)->set_active(j);
+					//mark it as active
+					schedule.get_task(task_index)->clr_passive_cpu(cpu_under_consideration);
+					schedule.get_task(task_index)->set_active_cpu(cpu_under_consideration);
 
-					global_param.sched_priority=7;
-					ret_val = pthread_setschedparam(thread_locations[j], SCHED_RR, &global_param);
+					//add it to our active table
+					//FIXME: SEE ABOVE
+					active_threads[omp_thread_index[thread_at_cpu[cpu_under_consideration]]] = true;
+
+					//set thread priority to active
+					global_param.sched_priority = 7;
+					ret_val = pthread_setschedparam(thread_at_cpu[cpu_under_consideration], SCHED_RR, &global_param);
 					
-					active[omp_thread_index[thread_locations[j]]] = true;
 				}
 
+				//if this cpu is new to us
 				else {
 
-					for(int k = NUMCPUS; k >= 1; k--) {
+					//go through all CPUS 
+					for (int alternate_cpu = NUMCPUS; alternate_cpu >= 1; alternate_cpu--) {
 
-						if(schedule.get_task(iindex)->get_passive(k)){
+						//until we find one that is in our passive set
+						if (schedule.get_task(task_index)->get_passive_cpu(alternate_cpu)){
+							
+							//your guess is as good as mine as to why we print this
+							for (int i = 1; i <= NUMCPUS; i++)
+								print_module::print(std::cout, active_threads[i] , "\n");
+							print_module::print(std::cout, omp_thread_index[thread_at_cpu[alternate_cpu]], " ", thread_at_cpu[alternate_cpu], " ",  alternate_cpu, "\n");		
 
-							for(int i = 1; i <= NUMCPUS; i++)
-								print_module::print(std::cout, active[i] , "\n");
+							//get the handle of the thread that is at cpu "alternate_cpu"
+							//that handle can be turned into an index via omp_thread_index
+							//using that index, set the thread to active
+							active_threads[omp_thread_index[thread_at_cpu[alternate_cpu]]] = true;
 
-							print_module::print(std::cout, omp_thread_index[thread_locations[k]] , " " , thread_locations[k]  , " "  ,  k , "\n");							
+							//set the corresponding CPU to not passive
+							schedule.get_task(task_index)->clr_passive_cpu(alternate_cpu);
 
-							active[omp_thread_index[thread_locations[k]]] = true;
-							schedule.get_task(iindex)->clr_passive(k);
-	
-							thread_locations[j]=thread_locations[k];
-							thread_locations.erase(k);
+							//the thread that was at "cpu_under_consideration" is now at "alternate_cpu"
+							//make a second entry into the map to reflect that
+							//so all queries to "cpu_under_consideration" will return the handle of the thread that was at "alternate_cpu"
+							thread_at_cpu[cpu_under_consideration] = thread_at_cpu[alternate_cpu];
 
-							active[omp_thread_index[thread_locations[j]]] = true;
-							schedule.get_task(iindex)->set_active(j); 
-							global_param.sched_priority=7;
-							ret_val = pthread_setschedparam(thread_locations[j], SCHED_RR, &global_param);	
+							//remove old entry
+							thread_at_cpu.erase(alternate_cpu);
 
+							//this is confusing.........
+							//we already set the table to active above at the index "alternate_cpu"
+							//which is now the same handle as "cpu_under_consideration"
+							//active_threads[omp_thread_index[thread_at_cpu[cpu_under_consideration]]] = true;
+
+							//set the CPU to active
+							schedule.get_task(task_index)->set_active_cpu(cpu_under_consideration); 
+
+							//set the thread to active
+							global_param.sched_priority = 7;
+							ret_val = pthread_setschedparam(thread_at_cpu[cpu_under_consideration], SCHED_RR, &global_param);	
+
+							//update our CPU mask
+							//to show the gained "cpu_under_consideration" CPU
 							CPU_ZERO(&global_cpuset);
-							CPU_SET(j,&global_cpuset);
+							CPU_SET(cpu_under_consideration, &global_cpuset);
 
-							pthread_setaffinity_np(thread_locations[j],sizeof(cpu_set_t),&global_cpuset);
+							pthread_setaffinity_np(thread_at_cpu[cpu_under_consideration], sizeof(cpu_set_t), &global_cpuset);
 
 							break;
 						}
@@ -224,7 +260,7 @@ void reschedule()
 		}
 	}		
 
-	bar.mc_bar_reinit(schedule.get_task(iindex)->get_current_CPUs());		
+	bar.mc_bar_reinit(schedule.get_task(task_index)->get_current_CPUs());		
 }
 
 int main(int argc, char *argv[])
@@ -252,7 +288,7 @@ int main(int argc, char *argv[])
 
 
 	std::string command_string;	
-	for(int i = 0; i < argc; i++)
+	for (int i = 0; i < argc; i++)
 		command_string += std::string(argv[i]) + " ";
 
 	print_module::print(std::cerr,  "Task " , getpid() , " started with command string:\n>" , command_string, "\n");
@@ -287,11 +323,11 @@ int main(int argc, char *argv[])
 	// Process command line arguments	
 	const char *task_name = argv[0];
 
-	if(!((std::istringstream(argv[1]) >> start_sec) &&
+	if (!((std::istringstream(argv[1]) >> start_sec) &&
 		(std::istringstream(argv[2]) >> start_nsec) &&
 		(std::istringstream(argv[3]) >> end_sec) &&
         (std::istringstream(argv[4]) >> end_nsec) &&
-		(std::istringstream(argv[5]) >> iindex))){
+		(std::istringstream(argv[5]) >> task_index))){
 
 		print_module::print(std::cerr,  "ERROR: Cannot parse input argument for task " , task_name , "\n");
 		kill(0, SIGTERM);
@@ -316,21 +352,21 @@ int main(int argc, char *argv[])
 	}
 
 	// Set up everything to begin as scheduled.
-	current_work = schedule.get_task(iindex)->get_current_work();
-	current_period = schedule.get_task(iindex)->get_current_period();
+	current_work = schedule.get_task(task_index)->get_current_work();
+	current_period = schedule.get_task(task_index)->get_current_period();
 	deadline = current_period;
-	percentile = schedule.get_task(iindex)->get_percentage_workload();
+	percentile = schedule.get_task(task_index)->get_percentage_workload();
 
 	CPU_ZERO(&current_cpu_mask);
 	
-	for(int i = 0; i < schedule.get_task(iindex)->get_current_CPUs(); i++ )
-		CPU_SET(schedule.get_task(iindex)->get_current_lowest_CPU() + i, &current_cpu_mask);
+	for (int i = 0; i < schedule.get_task(task_index)->get_current_CPUs(); i++ )
+		CPU_SET(schedule.get_task(task_index)->get_current_lowest_CPU() + i, &current_cpu_mask);
 	
 	std::lock_guard<std::mutex> lk(con_mut);
-	print_module::print(std::cerr,  "Task " , getpid() , " lowest CPU: " , schedule.get_task(iindex)->get_current_lowest_CPU() , ", currentCPUS, " , schedule.get_task(iindex)->get_current_CPUs() , " minCPUS: " , schedule.get_task(iindex)->get_min_CPUs() , ", maxCPUS: " , schedule.get_task(iindex)->get_max_CPUs() , ", practical max: " , schedule.get_task(iindex)->get_practical_max_CPUs() , ", " , schedule.get_task(iindex)->get_current_period().tv_nsec , "ns\n");
+	print_module::print(std::cerr,  "Task " , getpid() , " lowest CPU: " , schedule.get_task(task_index)->get_current_lowest_CPU() , ", currentCPUS, " , schedule.get_task(task_index)->get_current_CPUs() , " minCPUS: " , schedule.get_task(task_index)->get_min_CPUs() , ", maxCPUS: " , schedule.get_task(task_index)->get_max_CPUs() , ", practical max: " , schedule.get_task(task_index)->get_practical_max_CPUs() , ", " , schedule.get_task(task_index)->get_current_period().tv_nsec , "ns\n");
 
 	struct sched_param param;
-	param.sched_priority = 7;//rtprio;
+	param.sched_priority = 7; //rtprio;
 	ret_val = sched_setscheduler(getpid(), SCHED_RR, &param);
 
 	if (ret_val != 0)
@@ -341,119 +377,120 @@ int main(int argc, char *argv[])
 	omp_set_dynamic(0);
 	omp_set_schedule(omp_sched_dynamic, 1);	
 
-	num_threads = schedule.get_task(iindex)->get_practical_max_CPUs();
-	omp_set_num_threads(num_threads);
+	practical_max_cpus = schedule.get_task(task_index)->get_practical_max_CPUs();
+	omp_set_num_threads(practical_max_cpus);
 
 	for (int t = 1; t <= NUMCPUS; t++){
 
-		schedule.get_task(iindex)->clr_active(t);
-		schedule.get_task(iindex)->clr_passive(t);
+		schedule.get_task(task_index)->clr_active_cpu(t);
+		schedule.get_task(task_index)->clr_passive_cpu(t);
 	
 	}
 
-	for(unsigned int j = 0; j < std::thread::hardware_concurrency(); j++)
-		active[j] = false;
+	for (unsigned int j = 0; j < std::thread::hardware_concurrency(); j++)
+		active_threads[j] = false;
  
+	//pretty sure this is a war crime
+	//(translation for those reading this later... each thread as specified by OMP 
+	//gets activated right here and stores it's pthread handle into the "leftmost" 
+	//portion of the double map association structure)
 	threads.reserve(NUMCPUS);
 	#pragma omp parallel
 	{
+
 		threads[omp_get_thread_num()] = pthread_self();
-		omp_thread_index[pthread_self()] = omp_get_thread_num();	
+		omp_thread_index[pthread_self()] = omp_get_thread_num();
+
 	}
 
-
 	//Determine which threads are active and passive. Pin, etc.
-	for (int j = 0; j < num_threads; j++){
+	std::ostringstream task_active_cpus;
+	std::ostringstream task_passive_cpus;
 
-		//The first threads are active
-		if (j < schedule.get_task(iindex)->get_current_CPUs()){
+	//for CPUs that we MAY have at some point (practical max)
+	for (int j = 0; j < practical_max_cpus; j++){
 
-			active[j]=true;
+		//Mark all cpus from our minimum to our minimum + the number of CPUs we are using as active
+		active_threads[j] = (j < schedule.get_task(task_index)->get_current_CPUs());
 
-			//What processor does it go on?
-			int p = (schedule.get_task(iindex)->get_current_lowest_CPU() + j -1) % (NUMCPUS) + 1;
+		//"j" does not map to CPU index, so we need to calculate it
+		int p = (schedule.get_task(task_index)->get_current_lowest_CPU() + j - 1) % (NUMCPUS) + 1;
 
-			//First one doesn't move.  
-			if(j == 0)
-				schedule.get_task(iindex)->set_permanent_CPU(p);
-				
-			global_param.sched_priority=7;
-            ret_val = pthread_setschedparam(threads[j], SCHED_RR, &global_param);
-			thread_locations[p]=threads[j];
+		//Our first CPU is our permanent CPU 
+		if (j == 0)
+			schedule.get_task(task_index)->set_permanent_CPU(p);
 
-			print_module::print(std::cerr,  iindex ," setting " , p , " to active.\n");
+		if (active_threads[j]){
 
-			schedule.get_task(iindex)->set_active(p);
-			CPU_ZERO(&global_cpuset);
-			CPU_SET(p, &global_cpuset);
+			global_param.sched_priority = 7;
 
-			pthread_setaffinity_np(threads[j], sizeof(cpu_set_t), &global_cpuset);
- 
+			schedule.get_task(task_index)->set_active_cpu(p);
+
+			print_module::buffered_print(task_active_cpus, "Task ", std::to_string(task_index), " setting CPU ", std::to_string(p), " to active.\n");
+
 		}
 
-		//We're done with the Active threads. Rest are passive.
 		else {
 
-			active[j] = false;
-			//What processor does it go on?
+			global_param.sched_priority = SLEEP_PRIORITY;
 
-            int p = (schedule.get_task(iindex)->get_current_lowest_CPU() + j -1) % (NUMCPUS) + 1;
-			global_param.sched_priority=SLEEP_PRIORITY;
-            ret_val = pthread_setschedparam(threads[j], SCHED_RR, &global_param);	
+			schedule.get_task(task_index)->set_passive_cpu(p);
 
-			thread_locations[p]=threads[j];
-			schedule.get_task(iindex)->set_passive(p);
-
-			print_module::print(std::cerr,  iindex , " setting " , p , " to passive.\n");
-
-			CPU_ZERO(&global_cpuset);
-			CPU_SET(p, &global_cpuset);
-
-			pthread_setaffinity_np(threads[j], sizeof(cpu_set_t), &global_cpuset);
+			print_module::buffered_print(task_passive_cpus, "Task ", std::to_string(task_index), " setting CPU ", std::to_string(p), " to passive.\n");
 
 		}
+		
+		//set our thread at "j" to be at CPU "p" via our thread location map
+		ret_val = pthread_setschedparam(threads[j], SCHED_RR, &global_param);
+		thread_at_cpu[p] = threads[j];
+
+		CPU_ZERO(&global_cpuset);
+		CPU_SET(p, &global_cpuset);
+
+		pthread_setaffinity_np(threads[j], sizeof(cpu_set_t), &global_cpuset);
+ 
   	}
+
+	//print active vs passive CPUs
+	print_module::flush(std::cerr, task_active_cpus);
+	print_module::flush(std::cerr, task_passive_cpus);
 		
 	//Initialize the program barrier
-	bar.mc_bar_init(schedule.get_task(iindex)->get_current_CPUs());
+	bar.mc_bar_init(schedule.get_task(task_index)->get_current_CPUs());
 
 	#ifdef PER_PERIOD_VERBOSE
 		std::vector<uint64_t> period_timings;
 	#endif
 	
 	// Initialize the task
-	if(schedule.get_task(iindex) && task.init != NULL){
+	if (schedule.get_task(task_index) && task.init != NULL){
 
-		ret_val = task.init(task_argc, task_argv);
-		
-		if (ret_val != 0){
+		if (task.init(task_argc, task_argv) != 0){
 
-			print_module::print(std::cerr,   "ERROR: Task initialization failed for task " , task_name ,"\n");
+			print_module::print(std::cerr, "ERROR: Task initialization failed for task ", task_name, "\n");
 			kill(0, SIGTERM);
 			return RT_GOMP_TASK_MANAGER_INIT_TASK_ERROR;
 		
 		}
+
 	}
 	
 	
 	// Wait at barrier for the other tasks
 	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name)) != 0){
 
-		print_module::print(std::cerr,   "ERROR: Barrier error for task " , task_name , "\n");
+		print_module::print(std::cerr, "ERROR: Barrier error for task ", task_name, "\n");
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_BARRIER_ERROR;
 	
 	}
 	
 	//Don't go until it's time.
-	//NOTE: POTENTIAL WASTE OF TIME, BARRIERS MAY BE BETTER
-	timespec current_time;
-	do {
-
-		 get_time(&current_time);
-	
-	} while(current_time < start_time);
 	//Grab a timestamp at the start of real-time operation
+	timespec current_time;
+	do { 
+		get_time(&current_time); 
+	} while(current_time < start_time);
 
 	// Initialize timing controls
 	unsigned deadlines_missed = 0;
@@ -464,7 +501,7 @@ int main(int argc, char *argv[])
 
 	while(current_time < end_time)	
 	{
-		if(schedule.get_task(iindex))
+		if (schedule.get_task(task_index))
 			num_iters++;
 
 		// Sleep until the start of the period
@@ -479,9 +516,9 @@ int main(int argc, char *argv[])
    		get_time(&actual_period_start);
 
 		// Reset the awaited count of threads before every period
-		__atomic_store_n( &total_remain, num_threads, __ATOMIC_RELEASE ); //JAMES ORIGINAL 10/3/17
+		__atomic_store_n( &total_remain, practical_max_cpus, __ATOMIC_RELEASE ); //JAMES ORIGINAL 10/3/17
 
-		if(schedule.get_task(iindex))
+		if (schedule.get_task(task_index))
 			ret_val = task.run(task_argc, task_argv);
 
 		//Get the finishing time of the current period
@@ -524,11 +561,11 @@ int main(int argc, char *argv[])
 
 			bool ready = true;
 
-			//Check other tasks to see if this task can transition yet. It can iff it is giving up a CPU, or is gaining a CPU that has been given up.
+			//Check other tasks to see if this task can transition yet. It can if it is giving up a CPU, or is gaining a CPU that has been given up.
 			for (int i = 0; i < schedule.count(); i++)
 				for (int j = 1; j <= NUMCPUS; j++)
-					if ((schedule.get_task(i)->transfers(iindex, j)))
-						if ((schedule.get_task(i))->get_num_adaptations() <=  (schedule.get_task(iindex))->get_num_adaptations())
+					if ((schedule.get_task(i)->transfers(task_index, j)))
+						if ((schedule.get_task(i))->get_num_adaptations() <=  (schedule.get_task(task_index))->get_num_adaptations())
 							ready = false;
 
 			if (ready){
@@ -540,14 +577,14 @@ int main(int argc, char *argv[])
 
 				reschedule();
 				
-				print_module::print(std::cerr,  "thread " , iindex, ": finished reschedule\n");	
+				print_module::print(std::cerr,  "thread " , task_index, ": finished reschedule\n");	
 
 				#ifdef TRACING
 					fprintf( fd, "thread %d: finished reschedule\n", getpid());
 					fflush( fd );
 				#endif
 
-				schedule.get_task(iindex)->set_num_adaptations(schedule.get_task(iindex)->get_num_adaptations()+1);
+				schedule.get_task(task_index)->set_num_adaptations(schedule.get_task(task_index)->get_num_adaptations()+1);
 				needs_reschedule = false;
 			}
 
@@ -575,7 +612,7 @@ int main(int argc, char *argv[])
 	#endif
 
 	// Finalize the task
-	if (schedule.get_task(iindex) && task.finalize != NULL){
+	if (schedule.get_task(task_index) && task.finalize != NULL){
 
 		ret_val = task.finalize(task_argc, task_argv);
 		if (ret_val != 0)
@@ -594,7 +631,7 @@ int main(int argc, char *argv[])
 
 		print_module::print(outfile, omp_get_num_procs());
 
-		for(auto period_timing : period_timings)
+		for (auto period_timing : period_timings)
 			print_module::print(outfile, " ", period_timing);
 		
 		print_module::print(outfile, "\n");

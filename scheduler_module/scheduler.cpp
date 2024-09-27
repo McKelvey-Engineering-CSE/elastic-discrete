@@ -143,10 +143,12 @@ void Scheduler::do_schedule(size_t maxCPU, size_t maxSMS){
 	auto result = solutions[{N, maxCPU, maxSMS}];
 
 	//update the tasks
-	std::string mode_strings = "";
+	std::ostringstream mode_strings;
+	print_module::buffered_print(mode_strings, "========================= \n", "New Schedule Layout:\n");
 	for (size_t i = 0; i < result.size(); i++)
-		mode_strings += "Task " + std::to_string(i) + " is now in mode: " + std::to_string(result.at(i)) + "\n";
-	print_module::print(std::cout, "========================= \nNew Schedule Layout:\n", mode_strings, "Total Loss from Mode Change: ", 100000 - dp[N][maxCPU][maxSMS].first, "\n=========================\n");
+		print_module::buffered_print(mode_strings, "Task ", i, " is now in mode: ", result.at(i), "\n");
+	print_module::buffered_print(mode_strings, "Total Loss from Mode Change: ", 100000 - dp[N][maxCPU][maxSMS].first, "\n=========================\n");
+	print_module::flush(std::cerr, mode_strings);
 
 	//this changes the number of CPUs each task needs for a given mode
 	//(utilization)
@@ -261,7 +263,7 @@ void Scheduler::do_schedule(size_t maxCPU, size_t maxSMS){
 				
 					//determine which CPUs are active in i but passive in j
 					for (int t = 1; t <= NUMCPUS; t++)
-						if (schedule.get_task(task_giving_cpus)->get_active(t) && schedule.get_task(task_receiving_cpus)->get_passive(t))
+						if (schedule.get_task(task_giving_cpus)->get_active_cpu(t) && schedule.get_task(task_receiving_cpus)->get_passive_cpu(t))
 							CPU_SET(t, &overlap);
 	
 					int amount_overlap = CPU_COUNT(&overlap);
@@ -305,7 +307,7 @@ void Scheduler::do_schedule(size_t maxCPU, size_t maxSMS){
 						for (int cpu_in_question = NUMCPUS; cpu_in_question >= 1; cpu_in_question--){
 
 							//if cpu_in_question under consideration is active in giving task
-							if (schedule.get_task(task_giving_cpus)->get_active(cpu_in_question)){
+							if (schedule.get_task(task_giving_cpus)->get_active_cpu(cpu_in_question)){
 
 								bool used = false;
 								

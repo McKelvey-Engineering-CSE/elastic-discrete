@@ -43,6 +43,16 @@ Function :  print_module::print(ostream, args...)
 
 namespace print_module {
 
+    template <typename Arg, typename... Args>
+    static void buffered_print(std::ostringstream& oss, Arg&& arg, Args&&... args){   
+        
+        //expander boilerplate
+        oss << std::forward<Arg>(arg);
+        using expander = int[];
+        (void)expander{0, (void(oss << std::forward<Args>(args)), 0)...};
+        
+    }
+
     #if __cplusplus > 201703L
 
         template <typename Arg, typename... Args>
@@ -53,6 +63,22 @@ namespace print_module {
             
             //expander boilerplate
             oss << std::forward<Arg>(arg);
+            using expander = int[];
+            (void)expander{0, (void(oss << std::forward<Args>(args)), 0)...};
+            
+        }
+
+        template <typename... Args>
+        static void flush(std::ostream& out, std::ostringstream& buff, Args&&... args){
+            
+            //basic_osyncstream if we support it
+            std::basic_osyncstream oss(out);
+            
+            //flush buffer first
+            oss << buff.str();
+            buff.clear();
+
+            //expander boilerplate
             using expander = int[];
             (void)expander{0, (void(oss << std::forward<Args>(args)), 0)...};
             
@@ -116,6 +142,24 @@ namespace print_module {
             
             //expander boilerplate
             ss << std::forward<Arg>(arg);
+            using expander = int[];
+            (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
+            
+            //print to whatever we were given
+            out << ss.str();
+        }
+
+        template <typename... Args>
+        static void flush(std::ostream& out, std::ostringstream& buff, Args&&... args){
+            
+            //basic_osyncstream if we support it
+            std::ostringstream ss;
+            
+            //flush buffer first
+            ss << buff.str();
+            buff.clear();
+
+            //expander boilerplate
             using expander = int[];
             (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
             

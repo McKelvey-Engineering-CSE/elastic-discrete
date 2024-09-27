@@ -39,7 +39,7 @@ typedef struct
 }
 task_t;
 
-extern bool active[64];
+extern bool active_threads[64];
 extern int current_mode;
 extern double percentile;
 

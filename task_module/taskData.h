@@ -72,12 +72,12 @@ private:
 	int current_mode;
 	timespec max_work;
 
-	int active[NUMCPUS+1];
-	int passive[NUMCPUS+1];
+	int active_cpus[NUMCPUS + 1];
+	int passive_cpus[NUMCPUS + 1];
 
 	int give[MAXTASKS];
-	bool transfer[MAXTASKS][NUMCPUS+1];
-	bool receive[MAXTASKS][NUMCPUS+1];
+	bool transfer[MAXTASKS][NUMCPUS + 1];
+	bool receive[MAXTASKS][NUMCPUS + 1];
 
 public:
 
@@ -133,12 +133,12 @@ public:
 	int get_permanent_CPU();
 	void set_permanent_CPU(int perm);
 	
-	void set_active(int i);
-	void clr_active(int i);
-	void set_passive(int i);
-	void clr_passive(int i);
-	bool get_active(int i);
-	bool get_passive(int i);
+	void set_active_cpu(int i);
+	void clr_active_cpu(int i);
+	void set_passive_cpu(int i);
+	void clr_passive_cpu(int i);
+	bool get_active_cpu(int i);
+	bool get_passive_cpu(int i);
 
 	int get_num_adaptations();
 	void set_num_adaptations(int new_num);
