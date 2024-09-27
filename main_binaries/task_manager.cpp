@@ -157,12 +157,12 @@ void reschedule()
 	deadline = current_period;
 	percentile = schedule.get_task(iindex)->get_percentage_workload();
 
-	for(int i=0;i<schedule.count();i++)
-	{
-		for(int j=1; j<=NUMCPUS; j++)
-		{
-			if(schedule.get_task(iindex)->transfers(i,j))
-			{
+	for(int i = 0; i < schedule.count();i++){
+
+		for(int j = 1; j <= NUMCPUS; j++){
+
+			if(schedule.get_task(iindex)->transfers(i, j)){
+
 				schedule.get_task(iindex)->clr_active(j);
 				
 				schedule.get_task(iindex)->set_passive(j);
@@ -172,15 +172,14 @@ void reschedule()
 	            ret_val = pthread_setschedparam(thread_locations[j], SCHED_RR, &global_param);
 
 				if(ret_val < 0)
-				{
 					print_module::print(std::cerr, "ERROR: could not set priority.\n");
-				}
 				
 			}
-			else if (schedule.get_task(iindex)->receives(i,j))
-			{
-				if(schedule.get_task(iindex)->get_passive(j))
-				{
+			
+			else if (schedule.get_task(iindex)->receives(i,j)){
+
+				if(schedule.get_task(iindex)->get_passive(j)){
+
 					schedule.get_task(iindex)->clr_passive(j);
 					schedule.get_task(iindex)->set_active(j);
 
@@ -189,16 +188,15 @@ void reschedule()
 					
 					active[omp_thread_index[thread_locations[j]]] = true;
 				}
-				else
-				{	
-					for(int k = NUMCPUS; k>=1 ; k--)
-					{
-						if(schedule.get_task(iindex)->get_passive(k))
-						{
-							for(int i=1; i<=NUMCPUS; i++)
-							{
+
+				else {
+
+					for(int k = NUMCPUS; k >= 1; k--) {
+
+						if(schedule.get_task(iindex)->get_passive(k)){
+
+							for(int i = 1; i <= NUMCPUS; i++)
 								print_module::print(std::cout, active[i] , "\n");
-							}	
 
 							print_module::print(std::cout, omp_thread_index[thread_locations[k]] , " " , thread_locations[k]  , " "  ,  k , "\n");							
 
@@ -244,9 +242,11 @@ int main(int argc, char *argv[])
 	#ifdef TRACING
 	fd = fopen( "/sys/kernel/debug/tracing/trace_marker", "a" );
 	
-	if( fd == NULL ){
+	if (fd == NULL){
+
 		std::perror("Error: TRACING is defined and you are not using trace-cmd.");
 		return -1;
+
 	}
 	#endif
 
@@ -268,15 +268,20 @@ int main(int argc, char *argv[])
 	//the system high crit transition
 	void (*ret_handler)(int);
 	ret_handler = signal(SIGRTMIN+0, sigrt0_handler);
-	if( ret_handler == SIG_ERR ){
+
+	if (ret_handler == SIG_ERR){
+
 		print_module::print(std::cerr,  "ERROR: Call to Signal failed, reason: " , strerror(errno) , "\n");
 		exit(-1);
+
 	}
 
 	ret_handler = signal(SIGRTMIN+1, sigrt1_handler);
-	if( ret_handler == SIG_ERR ){
+	if (ret_handler == SIG_ERR){
+
 		print_module::print(std::cerr,  "ERROR: Call to Signal failed, reason: " , strerror(errno) , "\n");
 		exit(-1);
+
 	}
 
 	// Process command line arguments	
@@ -286,11 +291,12 @@ int main(int argc, char *argv[])
 		(std::istringstream(argv[2]) >> start_nsec) &&
 		(std::istringstream(argv[3]) >> end_sec) &&
         (std::istringstream(argv[4]) >> end_nsec) &&
-		(std::istringstream(argv[5]) >> iindex)))
-	{
+		(std::istringstream(argv[5]) >> iindex))){
+
 		print_module::print(std::cerr,  "ERROR: Cannot parse input argument for task " , task_name , "\n");
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_ARG_PARSE_ERROR;
+	
 	}
 
 	start_time = {start_sec, start_nsec};
@@ -301,11 +307,12 @@ int main(int argc, char *argv[])
 	char **task_argv = &argv[7];
 
 	//Wait at barrier for the other tasks but mainly to make sure scheduler has finished
-	if ((ret_val = process_barrier::await_and_destroy_barrier("BAR_2")) != 0)
-	{
+	if ((ret_val = process_barrier::await_and_destroy_barrier("BAR_2")) != 0){
+
 		print_module::print(std::cerr,  "ERROR: Barrier error for task " , task_name , "\n");
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_BARRIER_ERROR;
+
 	}
 
 	// Set up everything to begin as scheduled.
@@ -315,10 +322,9 @@ int main(int argc, char *argv[])
 	percentile = schedule.get_task(iindex)->get_percentage_workload();
 
 	CPU_ZERO(&current_cpu_mask);
+	
 	for(int i = 0; i < schedule.get_task(iindex)->get_current_CPUs(); i++ )
-	{
-		CPU_SET(schedule.get_task(iindex)->get_current_lowest_CPU() + i,&current_cpu_mask);
-	}
+		CPU_SET(schedule.get_task(iindex)->get_current_lowest_CPU() + i, &current_cpu_mask);
 	
 	std::lock_guard<std::mutex> lk(con_mut);
 	print_module::print(std::cerr,  "Task " , getpid() , " lowest CPU: " , schedule.get_task(iindex)->get_current_lowest_CPU() , ", currentCPUS, " , schedule.get_task(iindex)->get_current_CPUs() , " minCPUS: " , schedule.get_task(iindex)->get_min_CPUs() , ", maxCPUS: " , schedule.get_task(iindex)->get_max_CPUs() , ", practical max: " , schedule.get_task(iindex)->get_practical_max_CPUs() , ", " , schedule.get_task(iindex)->get_current_period().tv_nsec , "ns\n");
@@ -338,9 +344,11 @@ int main(int argc, char *argv[])
 	num_threads = schedule.get_task(iindex)->get_practical_max_CPUs();
 	omp_set_num_threads(num_threads);
 
-	for(int t=1; t<=NUMCPUS; t++){
+	for (int t = 1; t <= NUMCPUS; t++){
+
 		schedule.get_task(iindex)->clr_active(t);
 		schedule.get_task(iindex)->clr_passive(t);
+	
 	}
 
 	for(unsigned int j = 0; j < std::thread::hardware_concurrency(); j++)
@@ -349,24 +357,24 @@ int main(int argc, char *argv[])
 	threads.reserve(NUMCPUS);
 	#pragma omp parallel
 	{
-		threads[omp_get_thread_num()]=pthread_self();
-		omp_thread_index[pthread_self()]=omp_get_thread_num();	
+		threads[omp_get_thread_num()] = pthread_self();
+		omp_thread_index[pthread_self()] = omp_get_thread_num();	
 	}
 
 
 	//Determine which threads are active and passive. Pin, etc.
-	for(int j = 0; j < num_threads; j++)
-  	{
+	for (int j = 0; j < num_threads; j++){
+
 		//The first threads are active
-		if(j < schedule.get_task(iindex)->get_current_CPUs())
-		{
+		if (j < schedule.get_task(iindex)->get_current_CPUs()){
+
 			active[j]=true;
 
 			//What processor does it go on?
 			int p = (schedule.get_task(iindex)->get_current_lowest_CPU() + j -1) % (NUMCPUS) + 1;
 
 			//First one doesn't move.  
-			if(j==0)
+			if(j == 0)
 				schedule.get_task(iindex)->set_permanent_CPU(p);
 				
 			global_param.sched_priority=7;
@@ -382,9 +390,10 @@ int main(int argc, char *argv[])
 			pthread_setaffinity_np(threads[j], sizeof(cpu_set_t), &global_cpuset);
  
 		}
+
 		//We're done with the Active threads. Rest are passive.
-		else
-		{
+		else {
+
 			active[j] = false;
 			//What processor does it go on?
 
@@ -413,31 +422,36 @@ int main(int argc, char *argv[])
 	#endif
 	
 	// Initialize the task
-	if(schedule.get_task(iindex) && task.init != NULL)
-	{
+	if(schedule.get_task(iindex) && task.init != NULL){
+
 		ret_val = task.init(task_argc, task_argv);
-		if (ret_val != 0)
-		{
+		
+		if (ret_val != 0){
+
 			print_module::print(std::cerr,   "ERROR: Task initialization failed for task " , task_name ,"\n");
 			kill(0, SIGTERM);
 			return RT_GOMP_TASK_MANAGER_INIT_TASK_ERROR;
+		
 		}
 	}
 	
 	
 	// Wait at barrier for the other tasks
-	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name)) != 0)
-	{
+	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name)) != 0){
+
 		print_module::print(std::cerr,   "ERROR: Barrier error for task " , task_name , "\n");
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_BARRIER_ERROR;
+	
 	}
 	
 	//Don't go until it's time.
 	//NOTE: POTENTIAL WASTE OF TIME, BARRIERS MAY BE BETTER
 	timespec current_time;
 	do {
+
 		 get_time(&current_time);
+	
 	} while(current_time < start_time);
 	//Grab a timestamp at the start of real-time operation
 
@@ -451,9 +465,7 @@ int main(int argc, char *argv[])
 	while(current_time < end_time)	
 	{
 		if(schedule.get_task(iindex))
-		{
 			num_iters++;
-		}     	
 
 		// Sleep until the start of the period
 		sleep_until_ts(correct_period_start);
@@ -478,24 +490,28 @@ int main(int argc, char *argv[])
 			
 			print_module::print(std::cerr,  "ERROR: Task run failed for task " , task_name, "\n");
 			return RT_GOMP_TASK_MANAGER_RUN_TASK_ERROR;
+
 		}
 		
 		// Check if the task finished before its deadline and record the maximum running time
 		ts_diff(correct_period_start, period_finish, period_runtime);
 
-		if (period_runtime > deadline) 
-		{
+		if (period_runtime > deadline) {
+
 			deadlines_missed += 1;
-			missed_dl=true;
+			missed_dl = true;
 
 			#ifdef TRACING
 				fprintf( fd, "thread %d: missed deadline iteration %d\n", getpid() ,num_iters);
 				fflush( fd );
             #endif
+		
 		}
-		else
-		{
-			missed_dl=false;
+		
+		else {
+
+			missed_dl = false;
+		
 		}
 
 		if (period_runtime > max_period_runtime) max_period_runtime = period_runtime;
@@ -504,28 +520,19 @@ int main(int argc, char *argv[])
 		// Update the period_start time
 		correct_period_start = correct_period_start + current_period;
 
-		
-		if(needs_reschedule)
-		{       
+		if (needs_reschedule){
+
 			bool ready = true;
 
 			//Check other tasks to see if this task can transition yet. It can iff it is giving up a CPU, or is gaining a CPU that has been given up.
-			for(int i=0; i<schedule.count(); i++)
-			{
-				for(int j=1; j<=NUMCPUS; j++)
-				{
-					if ((schedule.get_task(i)->transfers(iindex,j)))
-					{
-						if((schedule.get_task(i))->get_num_adaptations() <=  (schedule.get_task(iindex))->get_num_adaptations())
-						{
+			for (int i = 0; i < schedule.count(); i++)
+				for (int j = 1; j <= NUMCPUS; j++)
+					if ((schedule.get_task(i)->transfers(iindex, j)))
+						if ((schedule.get_task(i))->get_num_adaptations() <=  (schedule.get_task(iindex))->get_num_adaptations())
 							ready = false;
-						}
-					}
-     			}
-			}
 
-			if(ready)
-			{
+			if (ready){
+
 				#ifdef TRACING
 					fprintf( fd, "thread %d: starting reschedule\n", getpid());
 					fflush( fd );
@@ -543,10 +550,12 @@ int main(int argc, char *argv[])
 				schedule.get_task(iindex)->set_num_adaptations(schedule.get_task(iindex)->get_num_adaptations()+1);
 				needs_reschedule = false;
 			}
-			else
-			{
+
+			else{
+
 				//Gaining a processor that wasn't ready yet.
 				print_module::print(std::cerr,  "task " , getpid() , " can't reschedule!\n");
+			
 			}
 		}
 
@@ -559,22 +568,19 @@ int main(int argc, char *argv[])
 	ret_val = sched_setscheduler(getpid(), SCHED_RR, &sp);
 	
 	if (ret_val != 0)
-	{
 		std::perror("WARNING: Could not set FINALIZE_PRIORITY");
-	}
 	
 	#ifdef TRACING
 		fclose(fd);
 	#endif
 
 	// Finalize the task
-	if (schedule.get_task(iindex) && task.finalize != NULL) 
-	{
+	if (schedule.get_task(iindex) && task.finalize != NULL){
+
 		ret_val = task.finalize(task_argc, task_argv);
 		if (ret_val != 0)
-		{
 			print_module::print(std::cerr,   "WARNING: Task finalization failed for task " , task_name , "\n");
-		}
+		
 	}
 
 	//Print out useful information.

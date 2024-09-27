@@ -11,13 +11,12 @@ algorithm employed to schedule elastic tasks.
 
 Class : shared_mem
 
-		This class contains all of the scheduling algorithm logic
-		as well as the actual driver code for deploying a derived schedule.
+		This class contains all of the scheduling algorithm logic.
 
-        This class contains a sub class "sched_pair" which is used in 
-		a heap to monitor differnt task pairs. By default this inner
-		class is disabled and prevented from being compiled. To enable it,
-		define SCHED_PAIR_HEAP.
+		The current logic is a double knapsack problem that is solved
+		dynamically. The knapsack problem is solved twice, once for
+		CPUs and once for SMs. The solution is then used to determine
+		the optimal mode for each task.
 
 **************************************************************************/
 
@@ -28,6 +27,9 @@ Class : shared_mem
 #include <signal.h>
 #include <unistd.h>
 #include "include.h"
+
+#define DEFAULT_MAX_CPU 16
+#define DEFAULT_MAX_SMS 16
 
 class Scheduler{
 
@@ -62,7 +64,7 @@ public:
 
 	~Scheduler(){}
 
-	void do_schedule(size_t maxCPU = 16, size_t maxSMS = 16);
+	void do_schedule(size_t maxCPU = DEFAULT_MAX_CPU, size_t maxSMS = DEFAULT_MAX_SMS);
 
 	void setTermination();
 
