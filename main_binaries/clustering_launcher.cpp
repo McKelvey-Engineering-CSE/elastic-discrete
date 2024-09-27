@@ -300,7 +300,7 @@ int main(int argc, char *argv[])
 
 	//Initialize two barriers to synchronize the tasks after creation
 	if (process_barrier::create_process_barrier(barrier_name, parsed_tasks.size() + 1) == nullptr || 
-		process_barrier::create_process_barrier(barrier_name2, parsed_tasks.size()) == nullptr)
+		process_barrier::create_process_barrier(barrier_name2, parsed_tasks.size() + 1) == nullptr)
 	{
 		print_module::print(std::cerr, "ERROR: Failed to initialize barrier.\n");
 		return RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR;
@@ -404,8 +404,7 @@ int main(int argc, char *argv[])
 	//tell scheduler to calculate schedule for tasks
 	scheduler->do_schedule();
 	
-	process_barrier::get_process_barrier(barrier_name2.c_str(), &get_val);
-	if (get_val != 0)
+	if (process_barrier::await_and_destroy_barrier(barrier_name2.c_str()) != 0)
 	{
 		print_module::print(std::cerr, "ERROR: Barrier error for scheduling task \n");
 		kill(0, SIGTERM);

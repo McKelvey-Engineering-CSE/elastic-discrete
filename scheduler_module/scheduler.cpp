@@ -117,15 +117,19 @@ void Scheduler::do_schedule(){
 			{
 				if(l==1)
 				{
-					std::vector<int> temp;
-					temp.push_back((schedule.get_task(l-1))->get_current_mode());
-					DP[d][l]=std::make_pair(std::numeric_limits<double>::max(),temp);
+
+					DP[d][l].second.clear();
+					DP[d][l].second.push_back((schedule.get_task(l-1))->get_current_mode());
+
+					DP[d][l].first = std::numeric_limits<double>::max();
 				}
 				else
 				{
-					std::vector<int> temp = DP[d-(schedule.get_task(l-1)->get_CPUs((schedule.get_task(l-1))->get_current_mode()))][l-1].second;
-					temp.push_back((schedule.get_task(l-1))->get_current_mode());
-                	DP[d][l]=std::make_pair(DP[d-(schedule.get_task(l-1)->get_CPUs((schedule.get_task(l-1))->get_current_mode()))][l-1].first,temp);
+					DP[d][l].second.clear();
+					DP[d][l].second.assign(DP[d-(schedule.get_task(l-1)->get_CPUs((schedule.get_task(l-1))->get_current_mode()))][l-1].second.begin(), DP[d-(schedule.get_task(l-1)->get_CPUs((schedule.get_task(l-1))->get_current_mode()))][l-1].second.end());
+					DP[d][l].second.push_back((schedule.get_task(l-1))->get_current_mode());
+
+                	DP[d][l].first = DP[d-(schedule.get_task(l-1)->get_CPUs((schedule.get_task(l-1))->get_current_mode()))][l-1].first;
 				}
 			}
 			else
@@ -160,9 +164,11 @@ void Scheduler::do_schedule(){
 				//Update DP.				
 				if(d-(schedule.get_task(l-1)->get_CPUs(selection)) >= 0)
 				{
-					std::vector<int> temp = DP[d-(schedule.get_task(l-1)->get_CPUs(selection))][l-1].second;
-					temp.push_back(selection);
-					DP[d][l]=std::make_pair(std::min(MIN,DP[d-1][l].first),temp);
+					DP[d][l].second.clear();
+					DP[d][l].second.assign(DP[d-(schedule.get_task(l-1)->get_CPUs(selection))][l-1].second.begin(), DP[d-(schedule.get_task(l-1)->get_CPUs(selection))][l-1].second.end());
+					DP[d][l].second.push_back(selection);
+					
+					DP[d][l].first = std::min(MIN, DP[d-1][l].first);
 				}
 			}
 		}//endfor l
