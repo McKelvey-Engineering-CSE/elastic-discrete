@@ -91,15 +91,24 @@ void scheduler_task()
 	}
 }
 
-void exit_on_signal(int sig){
-	
-	//tell the shared memory that we have to terminate immediately
+void force_cleanup() {
 	scheduler->setTermination();
-	print_module::print(std::cerr, "Signal captured from child. Schedule cannot continue. Exiting.\n");
 	process_barrier::destroy_barrier(barrier_name);
 	process_barrier::destroy_barrier(barrier_name2);
 	kill(0, SIGKILL);
 	delete scheduler;
+}
+
+// User requested to exit
+void exit_user_request(int sig) {
+	force_cleanup();
+	exit(0);
+}
+
+// Child task encountered an error
+void exit_from_child(int sig){
+	print_module::print(std::cerr, "Signal captured from child. Schedule cannot continue. Exiting.\n");
+	force_cleanup();
 	exit(-1);
 }
 
@@ -280,8 +289,9 @@ int main(int argc, char *argv[])
 	//setup signal handlers
 	init_signal_handlers();
 
-	//set custom signal handler for task hangup
-	signal(1, exit_on_signal);
+	signal(SIGINT, exit_user_request);
+	signal(SIGTERM, exit_user_request);
+	signal(1, exit_from_child);
 	
 	//open the scheduling file
 
