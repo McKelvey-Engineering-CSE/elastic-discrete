@@ -68,6 +68,22 @@ namespace print_module {
             
         }
 
+        template <typename Arg, typename... Args>
+        static void task_print(std::ostream& out, Arg&& arg, Args&&... args){   
+            
+            //basic_osyncstream if we support it
+            std::basic_osyncstream oss(out);
+
+            //print header
+            oss << "(" << getpid() << ") ";
+            
+            //expander boilerplate
+            oss << std::forward<Arg>(arg);
+            using expander = int[];
+            (void)expander{0, (void(oss << std::forward<Args>(args)), 0)...};
+            
+        }
+
         template <typename... Args>
         static void flush(std::ostream& out, std::ostringstream& buff, Args&&... args){
             
@@ -139,6 +155,25 @@ namespace print_module {
             //ostringstream seems to have lowest possible 
             //overhead
             std::ostringstream ss;
+            
+            //expander boilerplate
+            ss << std::forward<Arg>(arg);
+            using expander = int[];
+            (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
+            
+            //print to whatever we were given
+            out << ss.str();
+        }
+
+        template <typename Arg, typename... Args>
+        static void task_print(std::ostream& out, Arg&& arg, Args&&... args){   
+            
+            //ostringstream seems to have lowest possible 
+            //overhead
+            std::ostringstream ss;
+
+            //print header
+            ss << "(" << getpid() << ") ";
             
             //expander boilerplate
             ss << std::forward<Arg>(arg);

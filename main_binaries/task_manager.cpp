@@ -1,13 +1,12 @@
 // Each real time task should be compiled as a separate program and include task_manager.cpp and task.h
 // in compilation. The task struct declared in task.h must be defined by the real time task.
-//#define _GNU_SOURCE
-#include <stdint.h> //For uint64_t
-#include <stdlib.h> //For malloc
+#include <stdint.h>
+#include <stdlib.h>
 #include <sched.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <math.h>
-#include <thread> //for std::thread::hardware_concurrency()
+#include <thread>
 #include <sstream>
 #include <vector>
 #include <signal.h>
@@ -22,13 +21,13 @@
 #include <time.h>
 #include <string.h>
 #include <pthread.h>
-#include <atomic> //For std::atomic_bool
+#include <atomic>
 #include <list>
 #include "include.h"
 #include "thread_barrier.h" 
 #include <sys/types.h>
 #include <sys/syscall.h>
-#include <limits.h> //for INT MAX
+#include <limits.h>
 #include <map>
 #include "print_module.h"
 
@@ -70,17 +69,17 @@ const unsigned SLEEP_PRIORITY = 97;
 //visible in both places
 int futex_val;
 thread_barrier bar;
-bool missed_dl=false;
+bool missed_dl = false;
 int practical_max_cpus;
 volatile int total_remain __attribute__ (( aligned (64) ));
 double percentile = 1.0;
 
-int ret_val; //This value is used as a return value for system calls
+//This value is used as a return value for system calls
+int ret_val;
 
 //The process group ID is used to notify other tasks in this taskset that
 //it is time to switch to high criticality mode
 pid_t process_group;
-
 pid_t mypid;
 
 cpu_set_t global_cpuset;
@@ -110,7 +109,7 @@ unsigned num_iters = 0;
 // Do this by sending signal SIGRTMIN+0.
 void initiate_reschedule(){
 
-	killpg(process_group, SIGRTMIN+0);
+	killpg(process_group, SIGRTMIN + 0);
 
 }
 
@@ -140,13 +139,17 @@ void sigrt1_handler(int signum){
 }
 
 void modify_self(int new_mode){
+
 	schedule.get_task(task_index)->set_current_mode(new_mode, true);
 	killpg(process_group, SIGRTMIN+0);
+
 }
 
 void allow_change(){
+
 	schedule.get_task(task_index)->reset_changeable();
 	killpg(process_group, SIGRTMIN+0);
+
 }
 
 //function to either pass off resources or take them from other tasks
@@ -261,6 +264,7 @@ void reschedule(){
 	}		
 
 	bar.mc_bar_reinit(schedule.get_task(task_index)->get_current_CPUs());		
+
 }
 
 int main(int argc, char *argv[])
@@ -286,12 +290,9 @@ int main(int argc, char *argv[])
 	}
 	#endif
 
-
 	std::string command_string;	
 	for (int i = 0; i < argc; i++)
 		command_string += std::string(argv[i]) + " ";
-
-	print_module::print(std::cerr,  "Task " , getpid() , " started with command string:\n>" , command_string, "\n");
 
 	//Get our own PID and store it
 	mypid = getpid();
@@ -303,7 +304,7 @@ int main(int argc, char *argv[])
 	//Set up a signal handler for SIGRT0, this manages the notification of
 	//the system high crit transition
 	void (*ret_handler)(int);
-	ret_handler = signal(SIGRTMIN+0, sigrt0_handler);
+	ret_handler = signal(SIGRTMIN + 0, sigrt0_handler);
 
 	if (ret_handler == SIG_ERR){
 
@@ -312,7 +313,7 @@ int main(int argc, char *argv[])
 
 	}
 
-	ret_handler = signal(SIGRTMIN+1, sigrt1_handler);
+	ret_handler = signal(SIGRTMIN + 1, sigrt1_handler);
 	if (ret_handler == SIG_ERR){
 
 		print_module::print(std::cerr,  "ERROR: Call to Signal failed, reason: " , strerror(errno) , "\n");
@@ -359,11 +360,41 @@ int main(int argc, char *argv[])
 
 	CPU_ZERO(&current_cpu_mask);
 	
+	//add each cpu from our min up to our cpu mask
 	for (int i = 0; i < schedule.get_task(task_index)->get_current_CPUs(); i++ )
 		CPU_SET(schedule.get_task(task_index)->get_current_lowest_CPU() + i, &current_cpu_mask);
 	
 	std::lock_guard<std::mutex> lk(con_mut);
-	print_module::print(std::cerr,  "Task " , getpid() , " lowest CPU: " , schedule.get_task(task_index)->get_current_lowest_CPU() , ", currentCPUS, " , schedule.get_task(task_index)->get_current_CPUs() , " minCPUS: " , schedule.get_task(task_index)->get_min_CPUs() , ", maxCPUS: " , schedule.get_task(task_index)->get_max_CPUs() , ", practical max: " , schedule.get_task(task_index)->get_practical_max_CPUs() , ", " , schedule.get_task(task_index)->get_current_period().tv_nsec , "ns\n");
+
+	//print task information
+	std::ostringstream task_info;
+	std::string task_header = "|  Task " + std::to_string(task_index) + " (PID: " + std::to_string(getpid()) + ") |\n";
+	size_t blank_size = task_header.size();
+
+	print_module::buffered_print(task_info, "\n", std::string(blank_size - 1, '='), "\n");
+	print_module::buffered_print(task_info, task_header);
+	print_module::buffered_print(task_info, std::string(blank_size - 1, '='), "\n\n");
+
+	//cpu info
+	print_module::buffered_print(task_info, "CPU Metrics: \n");
+	print_module::buffered_print(task_info, "	- Lowest CPU: ", schedule.get_task(task_index)->get_current_lowest_CPU(), "\n");
+	print_module::buffered_print(task_info, "	- Current CPUs: ", schedule.get_task(task_index)->get_current_CPUs(), "\n");
+	print_module::buffered_print(task_info, "	- Minimum CPUs: ", schedule.get_task(task_index)->get_min_CPUs(), "\n");
+	print_module::buffered_print(task_info, "	- Maximum CPUs: ", schedule.get_task(task_index)->get_max_CPUs(), "\n");
+	print_module::buffered_print(task_info, "	- Practical Max: ", schedule.get_task(task_index)->get_practical_max_CPUs(), "\n\n");
+
+	//gpu info
+	print_module::buffered_print(task_info, "GPU Metrics: \n");
+	print_module::buffered_print(task_info, "	- Lowest GPU: ", schedule.get_task(task_index)->get_current_lowest_CPU(), "\n");
+	print_module::buffered_print(task_info, "	- Current GPUs: ", schedule.get_task(task_index)->get_current_CPUs(), "\n");
+	print_module::buffered_print(task_info, "	- Minimum GPUs: ", schedule.get_task(task_index)->get_min_CPUs(), "\n");
+	print_module::buffered_print(task_info, "	- Maximum GPUs: ", schedule.get_task(task_index)->get_max_CPUs(), "\n");
+	print_module::buffered_print(task_info, "	- Practical Max: ", schedule.get_task(task_index)->get_practical_max_CPUs(), "\n\n");
+
+	//timing info
+	print_module::buffered_print(task_info, "Timing Metrics: \n");
+	print_module::buffered_print(task_info, "	- Period s: ", schedule.get_task(task_index)->get_current_period().tv_sec , " s\n");
+	print_module::buffered_print(task_info, "	- Period ns: ", schedule.get_task(task_index)->get_current_period().tv_nsec , " ns\n\n");
 
 	struct sched_param param;
 	param.sched_priority = 7; //rtprio;
@@ -404,8 +435,8 @@ int main(int argc, char *argv[])
 	}
 
 	//Determine which threads are active and passive. Pin, etc.
-	std::ostringstream task_active_cpus;
-	std::ostringstream task_passive_cpus;
+	std::string active_cpu_string = "  ";
+	std::string passive_cpu_string = "  ";
 
 	//for CPUs that we MAY have at some point (practical max)
 	for (int j = 0; j < practical_max_cpus; j++){
@@ -426,7 +457,7 @@ int main(int argc, char *argv[])
 
 			schedule.get_task(task_index)->set_active_cpu(p);
 
-			print_module::buffered_print(task_active_cpus, "Task ", std::to_string(task_index), " setting CPU ", std::to_string(p), " to active.\n");
+			active_cpu_string += std::to_string(p) + ", ";
 
 		}
 
@@ -436,7 +467,7 @@ int main(int argc, char *argv[])
 
 			schedule.get_task(task_index)->set_passive_cpu(p);
 
-			print_module::buffered_print(task_passive_cpus, "Task ", std::to_string(task_index), " setting CPU ", std::to_string(p), " to passive.\n");
+			passive_cpu_string += std::to_string(p) + ", ";
 
 		}
 		
@@ -452,16 +483,24 @@ int main(int argc, char *argv[])
   	}
 
 	//print active vs passive CPUs
-	print_module::flush(std::cerr, task_active_cpus);
-	print_module::flush(std::cerr, task_passive_cpus);
-		
+	print_module::buffered_print(task_info, "CPU Core Configuration: \n");
+	print_module::buffered_print(task_info, "	- Active:", active_cpu_string.substr(0, active_cpu_string.size() - 2), "\n");
+	print_module::buffered_print(task_info, "	- Passive:", passive_cpu_string.substr(0, active_cpu_string.size() - 2), "\n\n");
+
+	//command line params
+	print_module::buffered_print(task_info, "Command Line Parameters: \n");
+	print_module::buffered_print(task_info, "	- Args: ", command_string, "\n\n");
+
+	//flush all task info to terminal
+	print_module::flush(std::cerr, task_info);
+
 	//Initialize the program barrier
 	bar.mc_bar_init(schedule.get_task(task_index)->get_current_CPUs());
 
 	#ifdef PER_PERIOD_VERBOSE
 		std::vector<uint64_t> period_timings;
 	#endif
-	
+
 	// Initialize the task
 	if (schedule.get_task(task_index) && task.init != NULL){
 
@@ -474,7 +513,6 @@ int main(int argc, char *argv[])
 		}
 
 	}
-	
 	
 	// Wait at barrier for the other tasks
 	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name)) != 0){
@@ -499,8 +537,8 @@ int main(int argc, char *argv[])
 	timespec max_period_runtime = { 0, 0 };
 	uint64_t total_nsec = 0;
 
-	while(current_time < end_time)	
-	{
+	while(current_time < end_time){
+
 		if (schedule.get_task(task_index))
 			num_iters++;
 
@@ -562,36 +600,36 @@ int main(int argc, char *argv[])
 			bool ready = true;
 
 			//Check other tasks to see if this task can transition yet. It can if it is giving up a CPU, or is gaining a CPU that has been given up.
-			for (int i = 0; i < schedule.count(); i++)
-				for (int j = 1; j <= NUMCPUS; j++)
-					if ((schedule.get_task(i)->transfers(task_index, j)))
-						if ((schedule.get_task(i))->get_num_adaptations() <=  (schedule.get_task(task_index))->get_num_adaptations())
+			for (int other_task = 0; other_task < schedule.count(); other_task++)
+				for (int cpu_being_considered = 1; cpu_being_considered <= NUMCPUS; cpu_being_considered++)
+					if ((schedule.get_task(other_task)->transfers(task_index, cpu_being_considered)))
+						if ((schedule.get_task(other_task))->get_num_adaptations() <=  (schedule.get_task(task_index))->get_num_adaptations())
 							ready = false;
 
 			if (ready){
 
 				#ifdef TRACING
-					fprintf( fd, "thread %d: starting reschedule\n", getpid());
-					fflush( fd );
+					fprintf(fd, "thread %d: starting reschedule\n", getpid());
+					fflush(fd);
 				#endif
 
 				reschedule();
 				
-				print_module::print(std::cerr,  "thread " , task_index, ": finished reschedule\n");	
+				print_module::task_print(std::cerr, "System: finished reschedule\n");	
 
 				#ifdef TRACING
-					fprintf( fd, "thread %d: finished reschedule\n", getpid());
-					fflush( fd );
+					fprintf(fd, "thread %d: finished reschedule\n", getpid());
+					fflush(fd);
 				#endif
 
-				schedule.get_task(task_index)->set_num_adaptations(schedule.get_task(task_index)->get_num_adaptations()+1);
+				schedule.get_task(task_index)->set_num_adaptations(schedule.get_task(task_index)->get_num_adaptations() + 1);
 				needs_reschedule = false;
 			}
 
 			else{
 
 				//Gaining a processor that wasn't ready yet.
-				print_module::print(std::cerr,  "task " , getpid() , " can't reschedule!\n");
+				print_module::print(std::cerr,  "task ", getpid(), " can't reschedule!\n");
 			
 			}
 		}
@@ -621,11 +659,13 @@ int main(int argc, char *argv[])
 	}
 
 	//Print out useful information.
-	print_module::print(std::cerr,  "(" , mypid , ") Deadlines missed for task " , task_name , ": " , deadlines_missed , "/" , num_iters , "\n");
-	print_module::print(std::cerr,  "(" , mypid , ") Max running time for task " , task_name , ": " , (int)max_period_runtime.tv_sec , " sec  " , max_period_runtime.tv_nsec , " nsec\n");
-	print_module::print(std::cerr,  "(" , mypid , ") Avg running time for task " , task_name , ": " , (total_nsec/(num_iters))/1000000.0 , " msec\n");
+	std::ostringstream task_output;
+	print_module::buffered_print(task_output,  "\n(" , mypid , ") Deadlines missed for task " , task_name , ": " , deadlines_missed , "/" , num_iters , "\n");
+	print_module::buffered_print(task_output,  "(" , mypid , ") Max running time for task " , task_name , ": " , (int)max_period_runtime.tv_sec , " sec  " , max_period_runtime.tv_nsec , " nsec\n");
+	print_module::buffered_print(task_output,  "(" , mypid , ") Avg running time for task " , task_name , ": " , (total_nsec / (num_iters)) / 1000000.0 , " msec\n");
+	print_module::buffered_print(task_output, deadlines_missed, " ", num_iters, " ", omp_get_num_threads(), " ", max_period_runtime, "\n\n");
+	print_module::flush(std::cerr, task_output);
 
-	
 	#ifdef PER_PERIOD_VERBOSE
 		std::ofstream outfile("time_results.txt", std::ios::out | std::ios::app);
 
@@ -637,8 +677,6 @@ int main(int argc, char *argv[])
 		print_module::print(outfile, "\n");
 		outfile.close();
 	#endif
-	
-	print_module::print(std::cout, deadlines_missed, " ", num_iters, " ", omp_get_num_threads(), " ", max_period_runtime, "\n");
 
 	fflush(stdout);
 	fflush(stderr);

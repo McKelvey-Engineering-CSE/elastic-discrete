@@ -144,10 +144,10 @@ void Scheduler::do_schedule(size_t maxCPU, size_t maxSMS){
 
 	//update the tasks
 	std::ostringstream mode_strings;
-	print_module::buffered_print(mode_strings, "========================= \n", "New Schedule Layout:\n");
+	print_module::buffered_print(mode_strings, "\n========================= \n", "New Schedule Layout:\n");
 	for (size_t i = 0; i < result.size(); i++)
 		print_module::buffered_print(mode_strings, "Task ", i, " is now in mode: ", result.at(i), "\n");
-	print_module::buffered_print(mode_strings, "Total Loss from Mode Change: ", 100000 - dp[N][maxCPU][maxSMS].first, "\n=========================\n");
+	print_module::buffered_print(mode_strings, "Total Loss from Mode Change: ", 100000 - dp[N][maxCPU][maxSMS].first, "\n=========================\n\n");
 	print_module::flush(std::cerr, mode_strings);
 
 	//this changes the number of CPUs each task needs for a given mode
