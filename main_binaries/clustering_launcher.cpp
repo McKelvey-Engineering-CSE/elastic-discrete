@@ -227,6 +227,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 			task_info.program_args = "";
 		}
 
+
 		if (task["elasticity"]) {
 			task_info.elasticity = task["elasticity"].as<int>();
 		}
@@ -234,6 +235,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 		if (task["priority"]) {
 			task_info.sched_priority = task["priority"].as<int>();
 		}
+
 
 		if (task["maxIterations"]) {
 			task_info.max_iterations = task["maxIterations"].as<int>();
@@ -258,6 +260,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 			mode_info.period_nsec = mode["period"]["nsec"].as<int>();
 			task_info.modes.push_back(mode_info);
 		}
+
 
 		parsed_tasks->push_back(task_info);
 	}
@@ -316,6 +319,7 @@ int main(int argc, char *argv[])
 	scheduler = new Scheduler(parsed_tasks.size(),(int) std::thread::hardware_concurrency()-1);
 
 	//Initialize two barriers to synchronize the tasks after creation
+
 	if (process_barrier::create_process_barrier(barrier_name, parsed_tasks.size() + 1) == nullptr || 
 		process_barrier::create_process_barrier(barrier_name2, parsed_tasks.size() + 1) == nullptr)
 	{
@@ -376,7 +380,9 @@ int main(int argc, char *argv[])
 
 		//Insert the task data into shared memory
 		TaskData * td;
-		td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data());
+    
+    //FIXME: GPU INFO JUST USES THE CPU PORTION OF THE INFO. REPLACE WITH REAL INFORMATION
+		td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), work.data(), span.data(), period.data());
 		task_manager_argvector.push_back(std::to_string(td->get_index()));
 		
 		// Add the barrier name to the argument vector

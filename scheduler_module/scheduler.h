@@ -11,13 +11,12 @@ algorithm employed to schedule elastic tasks.
 
 Class : shared_mem
 
-		This class contains all of the scheduling algorithm logic
-		as well as the actual driver code for deploying a derived schedule.
+		This class contains all of the scheduling algorithm logic.
 
-        This class contains a sub class "sched_pair" which is used in 
-		a heap to monitor differnt task pairs. By default this inner
-		class is disabled and prevented from being compiled. To enable it,
-		define SCHED_PAIR_HEAP.
+		The current logic is a double knapsack problem that is solved
+		dynamically. The knapsack problem is solved twice, once for
+		CPUs and once for SMs. The solution is then used to determine
+		the optimal mode for each task.
 
 **************************************************************************/
 
@@ -29,69 +28,51 @@ Class : shared_mem
 #include <unistd.h>
 #include "include.h"
 
+#define DEFAULT_MAX_CPU 16
+#define DEFAULT_MAX_SMS 16
+
 class Scheduler{
 
-	//October 23 2023- moved struct to class along with comparison 
-	//operators and locked behind flag due to seemingly no
-	//functionality in code besides *possible* memory alignment?
-	#ifdef SCHED_PAIR_HEAP
-
-		class sched_pair {
-			int index; //Index of the task
-			double weight; //Potential benefit to the schedule
-
-			sched_pair(int index_, double weight_) : index(index_), weight(weight_) {}
-
-			//comparison operators
-			bool operator>(const sched_pair& rhs);
-			bool operator<(const sched_pair& rhs);
-			bool operator==(const sched_pair& rhs);
-			bool operator<=(const sched_pair& rhs);
-			bool operator>=(const sched_pair& rhs);
-			bool operator!=(const sched_pair& rhs);
-		};
-
-		std::vector<sched_pair> sched_heap;
-
-	#endif
+	//structure for internal knapsack scheduler
+	struct task_mode {
+		double cpuLoss;
+		double gpuLoss;
+		size_t cores;
+		size_t sms;
+	};
 
 	pid_t process_group;
 	class Schedule schedule;
-	int num_tasks;
+	size_t num_tasks;
 	int num_CPUs;
 	bool first_time;
 
-	//Dynamic Programming table. DP[d][l].first contains the optimal value
-	//of trying to schedule the first l tasks on d CPUs.
-	//DP[d][l].second is the modes of operation for each task.
-	std::pair<double,std::vector<int>> DP[NUMCPUS+1][MAXTASKS+1];
+	size_t maxSMS = DEFAULT_MAX_SMS;
+
+	//each entry is a task with each item in the vector representing a mode
+	static std::vector<std::vector<task_mode>> task_table;
 	
 public:
 
-	//October 23 2023 - Removed the sched_pair heap due to seemingly no use. Memory is reserved for it though
-	//so if it turns out that the memory reservation is being used for alignment, the solution for fixing the code is 
-	//reenabling the SCHED_PAIR_HEAP flag
+	//reserve the necessary space for the class (task) table
 	Scheduler(int num_tasks_, int num_CPUs_) : process_group(getpgrp()), schedule("EFSschedule"), num_tasks(num_tasks_), num_CPUs(num_CPUs_), first_time(true) {
-		#ifdef SCHED_PAIR_HEAP
-			sched_heap.reserve(num_tasks);
-		#endif
 
-		for (int i = 0; i < NUMCPUS+1; i++) {
-			for (int j = 0; j < MAXTASKS+1; j++) {
-				DP[i][j].second.reserve(num_tasks);
-			}
-		}
+		//clear the vector of vectors (should retain static memory allocation)
+		for (int i = 0; i < num_tasks_; i++)
+			task_table.at(i).clear();
+		task_table.clear();
+    
  	}
 
 	~Scheduler(){}
 
-	void do_schedule();
+	void do_schedule(size_t maxCPU = DEFAULT_MAX_CPU);
 
 	void setTermination();
 
 	class Schedule * get_schedule();
 
-	TaskData * add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_);
+	TaskData * add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_);
 };
 
 

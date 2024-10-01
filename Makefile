@@ -1,13 +1,32 @@
 ##### Compiler Settings ##########################################################
-CC = g++ -std=c++20 -O0 -I.
-HEADERS = $(addprefix -iquote ,$(shell find . -type d -not -path "*/\.*"))
-FLAGS = -Wall -g -gdwarf-3 $(HEADERS)
+NVCC := $(shell which nvcc 2> /dev/null)
+NVCC := $(notdir $(NVCC))
 
-ifneq (,$(findstring x86_64, $(shell $(CC) -dumpmachine)))
-	FLAGS := $(FLAGS) -mavx2
+ifeq ($(NVCC), nvcc)
+
+    CC := nvcc -std=c++20 -O0 -I.
+		FLAGS = -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -lcuda -lcudart
+		LIBS = -Xcompiler -fopenmp
+    
+    ifneq (,$(findstring x86_64, $(shell $(CC) -dumpmachine)))
+      FLAGS := $(FLAGS) -Xcompiler -mavx2
+    endif
+
+else
+
+    CC := g++ -std=c++20 -O0 -I.
+		FLAGS = -Wall -gdwarf-3 $(HEADERS)
+		LIBS = -fopenmp
+    
+    ifneq (,$(findstring x86_64, $(shell $(CC) -dumpmachine)))
+      FLAGS := $(FLAGS) -mavx2
+    endif
+
 endif
 
-LIBS = -L. -lrt -lm -lclustering -fopenmp -L./libyaml-cpp/build/ -lyaml-cpp
+FLAGS += -g
+LIBS += -L. -lrt -lm -lclustering -L./libyaml-cpp/build/ -lyaml-cpp
+HEADERS = $(addprefix -I ,$(shell find . -type d -not -path "*/\.*"))
 CLUSTERING_OBJECTS = process_barrier.o generic_barrier.o timespec_functions.o
 ##################################################################################
 
@@ -27,7 +46,7 @@ clean:
 	rm -r ./bin *.o *.a $(TARGET_TASK) clustering_launcher synthetic_task libyaml-cpp/build
 
 synthetic_task: ./task_module/synthetic_task.cpp
-	$(CC) $(FLAGS) -fopenmp ./task_module/synthetic_task.cpp shared_mem.o task.o task_manager.o print_library.o thread_barrier.o schedule.o taskData.o -o synthetic_task $(LIBS)
+	$(CC) $(FLAGS) $(LIBS) ./task_module/synthetic_task.cpp shared_mem.o task.o task_manager.o print_library.o thread_barrier.o schedule.o taskData.o -o synthetic_task $(LIBS)
 
 thread_barrier.o: ./barrier_module/thread_barrier.cpp
 	$(CC) $(FLAGS) -c ./barrier_module/thread_barrier.cpp
@@ -41,7 +60,7 @@ task.o: ./task_module/task.cpp
 	$(CC) $(FLAGS) -c ./task_module/task.cpp
 
 task_manager.o: ./scheduler_module/schedule.cpp ./scheduler_module/schedule.cpp ./shared_memory_module/shared_mem.cpp ./main_binaries/task_manager.cpp
-	$(CC) $(FLAGS) -fopenmp -c ./main_binaries/task_manager.cpp
+	$(CC) $(FLAGS) $(LIBS) -c ./main_binaries/task_manager.cpp
 
 process_barrier.o: ./barrier_module/process_barrier.cpp
 	$(CC) $(FLAGS) -c ./barrier_module/process_barrier.cpp

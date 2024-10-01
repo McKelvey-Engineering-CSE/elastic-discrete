@@ -23,7 +23,7 @@
 int init(int argc, char *argv[])
 {
 
-	std::cout << "Initializing Arrays" << std::endl;
+	print_module::task_print(std::cout, "Initializing Arrays\n");
 
 	//give some random values
 	for (int x = 0; x < N; x++){
@@ -40,7 +40,12 @@ int init(int argc, char *argv[])
 int run(int argc, char *argv[]){
 	//*(int * ) 0 = 0;
 
-	//std::cout << "Executing Matrix Manipulations" << std::endl;
+	if (getpid() % 2 == 0)
+		modify_self(2);
+	else
+		modify_self(1);
+
+	print_module::task_print(std::cout, "Executing Matrix Manipulations\n");
 
 	#if defined(__x86_64__) || defined(_M_X64)
 		//Example Vector workload
