@@ -22,6 +22,35 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 	
 	}
 
+	//if we are compiling using NVCC on a CUDA-enabled machine, update this param
+	#ifdef __NVCC__
+
+		CUdevResource initial_resources;
+
+		//init device driver
+		CUDA_SAFE_CALL(cuInit(0));
+
+		//fill the initial descriptor
+		CUDA_SAFE_CALL(cuDeviceGetDevResource(0, &initial_resources, CU_DEV_RESOURCE_TYPE_SM));
+
+		//get the individual TPC slices
+		CUDA_SAFE_CALL(cuDevSmResourceSplitByCount(total_TPCs, &num_TPCs, &initial_resources, NULL, CU_DEV_SM_RESOURCE_SPLIT_IGNORE_SM_COSCHEDULING, 2));
+
+		NUMGPUS = num_TPCs;
+
+	#endif
+
+	//make the GPU related stuff
+	active_gpus = new int[NUMGPUS + 1];
+	passive_gpus = new int[NUMGPUS + 1];
+
+	for (int i = 0; i < MAXTASKS; i++){
+
+		transfer_GPU[i] = new bool[NUMGPUS + 1];
+		receive_GPU[i] = new bool[NUMGPUS + 1];
+
+	}
+
 	//read in all the task parameters
 	for (int i = 0; i < num_modes; i++){
 
@@ -86,38 +115,44 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 	for (int i = 0; i < MAXTASKS; i++){
 		
-		give[i] = 0;
+		//set shared to 0
+		give_CPU[i] = 0;
+		give_GPU[i] = 0;
 
+		//set CPU to 0
 		for (int j = 1; j <= NUMCPUS; j++){
 
-			transfer[i][j] = false;
-			receive[i][j] = false;
+			transfer_CPU[i][j] = false;
+			receive_CPU[i][j] = false;
 			active_cpus[i] = false;
 			passive_cpus[i] = false;
 
 		}
+
+		//set GPU to 0
+		for (int j = 1; j <= NUMGPUS; j++){
+
+			transfer_GPU[i][j] = false;
+			receive_GPU[i][j] = false;
+			active_gpus[i] = false;
+			passive_gpus[i] = false;
+
+		}
 	}
-
-	#ifdef __NVCC__
-
-		CUdevResource initial_resources;
-
-		//init device driver
-		CUDA_SAFE_CALL(cuInit(0));
-
-		//fill the initial descriptor
-		CUDA_SAFE_CALL(cuDeviceGetDevResource(0, &initial_resources, CU_DEV_RESOURCE_TYPE_SM));
-
-		//get the individual TPC slices
-		CUDA_SAFE_CALL(cuDevSmResourceSplitByCount(total_TPCs, &num_TPCs, &initial_resources, NULL, CU_DEV_SM_RESOURCE_SPLIT_IGNORE_SM_COSCHEDULING, 2));
-
-		std::cout << "Maximum TPCs available: " << num_TPCs << " TPCs.\n";
-
-	#endif
-
 }
 
-TaskData::~TaskData(){}
+TaskData::~TaskData(){
+
+	//clear the GPU related stuff
+	delete[] active_gpus;
+	delete[] passive_gpus;
+
+	for (int i = 0; i < MAXTASKS; i++){
+		delete[] transfer_GPU[i];
+		delete[] receive_GPU[i];
+	}
+
+}
 
 int TaskData::counter = 0;	        
 
@@ -139,6 +174,18 @@ void TaskData::set_CPUs_gained(int new_CPUs_gained){
 
 }
 
+int TaskData::get_GPUs_gained(){
+
+	return GPUs_gained;
+
+}
+
+void TaskData::set_GPUs_gained(int new_CPUs_gained){
+
+	GPUs_gained = new_CPUs_gained;
+
+}
+
 int TaskData::get_previous_CPUs(){
 
 	return previous_CPUs;
@@ -153,13 +200,13 @@ void TaskData::set_previous_CPUs(int new_prev){
 
 void TaskData::update_give(int index, int value){
 
-	give[index]=value;
+	give_CPU[index]=value;
 
 }
 
 int TaskData::gives(int index){
 
-	return give[index];
+	return give_CPU[index];
 
 }
 
@@ -405,25 +452,25 @@ void TaskData::reset_changeable(){
 
 bool TaskData::transfers(int task, int CPU){
 
-	return transfer[task][CPU];
+	return transfer_CPU[task][CPU];
 
 }
 	
 void TaskData::set_transfer(int task, int CPU, bool value){
 
-	transfer[task][CPU] = value;
+	transfer_CPU[task][CPU] = value;
 
 }
 
 bool TaskData::receives(int task, int CPU){
 
-	return receive[task][CPU];
+	return receive_CPU[task][CPU];
 
 }
 
 void TaskData::set_receive(int task, int CPU, bool value){
 
-	receive[task][CPU] = value;
+	receive_CPU[task][CPU] = value;
 
 }
 
@@ -475,6 +522,12 @@ timespec TaskData::get_period(int index){
 int TaskData::get_CPUs(int index){
 
 	return CPUs[index];
+
+}
+
+int TaskData::get_total_TPC_count(){
+
+	return NUMGPUS;
 
 }
 

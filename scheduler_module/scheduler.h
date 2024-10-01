@@ -47,6 +47,8 @@ class Scheduler{
 	int num_CPUs;
 	bool first_time;
 
+	size_t maxSMS = DEFAULT_MAX_SMS;
+
 	//each entry is a task with each item in the vector representing a mode
 	static std::vector<std::vector<task_mode>> task_table;
 	
@@ -64,7 +66,7 @@ public:
 
 	~Scheduler(){}
 
-	void do_schedule(size_t maxCPU = DEFAULT_MAX_CPU, size_t maxSMS = DEFAULT_MAX_SMS);
+	void do_schedule(size_t maxCPU = DEFAULT_MAX_CPU);
 
 	void setTermination();
 

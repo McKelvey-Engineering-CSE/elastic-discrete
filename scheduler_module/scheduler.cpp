@@ -29,11 +29,14 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 		item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - (taskData_object->get_work(j) / taskData_object->get_period(j)), 2)));
 		item.gpuLoss = 0;
 		item.cores = taskData_object->get_CPUs(j);
-		item.sms = 0;
+		item.sms = taskData_object->get_GPUs(j);
 
 		task_table.at(task_table.size() - 1).push_back(item);
 
 	}
+
+	//update the system TPC count
+	maxSMS = taskData_object->get_total_TPC_count();
 
 	return taskData_object;
 }
@@ -42,35 +45,49 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 std::vector<std::vector<Scheduler::task_mode>> Scheduler::task_table(100, std::vector<task_mode>(100));
 
 //Implement scheduling algorithm
-void Scheduler::do_schedule(size_t maxCPU, size_t maxSMS){
+void Scheduler::do_schedule(size_t maxCPU){
 
 	//dynamic programming table
 	int N = task_table.size();
     std::vector<std::vector<std::vector<std::pair<double, double>>>> dp(N + 1, std::vector<std::vector<std::pair<double, double>>>(maxCPU + 1, std::vector<std::pair<double, double>>(maxSMS + 1, {100000, 100000})));
     std::map<std::tuple<int,int,int>, std::vector<int>> solutions;
 
-	//First time through Make sure we have enough CPUs 
+	//First time through Make sure we have enough CPUs and GPUs
 	//in the system and determine practical max for each task.	
 	if (first_time) {
 
-		int min_required = 0;
+		int min_required_cpu = 0;
+		int min_required_gpu = 0;
 
 		//Determine minimum required processors
 		for (int i = 0; i < schedule.count(); i++){
-
-			min_required += (schedule.get_task(i))->get_min_CPUs();
+			
+			//CPU first
+			min_required_cpu += (schedule.get_task(i))->get_min_CPUs();
 			(schedule.get_task(i))->set_CPUs_gained(0);
+
+			//GPU next
+			min_required_gpu += (schedule.get_task(i))->get_min_GPUs();
+			(schedule.get_task(i))->set_GPUs_gained(0);
 
 		}
 
 		//Determine the practical maximum. This is how many are left after each task has been given its minimum.
 		for (int i = 0; i < schedule.count(); i++){
 
-			if ((NUMCPUS - min_required + (schedule.get_task(i))->get_min_CPUs()) < (schedule.get_task(i))->get_max_CPUs())
-				(schedule.get_task(i))->set_practical_max_CPUs( NUMCPUS - min_required + (schedule.get_task(i))->get_min_CPUs());
+			//CPU
+			if ((NUMCPUS - min_required_cpu + (schedule.get_task(i))->get_min_CPUs()) < (schedule.get_task(i))->get_max_CPUs())
+				(schedule.get_task(i))->set_practical_max_CPUs( NUMCPUS - min_required_cpu + (schedule.get_task(i))->get_min_CPUs());
 
 			else
 				(schedule.get_task(i))->set_practical_max_CPUs((schedule.get_task(i))->get_max_CPUs());
+
+			//GPU
+			if (((int)(maxSMS) - min_required_gpu + (schedule.get_task(i))->get_min_GPUs()) < (schedule.get_task(i))->get_max_GPUs())
+				(schedule.get_task(i))->set_practical_max_GPUs( maxSMS - min_required_gpu + (schedule.get_task(i))->get_min_GPUs());
+
+			else
+				(schedule.get_task(i))->set_practical_max_GPUs((schedule.get_task(i))->get_max_GPUs());
 
 		}
 	}
@@ -177,6 +194,31 @@ void Scheduler::do_schedule(size_t maxCPU, size_t maxSMS){
 			if (next_CPU > num_CPUs + 1){
 
 				print_module::print(std::cerr, "Error in task ", i, ": too many CPUs have been allocated.", next_CPU, " ", num_CPUs, " \n");
+				killpg(process_group, SIGKILL);
+				return;
+
+			}		
+		}
+
+		//Now assign TPC units to tasks, same method as before
+		int next_TPC = 1;
+
+		for (int i = 0; i < schedule.count(); i++){
+
+			if ((schedule.get_task(i))->get_current_lowest_GPU() > 0){
+
+				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest GPU cleared. (this likely means memory was not cleaned up)\n");
+				killpg(process_group, SIGKILL);
+				return;
+
+			}
+
+			(schedule.get_task(i))->set_current_lowest_GPU(next_TPC);
+			next_TPC += (schedule.get_task(i))->get_current_GPUs();
+
+			if (next_TPC > (int)(maxSMS) + 1){
+
+				print_module::print(std::cerr, "Error in task ", i, ": too many GPUs have been allocated.", next_TPC, " ", maxSMS, " \n");
 				killpg(process_group, SIGKILL);
 				return;
 

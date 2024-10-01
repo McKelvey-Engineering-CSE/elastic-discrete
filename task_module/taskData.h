@@ -90,6 +90,11 @@ Class : TaskData
 
 class TaskData{
 private:
+
+	//updated in constructor, left with 16 for the event this 
+	//is compiled with g++ and someone forgets to actually update the task.yaml file
+	int NUMGPUS = 16;
+
 	static int counter;
 	int index; //unique identifier
 	
@@ -150,9 +155,17 @@ private:
 	int active_cpus[NUMCPUS + 1];
 	int passive_cpus[NUMCPUS + 1];
 
-	int give[MAXTASKS];
-	bool transfer[MAXTASKS][NUMCPUS + 1];
-	bool receive[MAXTASKS][NUMCPUS + 1];
+	int give_CPU[MAXTASKS];
+	bool transfer_CPU[MAXTASKS][NUMCPUS + 1];
+	bool receive_CPU[MAXTASKS][NUMCPUS + 1];
+
+	//all are the size of NUMGPU + 1
+	int* active_gpus;
+	int* passive_gpus;
+
+	int give_GPU[MAXTASKS];
+	bool* transfer_GPU[MAXTASKS];
+	bool* receive_GPU[MAXTASKS];
 
 	//GPU SM management variables
 	#ifdef __NVCC__
@@ -257,6 +270,11 @@ public:
 	void set_current_lowest_GPU(int _lowest);
 	int get_current_lowest_GPU();
 
+	int get_total_TPC_count();
+
+	int get_GPUs_gained();
+	void set_GPUs_gained(int new_CPUs_gained);
+
 
 	//related GPU functions
 	#ifdef __NVCC__
@@ -270,7 +288,6 @@ public:
 		__uint128_t make_TPC_mask(std::vector<int> TPCs_to_add);
 
 	#endif
-
 
 };
 
