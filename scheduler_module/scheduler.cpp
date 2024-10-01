@@ -152,9 +152,9 @@ void Scheduler::do_schedule(size_t maxCPU){
 						}
 					}
 				}
-            }
-        }
-    }
+     }
+   }
+ }
 
     //return optimal solution
 	auto result = solutions[{N, maxCPU, maxSMS}];

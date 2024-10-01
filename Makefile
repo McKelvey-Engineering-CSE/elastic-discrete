@@ -4,38 +4,46 @@ NVCC := $(notdir $(NVCC))
 
 ifeq ($(NVCC), nvcc)
 
-        CC := nvcc -std=c++20 -O0 -I.
-		FLAGS = -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -Xcompiler -mavx2 -lcuda -lcudart
+    CC := nvcc -std=c++20 -O0 -I.
+		FLAGS = -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -lcuda -lcudart
 		LIBS = -Xcompiler -fopenmp
+    
+    ifneq (,$(findstring x86_64, $(shell $(CC) -dumpmachine)))
+      FLAGS := $(FLAGS) -Xcompiler -mavx2
+    endif
 
 else
 
-        CC := g++ -std=c++20 -O0 -I.
-		FLAGS = -Wall -gdwarf-3 $(HEADERS) -mavx2
+    CC := g++ -std=c++20 -O0 -I.
+		FLAGS = -Wall -gdwarf-3 $(HEADERS)
 		LIBS = -fopenmp
+    
+    ifneq (,$(findstring x86_64, $(shell $(CC) -dumpmachine)))
+      FLAGS := $(FLAGS) -mavx2
+    endif
 
 endif
 
 FLAGS += -g
-LIBS += -L. -lrt -lm -lclustering
+LIBS += -L. -lrt -lm -lclustering -L./libyaml-cpp/build/ -lyaml-cpp
 HEADERS = $(addprefix -I ,$(shell find . -type d -not -path "*/\.*"))
 CLUSTERING_OBJECTS = process_barrier.o generic_barrier.o timespec_functions.o
 ##################################################################################
 
 ##### Task Configuration #########################################################
 TARGET_TASK=james
-RTPS_FILE=./target_task/james.rtps
+RTPS_FILE=./target_task/james.yaml
 ##################################################################################
 
 ##### Rules ######################################################################
 all: clustering_distribution finish
 
 finish:
-	mkdir ./bin
+	mkdir -p ./bin
 	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./bin
 
 clean:
-	rm -r ./bin *.o *.a $(TARGET_TASK) clustering_launcher synthetic_task
+	rm -r ./bin *.o *.a $(TARGET_TASK) clustering_launcher synthetic_task libyaml-cpp/build
 
 synthetic_task: ./task_module/synthetic_task.cpp
 	$(CC) $(FLAGS) $(LIBS) ./task_module/synthetic_task.cpp shared_mem.o task.o task_manager.o print_library.o thread_barrier.o schedule.o taskData.o -o synthetic_task $(LIBS)
@@ -89,7 +97,10 @@ print_buffer.o: ./printing_module/print_buffer.cpp
 print_module.o: ./printing_module/print_module.cpp
 	$(CC) $(FLAGS) -c ./printing_module/print_module.cpp 
 
-clustering_launcher: ./main_binaries/clustering_launcher.cpp
+./libyaml-cpp/build/libyaml-cpp.a:
+	cd libyaml-cpp; mkdir build; cd build; cmake ..; make;
+
+clustering_launcher: ./main_binaries/clustering_launcher.cpp ./libyaml-cpp/build/libyaml-cpp.a
 	$(CC) $(FLAGS) taskData.o schedule.o scheduler.o shared_mem.o process_barrier.o ./main_binaries/clustering_launcher.cpp -o clustering_launcher $(LIBS)
 
 james: ./target_task/james.cpp task_manager.o

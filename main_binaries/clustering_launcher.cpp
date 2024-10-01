@@ -15,6 +15,8 @@
 #include "scheduler.h"
 #include "print_module.h"
 
+#include "libyaml-cpp/include/yaml-cpp/yaml.h"
+
 /************************************************************************************
 Globals
 *************************************************************************************/
@@ -25,7 +27,6 @@ timespec vdeadline={0,0};
 timespec zero={0,0};
 int ret_val;
 int get_val=0;
-std::string program_name;
 struct itimerspec disarming_its, virtual_dl_timer_its;
 struct sigevent sev;
 int ret;
@@ -90,15 +91,24 @@ void scheduler_task()
 	}
 }
 
-void exit_on_signal(int sig){
-	
-	//tell the shared memory that we have to terminate immediately
+void force_cleanup() {
 	scheduler->setTermination();
-	print_module::print(std::cerr, "Signal captured from child. Schedule cannot continue. Exiting.\n");
 	process_barrier::destroy_barrier(barrier_name);
 	process_barrier::destroy_barrier(barrier_name2);
 	kill(0, SIGKILL);
 	delete scheduler;
+}
+
+// User requested to exit
+void exit_user_request(int sig) {
+	force_cleanup();
+	exit(0);
+}
+
+// Child task encountered an error
+void exit_from_child(int sig){
+	print_module::print(std::cerr, "Signal captured from child. Schedule cannot continue. Exiting.\n");
+	force_cleanup();
 	exit(-1);
 }
 
@@ -129,8 +139,7 @@ void init_signal_handlers(){
 
 int get_scheduling_file(std::string name, std::ifstream &ifs){
 
-	// Determine the taskset and schedule (.rtps) filename from the program argument
-	std::string schedule_filename(name + ".rtps");
+	std::string schedule_filename(name);
 
 	//check if file is present
 	ifs.open(schedule_filename);
@@ -150,123 +159,113 @@ int get_scheduling_file(std::string name, std::ifstream &ifs){
 	return 0;
 }
 
-int read_scheduling_file(std::ifstream &ifs, 
-						bool* schedulable, 
-						unsigned* num_tasks, 
-						unsigned* sec_to_run, 
-						long* nsec_to_run, 
-						std::vector<int>* line_lengths){
+struct parsed_task_mode_info {
+	int work_sec = -1;
+	int work_nsec = -1;
+	int span_sec = -1;
+	int span_nsec = -1;
+	int period_sec = -1;
+	int period_nsec = -1;
+};
 
-	std::string line;
-	unsigned num_lines; 
-	
-	//read in the first line and check for a scheduability boolean
-	getline(ifs, line);
-	std::istringstream firstline(line);
-	line_lengths->push_back(line.length() + 1);
-	if(!(firstline >> *schedulable))
-	{
-		print_module::print(std::cerr, "ERROR: First line of .rtps file error.\n Format: <taskset schedulability>.\n");
-		return -1;
-	}
-	if(!schedulable)
-	{
-		print_module::print(std::cerr, "ERROR: Taskset deemed not schedulable by .rtps file. Exiting.\n");
-		return -1;
-	}
+struct parsed_task_info {
+	std::string program_name = "";
+	std::string program_args = "";
+	int elasticity = 1;
+	int max_iterations = -1;
+	// Default priority carried over from the original scheduler code - no particular reason for this otherwise
+	int sched_priority = 7;
+	std::vector<struct parsed_task_mode_info> modes;
+};
 
-	//read in second line and check for the task run allowance parameters
-	getline(ifs, line);
-	std::istringstream secondline(line);
-	line_lengths->push_back(line.length() + 1);
-	if(!((secondline >> *num_tasks) && (secondline >> *sec_to_run) && (secondline >> *nsec_to_run)))
-	{
-		print_module::print(std::cerr, "ERROR: Second line of .rtps file error.\n Format: <number of tasks> <s to run> <ns to run>.\n");
-		return -1;
-	}
-
-	//Count the number of tasks present in file (skipping empty lines)
-	for(num_lines = 0; std::getline(ifs,line); num_lines += (!line.empty()));
-
-	if (!(num_lines == 2*(*num_tasks)) && ifs.peek() == EOF){
-		print_module::print(std::cerr, "ERROR: Found ", num_lines/2 , " tasks and expected " , *num_tasks , ".\n");
-		return -1;
-	}
-
-	return 0;
+bool yaml_is_time(YAML::Node node) {
+	return node && node["sec"] && node["nsec"];
 }
 
-int parse_task_timing_parameters(std::string task_timing_line, 
-								std::vector<std::string>* task_manager_argvector, 
-								std::vector<timespec>* work, 
-								std::vector<timespec>* span, 
-								std::vector<timespec>* period, 
-								std::vector<timespec>* gpu_work, 
-								std::vector<timespec>* gpu_span, 
-								std::vector<timespec>* gpu_period, 
-								int t, std::string program_name){
-	int num_modes;
-	time_t work_sec;
-	long work_nsec;
-	time_t span_sec; 
-	long span_nsec; 
-	time_t period_sec;
-	long period_nsec;
-	double elasticity;
+int read_scheduling_yaml_file(std::ifstream &ifs, 
+						int* schedulable, 
+						std::vector<parsed_task_info>* parsed_tasks, 
+						unsigned* sec_to_run, 
+						long* nsec_to_run){
+	std::stringstream buffer;
+	buffer << ifs.rdbuf();
+	std::string contents = buffer.str();
+
+	YAML::Node config = YAML::Load(contents);
 	
-	std::istringstream task_timing_stream(task_timing_line);
-
-	//Read in elasticity coefficient and number of modes.
-	if((task_timing_stream >> elasticity) && (task_timing_stream >> num_modes))
-	{
-		//Make sure we have at least 1 mode.
-		if(num_modes <= 0)
-		{
-			print_module::print(std::cerr, "ERROR: Task " , t , " timing data. At least 1 mode of operation is required. Found " , num_modes , ".\n");
-			kill(0, SIGTERM);
-			return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
-		}
+	if (!config["schedulable"]) {
+		return -1;
 	}
-	else
-	{
-		print_module::print(std::cerr, "ERROR: Task ", t ," timing data. Mal-formed elasticity value and/or number of modes.\n");
-		kill(0, SIGTERM);
-		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
+	if (config["schedulable"].as<bool>()) {
+		*schedulable = 1;
+	} else {
+		*schedulable = 0;
 	}
 
-	//Read in Work, Span, and Periods for each mode.
-	for(int i=0; i<num_modes; i++)
-	{
-		if((task_timing_stream >> work_sec) && (task_timing_stream >> work_nsec) && (task_timing_stream >> span_sec) && (task_timing_stream >> span_nsec) && 
-				(task_timing_stream >> period_sec) && (task_timing_stream >> period_nsec))	
-		{
-			//Put work, span, period values on vector
-			work->push_back({work_sec, work_nsec});
-			span->push_back({span_sec, span_nsec});
-			period->push_back({period_sec, period_nsec});
-
-			//FIXME: PUSH THE CPU PARAMS ONTO THE GPU STACK FOR NOW
-			gpu_work->push_back({work_sec, work_nsec});
-			gpu_span->push_back({span_sec, span_nsec});
-			gpu_period->push_back({period_sec, period_nsec});
-
-			//print the values
-			print_module::print(std::cout, "CPU: ", work->back() , " " , span->back() , " " , period->back() , "\n");
-			print_module::print(std::cout, "GPU: ", gpu_work->back() , " " , gpu_span->back() , " " , gpu_period->back() , "\n");
-		}
-		else
-		{
-			print_module::print(std::cerr, "ERROR: Task " , t , " timing data. Mal-formed work, span, or period in mode " , i, ".\n");
-		}
+	if (yaml_is_time(config["maxRuntime"])) {
+		*sec_to_run = config["maxRuntime"]["sec"].as<unsigned int>();
+		*nsec_to_run = config["maxRuntime"]["nsec"].as<unsigned int>();
+	} else {
+		*sec_to_run = 0;
+		*nsec_to_run = 0;
 	}
 
-	//why are we making a TaskData object just to read this??? - Tyler
-	TaskData * td;
-	td = scheduler->add_task(elasticity, num_modes, work->data(), span->data(), period->data(), gpu_work->data(), gpu_span->data(), gpu_period->data());
-	task_manager_argvector->push_back(std::to_string(td->get_index()));
+	if (!config["tasks"]) {
+		return -3;
+	}
+	for (YAML::Node task : config["tasks"]) {
+		struct parsed_task_info task_info;
+
+		if (!task["program"] || !task["program"]["name"]) {
+			return -4;
+		}
+		
+		task_info.program_name = task["program"]["name"].as<std::string>();
+		if (task["program"]["args"]) {
+			task_info.program_args = task["program"]["args"].as<std::string>();
+		} else {
+			task_info.program_args = "";
+		}
+
+
+		if (task["elasticity"]) {
+			task_info.elasticity = task["elasticity"].as<int>();
+		}
+
+		if (task["priority"]) {
+			task_info.sched_priority = task["priority"].as<int>();
+		}
+
+
+		if (task["maxIterations"]) {
+			task_info.max_iterations = task["maxIterations"].as<int>();
+		} else if (*sec_to_run == 0) {
+			print_module::print(std::cout, "Warning: no maxRuntime set and task has no maxIterations; will run forever\n");
+		}
+
+		if (!task["modes"] || !task["modes"].IsSequence() || task["modes"].size() == 0) {
+			return -5;
+		}
+
+		for (YAML::Node mode : task["modes"]) {
+			if (!yaml_is_time(mode["work"]) || !yaml_is_time(mode["span"]) || !yaml_is_time(mode["period"])) {
+				return -6;
+			}
+			struct parsed_task_mode_info mode_info;
+			mode_info.work_sec = mode["work"]["sec"].as<int>();
+			mode_info.work_nsec = mode["work"]["nsec"].as<int>();
+			mode_info.span_sec = mode["span"]["sec"].as<int>();
+			mode_info.span_nsec = mode["span"]["nsec"].as<int>();
+			mode_info.period_sec = mode["period"]["sec"].as<int>();
+			mode_info.period_nsec = mode["period"]["nsec"].as<int>();
+			task_info.modes.push_back(mode_info);
+		}
+
+
+		parsed_tasks->push_back(task_info);
+	}
 
 	return 0;
-
 }
 
 /************************************************************************************
@@ -281,10 +280,11 @@ int main(int argc, char *argv[])
 {
 	process_group = getpgrp();
 	std::vector<std::string> args(argv, argv+argc);
-	bool schedulable;
-	unsigned num_tasks=0;
+	int schedulable;
+	std::vector<parsed_task_info> parsed_tasks;
 	unsigned sec_to_run=0;
 	long nsec_to_run=0;
+	
 	std::ifstream ifs;
 	std::string task_command_line, task_timing_line, line;
 	std::vector<int> line_lengths;
@@ -299,26 +299,29 @@ int main(int argc, char *argv[])
 	//setup signal handlers
 	init_signal_handlers();
 
-	//set custom signal handler for task hangup
-	signal(1, exit_on_signal);
+	signal(SIGINT, exit_user_request);
+	signal(SIGTERM, exit_user_request);
+	signal(1, exit_from_child);
 	
 	//open the scheduling file
+
+	if (!std::string(args[1]).ends_with(".yaml")) {
+		print_module::print(std::cerr, "ERROR: RTPS files are no longer supported. Please migrate to a YAML file.\n");
+		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
+	}
+
 	if (get_scheduling_file(args[1], ifs) != 0) return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
 
-	//read the scheduling file
-	if (read_scheduling_file(ifs, &schedulable, &num_tasks, &sec_to_run, &nsec_to_run, &line_lengths) != 0) return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
+	if (read_scheduling_yaml_file(ifs, &schedulable, &parsed_tasks, &sec_to_run, &nsec_to_run) != 0) return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 
 	//create the scheduling object
 	//(retain CPU 0 for the scheduler)
-	scheduler = new Scheduler(num_tasks,(int) std::thread::hardware_concurrency()-1);
+	scheduler = new Scheduler(parsed_tasks.size(),(int) std::thread::hardware_concurrency()-1);
 
-	//Seek back to the start of the process lines
-	ifs.clear();
-	ifs.seekg(line_lengths[0] + line_lengths[1], std::ios::beg);
-	
 	//Initialize two barriers to synchronize the tasks after creation
-	if (process_barrier::create_process_barrier(barrier_name, num_tasks + 1) == nullptr || 
-		process_barrier::create_process_barrier(barrier_name2, num_tasks + 1) == nullptr)
+
+	if (process_barrier::create_process_barrier(barrier_name, parsed_tasks.size() + 1) == nullptr || 
+		process_barrier::create_process_barrier(barrier_name2, parsed_tasks.size() + 1) == nullptr)
 	{
 		print_module::print(std::cerr, "ERROR: Failed to initialize barrier.\n");
 		return RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR;
@@ -335,115 +338,92 @@ int main(int argc, char *argv[])
 
 	// Iterate over the tasks, gather their arguments, timing parameters, and name 
 	// and then fork and execv each one
-	for (unsigned t = 1; t <= num_tasks; ++t)
-	{		
-		if (std::getline(ifs, task_command_line))
-		{
-			std::istringstream task_command_stream(task_command_line);
-			
-			/****************************************************************************
-			Add arguments to this vector of strings. This vector will be transformed into
-			a vector of char * before the call to execv by calling c_str() on each string,
-			but storing the strings in a vector is necessary to ensure that the arguments
-			have different memory addresses. If the char * vector is created directly, by
-			reading the arguments into a string and and adding the c_str() to a vector, 
-			then each new argument could overwrite the previous argument since they might
-			be using the same memory address. Using a vector of strings ensures that each
-			argument is copied to its own memory before the next argument is read.
-			- James (sometime in October probably)
+	for (unsigned t = 0; t < parsed_tasks.size(); ++t)
+	{
+		struct parsed_task_info task_info = parsed_tasks[t];
 
-			Do we still need this?
-			- Tyler
-			*****************************************************************************/
-			std::vector<std::string> task_manager_argvector;
-			
-			// Add the task program name to the argument vector with number of modes as well as start and finish times
-			if (task_command_stream >> program_name)
-			{
-				task_manager_argvector.push_back(program_name);
-				task_manager_argvector.push_back(std::to_string(start_time.tv_sec).c_str());
-				task_manager_argvector.push_back(std::to_string(start_time.tv_nsec).c_str());
-				task_manager_argvector.push_back(std::to_string(end_time.tv_sec).c_str());
-				task_manager_argvector.push_back(std::to_string(end_time.tv_nsec).c_str());	
-			}
-			else
-			{
-				print_module::print(std::cerr, "ERROR: Program name not provided for task.\n");
-				kill(0, SIGTERM);
-				return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
-			}
+		/****************************************************************************
+		Construct the task arguments. Note that we use std::string and not char*, as
+		character pointers would go out of scope and be overwritten before the vector
+		is used.
+		*****************************************************************************/
+		std::vector<std::string> task_manager_argvector;
 
-			//vectors to maintain the task running parameters
-			std::vector <timespec> work;
-			std::vector <timespec> span;
-			std::vector <timespec> period;
-			std::vector <timespec> gpu_work;
-			std::vector <timespec> gpu_span;
-			std::vector <timespec> gpu_period;
-			
-			//parse the input file to obtain the task arguments
-			if (std::getline(ifs, task_timing_line))
-			{       
-				if (parse_task_timing_parameters(task_timing_line, &task_manager_argvector, &work, &span, &period, &gpu_work, &gpu_span, &gpu_period, t, program_name) != 0)
-					return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
-			}
-			else	
-			{
-				print_module::print(std::cerr, "ERROR: Too few timing parameters were provided for task " , program_name.c_str() , ".\n");
-				kill(0, SIGTERM);
-				return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
-			}
-			
-			// Add the barrier name to the argument vector
-			task_manager_argvector.push_back(barrier_name);
-			
-			// Add the task arguments to the argument vector
-			task_manager_argvector.push_back(program_name);
-			
-			std::string task_arg;
-			while (task_command_stream >> task_arg)
-			{
-				task_manager_argvector.push_back(task_arg);
-			}
+		// Add the task program name to the argument vector with number of modes as well as start and finish times
+		task_manager_argvector.push_back(task_info.program_name);
+		task_manager_argvector.push_back(std::to_string(start_time.tv_sec));
+		task_manager_argvector.push_back(std::to_string(start_time.tv_nsec));
 
-			// Create a vector of char * arguments from the vector of string arguments
-			std::vector<const char *> task_manager_argv;
-			for (std::vector<std::string>::iterator i = task_manager_argvector.begin(); i != task_manager_argvector.end(); ++i)
-			{
-				task_manager_argv.push_back(i->c_str());
-			}
-			
-			//Null terminate the task manager arg vector as a sentinel
-			task_manager_argv.push_back(NULL);	
-			print_module::print(std::cerr, "Forking and execv-ing task " , program_name.c_str() , "\n");
-			
-			// Fork and execv the task program
-			pid_t pid = fork();
-			if (pid == 0)
-			{
-				// Const cast is necessary for type compatibility. Since the strings are
-				// not shared, there is no danger in removing the const modifier.
-				execv(program_name.c_str(), const_cast<char **>(&task_manager_argv[0]));
-				
-				// Error if execv returns
-				std::perror("Execv-ing a new task failed.\n");
-				kill(0, SIGTERM);
-				return RT_GOMP_CLUSTERING_LAUNCHER_FORK_EXECV_ERROR;
-			
-			}
-			else if (pid == -1)
-			{
-				std::perror("Forking a new process for task failed,\n");
-				kill(0, SIGTERM);
-				return RT_GOMP_CLUSTERING_LAUNCHER_FORK_EXECV_ERROR;
-			}	
+		task_manager_argvector.push_back(std::to_string(task_info.max_iterations));
+
+		if (sec_to_run == 0 && nsec_to_run == 0) {
+			task_manager_argvector.push_back(std::to_string(0));
+			task_manager_argvector.push_back(std::to_string(0));	
+		} else {
+			task_manager_argvector.push_back(std::to_string(end_time.tv_sec));
+			task_manager_argvector.push_back(std::to_string(end_time.tv_nsec));	
 		}
-		else
+
+		task_manager_argvector.push_back(std::to_string(task_info.sched_priority));
+
+		//convert the timing parameters into the desired format
+
+		std::vector <timespec> work;
+		std::vector <timespec> span;
+		std::vector <timespec> period;
+
+		for (struct parsed_task_mode_info info : task_info.modes) {
+			work.push_back({info.work_sec, info.work_nsec});
+			span.push_back({info.span_sec, info.span_nsec});
+			period.push_back({info.period_sec, info.period_nsec});
+		}
+
+		//Insert the task data into shared memory
+		TaskData * td;
+    
+    //FIXME: GPU INFO JUST USES THE CPU PORTION OF THE INFO. REPLACE WITH REAL INFORMATION
+		td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), work.data(), span.data(), period.data());
+		task_manager_argvector.push_back(std::to_string(td->get_index()));
+		
+		// Add the barrier name to the argument vector
+		task_manager_argvector.push_back(barrier_name);
+		
+		// Add the task arguments to the argument vector
+		task_manager_argvector.push_back(task_info.program_name);
+
+		task_manager_argvector.push_back(task_info.program_args);
+
+		// Create a vector of char * arguments from the vector of string arguments
+		std::vector<const char *> task_manager_argv;
+		for (std::vector<std::string>::iterator i = task_manager_argvector.begin(); i != task_manager_argvector.end(); ++i)
 		{
-			print_module::print(std::cerr, "ERROR: Please include at least one task.\n");
+			task_manager_argv.push_back(i->c_str());
+		}
+		
+		//Null terminate the task manager arg vector as a sentinel
+		task_manager_argv.push_back(NULL);	
+		print_module::print(std::cerr, "Forking and execv-ing task " , task_info.program_name.c_str() , "\n");
+		
+		// Fork and execv the task program
+		pid_t pid = fork();
+		if (pid == 0)
+		{
+			// Const cast is necessary for type compatibility. Since the strings are
+			// not shared, there is no danger in removing the const modifier.
+			execv(task_info.program_name.c_str(), const_cast<char **>(&task_manager_argv[0]));
+			
+			// Error if execv returns
+			std::perror("Execv-ing a new task failed.\n");
 			kill(0, SIGTERM);
-			return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
+			return RT_GOMP_CLUSTERING_LAUNCHER_FORK_EXECV_ERROR;
+		
 		}
+		else if (pid == -1)
+		{
+			std::perror("Forking a new process for task failed,\n");
+			kill(0, SIGTERM);
+			return RT_GOMP_CLUSTERING_LAUNCHER_FORK_EXECV_ERROR;
+		}	
 	}
 
 	//tell scheduler to calculate schedule for tasks

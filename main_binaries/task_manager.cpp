@@ -65,6 +65,9 @@ const unsigned FINALIZE_PRIORITY = 1;
 //The priority that we use when sleeping.
 const unsigned SLEEP_PRIORITY = 97;
 
+//The priority that we use during normal execution (configurable by user)
+unsigned EXEC_PRIORITY = 7;
+
 //These variables are declared extern in task.h, but need to be
 //visible in both places
 int futex_val;
@@ -185,7 +188,7 @@ void reschedule(){
 					print_module::print(std::cerr, "ERROR: could not set sleep priority when making thread passive.\n");
 				
 			}
-			
+
 			//if another task has given up a CPU for us to receive and mark active
 			else if (schedule.get_task(task_index)->receives(selected_task, cpu_under_consideration)){
 
@@ -201,8 +204,9 @@ void reschedule(){
 					active_threads[omp_thread_index[thread_at_cpu[cpu_under_consideration]]] = true;
 
 					//set thread priority to active
-					global_param.sched_priority = 7;
+					global_param.sched_priority = EXEC_PRIORITY;
 					ret_val = pthread_setschedparam(thread_at_cpu[cpu_under_consideration], SCHED_RR, &global_param);
+
 					
 				}
 
@@ -267,6 +271,14 @@ void reschedule(){
 
 }
 
+bool execution_condition(timespec current_time, timespec end_time, int iterations, int current_iterations)
+{
+	if (end_time.tv_sec != 0 && end_time.tv_nsec != 0 && current_time >= end_time) {
+		return false;
+	}
+	return current_iterations != iterations;
+};
+
 int main(int argc, char *argv[])
 {
 	fflush(stdout);
@@ -324,24 +336,28 @@ int main(int argc, char *argv[])
 	// Process command line arguments	
 	const char *task_name = argv[0];
 
-	if (!((std::istringstream(argv[1]) >> start_sec) &&
+	int iterations = 0;
+	
+	if(!((std::istringstream(argv[1]) >> start_sec) &&
 		(std::istringstream(argv[2]) >> start_nsec) &&
-		(std::istringstream(argv[3]) >> end_sec) &&
-        (std::istringstream(argv[4]) >> end_nsec) &&
-		(std::istringstream(argv[5]) >> task_index))){
-
+		(std::istringstream(argv[3]) >> iterations) &&
+		(std::istringstream(argv[4]) >> end_sec) &&
+        (std::istringstream(argv[5]) >> end_nsec) &&
+		(std::istringstream(argv[6]) >> EXEC_PRIORITY) &&
+		(std::istringstream(argv[7]) >> iindex)))
+	{
 		print_module::print(std::cerr,  "ERROR: Cannot parse input argument for task " , task_name , "\n");
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_ARG_PARSE_ERROR;
 	
 	}
-
+	
 	start_time = {start_sec, start_nsec};
 	end_time = {end_sec, end_nsec};
 	
-	char *barrier_name = argv[6];
-	int task_argc = argc - 7;                                             
-	char **task_argv = &argv[7];
+	char *barrier_name = argv[8];
+	int task_argc = argc - 9;                                             
+	char **task_argv = &argv[9];
 
 	//Wait at barrier for the other tasks but mainly to make sure scheduler has finished
 	if ((ret_val = process_barrier::await_and_destroy_barrier("BAR_2")) != 0){
@@ -397,7 +413,8 @@ int main(int argc, char *argv[])
 	print_module::buffered_print(task_info, "	- Period ns: ", schedule.get_task(task_index)->get_current_period().tv_nsec , " ns\n\n");
 
 	struct sched_param param;
-	param.sched_priority = 7; //rtprio;
+
+	param.sched_priority = EXEC_PRIORITY;
 	ret_val = sched_setscheduler(getpid(), SCHED_RR, &param);
 
 	if (ret_val != 0)
@@ -453,7 +470,7 @@ int main(int argc, char *argv[])
 
 		if (active_threads[j]){
 
-			global_param.sched_priority = 7;
+			global_param.sched_priority = EXEC_PRIORITY;
 
 			schedule.get_task(task_index)->set_active_cpu(p);
 
@@ -537,9 +554,10 @@ int main(int argc, char *argv[])
 	timespec max_period_runtime = { 0, 0 };
 	uint64_t total_nsec = 0;
 
-	while(current_time < end_time){
+	while(execution_condition(current_time, end_time, iterations, num_iters)){
 
 		if (schedule.get_task(task_index))
+
 			num_iters++;
 
 		// Sleep until the start of the period

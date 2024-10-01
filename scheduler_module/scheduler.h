@@ -61,7 +61,7 @@ public:
 		for (int i = 0; i < num_tasks_; i++)
 			task_table.at(i).clear();
 		task_table.clear();
-
+    
  	}
 
 	~Scheduler(){}

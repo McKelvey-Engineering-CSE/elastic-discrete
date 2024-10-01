@@ -1,3 +1,4 @@
+<clustered operation mode? [elastic if 0]>
 <Taskset schedulable?>
 <number of tasks> <s to run> <ns to run>
 <process name> <process args (may be null)> 
