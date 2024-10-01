@@ -15,6 +15,7 @@ tasks:
       name: james
       args: "these are arguments"
     elasticity: 150
+    # priority: 50
     # maxIterations: 100
     modes:
       - work: {sec: 6, nsec: 0}

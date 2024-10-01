@@ -173,6 +173,8 @@ struct parsed_task_info {
 	std::string program_args = "";
 	int elasticity = 1;
 	int max_iterations = -1;
+	// Default priority carried over from the original scheduler code - no particular reason for this otherwise
+	int sched_priority = 7;
 	std::vector<struct parsed_task_mode_info> modes;
 };
 
@@ -228,6 +230,11 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 		if (task["elasticity"]) {
 			task_info.elasticity = task["elasticity"].as<int>();
 		}
+
+		if (task["priority"]) {
+			task_info.sched_priority = task["priority"].as<int>();
+		}
+
 		if (task["maxIterations"]) {
 			task_info.max_iterations = task["maxIterations"].as<int>();
 		} else if (*sec_to_run == 0) {
@@ -352,6 +359,8 @@ int main(int argc, char *argv[])
 			task_manager_argvector.push_back(std::to_string(end_time.tv_sec));
 			task_manager_argvector.push_back(std::to_string(end_time.tv_nsec));	
 		}
+
+		task_manager_argvector.push_back(std::to_string(task_info.sched_priority));
 
 		//convert the timing parameters into the desired format
 
