@@ -13,11 +13,11 @@ Schedule::Schedule(std::string name_) : shared_mem(name_, READ_WRITE, MAXTASKS*s
 
 Schedule::~Schedule() {}
 
-TaskData * Schedule::add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_)
+TaskData * Schedule::add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_)
 {
 	int num = ((struct overhead *) shared_mem::getOverhead())->utility;
 	((struct overhead *) shared_mem::getOverhead())->utility.store(num+1);
-	TaskData td(elasticity_, num_modes_, work_, span_, period_);
+	TaskData td(elasticity_, num_modes_, work_, span_, period_, gpu_work_, gpu_span_, gpu_period_);
 	((class TaskData *)shared_mem::getMapping())[num]=td;
 	return &((class TaskData *)shared_mem::getMapping())[num];
 

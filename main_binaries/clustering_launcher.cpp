@@ -201,6 +201,9 @@ int parse_task_timing_parameters(std::string task_timing_line,
 								std::vector<timespec>* work, 
 								std::vector<timespec>* span, 
 								std::vector<timespec>* period, 
+								std::vector<timespec>* gpu_work, 
+								std::vector<timespec>* gpu_span, 
+								std::vector<timespec>* gpu_period, 
 								int t, std::string program_name){
 	int num_modes;
 	time_t work_sec;
@@ -238,11 +241,18 @@ int parse_task_timing_parameters(std::string task_timing_line,
 				(task_timing_stream >> period_sec) && (task_timing_stream >> period_nsec))	
 		{
 			//Put work, span, period values on vector
-			work->push_back({work_sec,work_nsec});
-			span->push_back({span_sec,span_nsec});
-			period->push_back({period_sec,period_nsec});
+			work->push_back({work_sec, work_nsec});
+			span->push_back({span_sec, span_nsec});
+			period->push_back({period_sec, period_nsec});
 
-			print_module::print(std::cout, work->back() , " " , span->back() , " " , period->back() , "\n");
+			//FIXME: PUSH THE CPU PARAMS ONTO THE GPU STACK FOR NOW
+			gpu_work->push_back({work_sec, work_nsec});
+			gpu_span->push_back({span_sec, span_nsec});
+			gpu_period->push_back({period_sec, period_nsec});
+
+			//print the values
+			print_module::print(std::cout, "CPU: ", work->back() , " " , span->back() , " " , period->back() , "\n");
+			print_module::print(std::cout, "GPU: ", gpu_work->back() , " " , gpu_span->back() , " " , gpu_period->back() , "\n");
 		}
 		else
 		{
@@ -252,7 +262,7 @@ int parse_task_timing_parameters(std::string task_timing_line,
 
 	//why are we making a TaskData object just to read this??? - Tyler
 	TaskData * td;
-	td = scheduler->add_task(elasticity, num_modes, work->data(), span->data(), period->data());
+	td = scheduler->add_task(elasticity, num_modes, work->data(), span->data(), period->data(), gpu_work->data(), gpu_span->data(), gpu_period->data());
 	task_manager_argvector->push_back(std::to_string(td->get_index()));
 
 	return 0;
@@ -367,11 +377,14 @@ int main(int argc, char *argv[])
 			std::vector <timespec> work;
 			std::vector <timespec> span;
 			std::vector <timespec> period;
+			std::vector <timespec> gpu_work;
+			std::vector <timespec> gpu_span;
+			std::vector <timespec> gpu_period;
 			
 			//parse the input file to obtain the task arguments
 			if (std::getline(ifs, task_timing_line))
 			{       
-				if (parse_task_timing_parameters(task_timing_line, &task_manager_argvector, &work, &span, &period, t, program_name) != 0)
+				if (parse_task_timing_parameters(task_timing_line, &task_manager_argvector, &work, &span, &period, &gpu_work, &gpu_span, &gpu_period, t, program_name) != 0)
 					return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 			}
 			else	

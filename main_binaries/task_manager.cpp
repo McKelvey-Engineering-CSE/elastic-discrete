@@ -385,11 +385,11 @@ int main(int argc, char *argv[])
 
 	//gpu info
 	print_module::buffered_print(task_info, "GPU Metrics: \n");
-	print_module::buffered_print(task_info, "	- Lowest GPU: ", schedule.get_task(task_index)->get_current_lowest_CPU(), "\n");
-	print_module::buffered_print(task_info, "	- Current GPUs: ", schedule.get_task(task_index)->get_current_CPUs(), "\n");
-	print_module::buffered_print(task_info, "	- Minimum GPUs: ", schedule.get_task(task_index)->get_min_CPUs(), "\n");
-	print_module::buffered_print(task_info, "	- Maximum GPUs: ", schedule.get_task(task_index)->get_max_CPUs(), "\n");
-	print_module::buffered_print(task_info, "	- Practical Max: ", schedule.get_task(task_index)->get_practical_max_CPUs(), "\n\n");
+	print_module::buffered_print(task_info, "	- Lowest GPU: ", schedule.get_task(task_index)->get_current_lowest_GPU(), "\n");
+	print_module::buffered_print(task_info, "	- Current GPUs: ", schedule.get_task(task_index)->get_current_GPUs(), "\n");
+	print_module::buffered_print(task_info, "	- Minimum GPUs: ", schedule.get_task(task_index)->get_min_GPUs(), "\n");
+	print_module::buffered_print(task_info, "	- Maximum GPUs: ", schedule.get_task(task_index)->get_max_GPUs(), "\n");
+	print_module::buffered_print(task_info, "	- Practical Max: ", schedule.get_task(task_index)->get_practical_max_GPUs(), "\n\n");
 
 	//timing info
 	print_module::buffered_print(task_info, "Timing Metrics: \n");
