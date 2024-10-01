@@ -8,8 +8,8 @@ ifeq ($(NVCC), nvcc)
 		FLAGS = -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -lcuda -lcudart
 		LIBS = -Xcompiler -fopenmp
     
-    ifneq (,$(findstring x86_64, $(shell $(CC) -dumpmachine)))
-      FLAGS := $(FLAGS) -Xcompiler -mavx2
+    ifneq (,$(findstring x86_64, $(shell g++ -dumpmachine)))
+      FLAGS += -Xcompiler -mavx2
     endif
 
 else
@@ -19,7 +19,7 @@ else
 		LIBS = -fopenmp
     
     ifneq (,$(findstring x86_64, $(shell $(CC) -dumpmachine)))
-      FLAGS := $(FLAGS) -mavx2
+      FLAGS += -mavx2
     endif
 
 endif

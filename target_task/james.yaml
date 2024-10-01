@@ -5,19 +5,31 @@ tasks:
   - program:
       name: james
       args: "these are arguments"
-    elasticity: 150
+    elasticity: 3
     # maxIterations: 100
     modes:
-      - work: {sec: 5, nsec: 0}
-        span: {sec: 1, nsec: 0}
-        period: {sec: 0, nsec: 3000000}
+      - work: {sec: 12, nsec: 0}
+        span: {sec: 3, nsec: 0}
+        period: {sec: 5, nsec: 0}
+      - work: {sec: 7, nsec: 0}
+        span: {sec: 2, nsec: 0}
+        period: {sec: 5, nsec: 0}
+      - work: {sec: 9, nsec: 0}
+        span: {sec: 2, nsec: 0}
+        period: {sec: 5, nsec: 0}
   - program:
       name: james
       args: "these are arguments"
-    elasticity: 150
+    elasticity: 15
     # priority: 50
     # maxIterations: 100
     modes:
-      - work: {sec: 6, nsec: 0}
-        span: {sec: 1, nsec: 0}
-        period: {sec: 0, nsec: 3000000}
+      - work: {sec: 15, nsec: 0}
+        span: {sec: 6, nsec: 0}
+        period: {sec: 9, nsec: 0}
+      - work: {sec: 15, nsec: 0}
+        span: {sec: 6, nsec: 0}
+        period: {sec: 11, nsec: 0}
+      - work: {sec: 15, nsec: 0}
+        span: {sec: 6, nsec: 0}
+        period: {sec: 10, nsec: 0}

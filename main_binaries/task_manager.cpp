@@ -344,7 +344,7 @@ int main(int argc, char *argv[])
 		(std::istringstream(argv[4]) >> end_sec) &&
         (std::istringstream(argv[5]) >> end_nsec) &&
 		(std::istringstream(argv[6]) >> EXEC_PRIORITY) &&
-		(std::istringstream(argv[7]) >> iindex)))
+		(std::istringstream(argv[7]) >> task_index)))
 	{
 		print_module::print(std::cerr,  "ERROR: Cannot parse input argument for task " , task_name , "\n");
 		kill(0, SIGTERM);
