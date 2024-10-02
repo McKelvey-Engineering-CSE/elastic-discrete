@@ -94,13 +94,20 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 			max_work = work[i];
 
 		//GPU resources
-		if (GPU_work[i] / GPU_period[i] > max_utilization)
-			max_utilization = GPU_work[i] / GPU_period[i];
-
 		ts_diff(GPU_work[i], GPU_span[i], numerator);
 		ts_diff(GPU_period[i], GPU_span[i], denominator);
 
-		GPUs[i] = (int)ceil(numerator / denominator);
+		if (GPU_work[i] != timespec({0, 0}) &&  GPU_span[i] != timespec({0, 0}) && GPU_period[i] != timespec({0, 0})){
+
+			GPUs[i] = (int)ceil(numerator / denominator);
+
+		}
+
+		else{
+
+			GPUs[i] = 0;
+
+		}
 
 		if (GPUs[i] > max_GPUs)
 			max_GPUs = GPUs[i];

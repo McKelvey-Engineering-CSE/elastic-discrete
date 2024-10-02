@@ -160,12 +160,23 @@ int get_scheduling_file(std::string name, std::ifstream &ifs){
 }
 
 struct parsed_task_mode_info {
+
+	//CPU stuff
 	int work_sec = -1;
 	int work_nsec = -1;
 	int span_sec = -1;
 	int span_nsec = -1;
 	int period_sec = -1;
 	int period_nsec = -1;
+
+	//GPU stuff
+	int gpu_work_sec = 0;
+	int gpu_work_nsec = 0;
+	int gpu_span_sec = 0;
+	int gpu_span_nsec = 0;
+	int gpu_period_sec = 0;
+	int gpu_period_nsec = 0;
+
 };
 
 struct parsed_task_info {
@@ -258,6 +269,19 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 			mode_info.span_nsec = mode["span"]["nsec"].as<int>();
 			mode_info.period_sec = mode["period"]["sec"].as<int>();
 			mode_info.period_nsec = mode["period"]["nsec"].as<int>();
+
+			//check for GPU params
+			if (yaml_is_time(mode["gpu_work"]) && yaml_is_time(mode["gpu_span"])){
+
+				mode_info.gpu_work_sec = mode["gpu_work"]["sec"].as<int>();
+				mode_info.gpu_work_nsec = mode["gpu_work"]["nsec"].as<int>();
+				mode_info.gpu_span_sec = mode["gpu_span"]["sec"].as<int>();
+				mode_info.gpu_span_nsec = mode["gpu_span"]["nsec"].as<int>();
+				mode_info.gpu_period_sec = mode["gpu_period"]["sec"].as<int>();
+				mode_info.gpu_period_nsec = mode["gpu_period"]["nsec"].as<int>();
+
+			}
+
 			task_info.modes.push_back(mode_info);
 		}
 
@@ -371,18 +395,24 @@ int main(int argc, char *argv[])
 		std::vector <timespec> work;
 		std::vector <timespec> span;
 		std::vector <timespec> period;
+		std::vector <timespec> gpu_span;
+		std::vector <timespec> gpu_work;
+		std::vector <timespec> gpu_period;
 
 		for (struct parsed_task_mode_info info : task_info.modes) {
 			work.push_back({info.work_sec, info.work_nsec});
 			span.push_back({info.span_sec, info.span_nsec});
 			period.push_back({info.period_sec, info.period_nsec});
+			gpu_work.push_back({info.gpu_work_sec, info.gpu_work_nsec});
+			gpu_span.push_back({info.gpu_span_sec, info.gpu_span_nsec});
+			gpu_period.push_back({info.gpu_period_sec, info.gpu_period_nsec});
 		}
 
 		//Insert the task data into shared memory
 		TaskData * td;
     
     //FIXME: GPU INFO JUST USES THE CPU PORTION OF THE INFO. REPLACE WITH REAL INFORMATION
-		td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), work.data(), span.data(), period.data());
+		td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), gpu_work.data(), gpu_span.data(), gpu_period.data());
 		task_manager_argvector.push_back(std::to_string(td->get_index()));
 		
 		// Add the barrier name to the argument vector
