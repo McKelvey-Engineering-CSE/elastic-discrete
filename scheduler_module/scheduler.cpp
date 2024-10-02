@@ -32,7 +32,7 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 		item.sms = taskData_object->get_GPUs(j);
 
 		task_table.at(task_table.size() - 1).push_back(item);
-
+		
 	}
 
 	//update the system TPC count
@@ -100,7 +100,7 @@ void Scheduler::do_schedule(size_t maxCPU){
             for (size_t v = 0; v <= maxSMS; v++) {
 
                 //invalid state
-                dp[i][w][v] = {-1, -1};  
+                dp[i][w][v] = {-1.0, -1.0};  
                 
 				//if the class we are considering is not allowed to switch modes
 				//just treat it as though we did check it normally, and only allow
@@ -112,8 +112,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 						//if item fits in both sacks
 						if ((w >= item.cores) && (v >= item.sms) && (dp[i - 1][w - item.cores][v - item.sms].first != -1)) {
 
-							int newCPULoss = dp[i - 1][w - item.cores][v - item.sms].first - item.cpuLoss;
-							int newGPULoss = dp[i - 1][w - item.cores][v - item.sms].second - item.gpuLoss;
+							double newCPULoss = dp[i - 1][w - item.cores][v - item.sms].first - item.cpuLoss;
+							double newGPULoss = dp[i - 1][w - item.cores][v - item.sms].second - item.gpuLoss;
 							
 							//if found solution is better, update
 							if ((newCPULoss + newGPULoss) > (dp[i][w][v].first + dp[i][w][v].second)) {
@@ -137,8 +137,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 						//if item fits in both sacks
 						if ((w >= item.cores) && (v >= item.sms) && (dp[i - 1][w - item.cores][v - item.sms].first != -1)) {
 
-							int newCPULoss = dp[i - 1][w - item.cores][v - item.sms].first - item.cpuLoss;
-							int newGPULoss = dp[i - 1][w - item.cores][v - item.sms].second - item.gpuLoss;
+							double newCPULoss = dp[i - 1][w - item.cores][v - item.sms].first - item.cpuLoss;
+							double newGPULoss = dp[i - 1][w - item.cores][v - item.sms].second - item.gpuLoss;
 							
 							//if found solution is better, update
 							if ((newCPULoss + newGPULoss) > (dp[i][w][v].first + dp[i][w][v].second)) {
@@ -152,12 +152,21 @@ void Scheduler::do_schedule(size_t maxCPU){
 						}
 					}
 				}
-     }
-   }
- }
+     		}
+   		}
+ 	}
 
     //return optimal solution
 	auto result = solutions[{N, maxCPU, maxSMS}];
+
+	//check to see that we got a solution that renders this system schedulable
+	if (result.size() == 0){
+
+		print_module::print(std::cerr, "Error: System is not schedulable in any configuration. Exiting.\n");
+		killpg(process_group, SIGINT);
+		return;
+
+	}
 
 	//update the tasks
 	std::ostringstream mode_strings;

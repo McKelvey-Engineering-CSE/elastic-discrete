@@ -26,7 +26,8 @@ endif
 
 FLAGS += -g
 LIBS += -L. -lrt -lm -lclustering -L./libyaml-cpp/build/ -lyaml-cpp
-HEADERS = $(addprefix -I ,$(shell find . -type d -not -path "*/\.*"))
+HEADERS = $(addprefix -I ,$(shell find . -type d -not -path "*/\.*" | grep -v yaml))
+HEADERS_WITH_YAML = $(addprefix -I ,$(shell find . -type d -not -path "*/\.*"))
 CLUSTERING_OBJECTS = process_barrier.o generic_barrier.o timespec_functions.o
 ##################################################################################
 
@@ -101,7 +102,7 @@ print_module.o: ./printing_module/print_module.cpp
 	cd libyaml-cpp; mkdir build; cd build; cmake ..; make;
 
 clustering_launcher: ./main_binaries/clustering_launcher.cpp ./libyaml-cpp/build/libyaml-cpp.a
-	$(CC) $(FLAGS) taskData.o schedule.o scheduler.o shared_mem.o process_barrier.o ./main_binaries/clustering_launcher.cpp -o clustering_launcher $(LIBS)
+	$(CC) $(FLAGS) $(HEADERS_WITH_YAML) taskData.o schedule.o scheduler.o shared_mem.o process_barrier.o ./main_binaries/clustering_launcher.cpp -o clustering_launcher $(LIBS)
 
 james: ./target_task/james.cpp task_manager.o
 	$(CC) $(FLAGS) ./target_task/james.cpp shared_mem.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o thread_barrier.o -o james $(LIBS)
