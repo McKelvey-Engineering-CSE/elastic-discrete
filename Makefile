@@ -37,14 +37,22 @@ RTPS_FILE=./target_task/james.yaml
 ##################################################################################
 
 ##### Rules ######################################################################
-all: clustering_distribution finish
+.PHONY: libsmctrl
+
+all: libsmctrl clustering_distribution finish
 
 finish:
 	mkdir -p ./bin
 	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./bin
 
 clean:
-	rm -r ./bin *.o *.a $(TARGET_TASK) clustering_launcher synthetic_task libyaml-cpp/build
+
+	rm -r ./bin *.o *.a $(TARGET_TASK) clustering_launcher synthetic_task || true
+
+	if [ -e "$(shell which nvcc 2> /dev/null)" ]; then cd ./libsmctrl; make clean; rm libsmctrl.o; fi
+
+libsmctrl:
+	if [ -e "$(shell which nvcc 2> /dev/null)" ]; then cd ./libsmctrl; make libsmctrl.a; fi
 
 synthetic_task: ./task_module/synthetic_task.cpp
 	$(CC) $(FLAGS) $(LIBS) ./task_module/synthetic_task.cpp shared_mem.o task.o task_manager.o print_library.o thread_barrier.o schedule.o taskData.o -o synthetic_task $(LIBS)
@@ -72,8 +80,12 @@ timespec_functions.o: ./timespec_module/timespec_functions.cpp
 scheduler.o: ./scheduler_module/scheduler.cpp
 	$(CC) $(FLAGS) -c ./scheduler_module/scheduler.cpp
 
-taskData.o: ./task_module/taskData.cpp
+taskData_real.o: ./task_module/taskData.cpp
 	$(CC) $(FLAGS) -c ./task_module/taskData.cpp
+	mv taskData.o taskData_real.o
+
+taskData.o: taskData_real.o libsmctrl
+	if [ -e "$(shell which nvcc 2> /dev/null)" ]; then ld -relocatable taskData_real.o libsmctrl/libsmctrl.o -o taskData.o; fi
 
 schedule.o: ./scheduler_module/schedule.cpp
 	$(CC) $(FLAGS) -c ./scheduler_module/schedule.cpp

@@ -22,6 +22,20 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 	
 	}
 
+	//clear static vectors
+	CPUs_owned_by_task.clear();
+
+	for (size_t i = 0; i < cpus_granted_from_other_tasks.size(); i++)
+		cpus_granted_from_other_tasks.at(i).second.clear();
+
+	cpus_granted_from_other_tasks.clear();
+
+	for (size_t i = 0; i < gpus_granted_from_other_tasks.size(); i++)
+		gpus_granted_from_other_tasks.at(i).second.clear();
+
+	gpus_granted_from_other_tasks.clear();
+
+
 	//if we are compiling using NVCC on a CUDA-enabled machine, update this param
 	#ifdef __NVCC__
 
@@ -100,6 +114,8 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 		if (GPU_work[i] != timespec({0, 0}) &&  GPU_span[i] != timespec({0, 0}) && GPU_period[i] != timespec({0, 0})){
 
 			GPUs[i] = (int)ceil(numerator / denominator);
+
+			is_pure_cpu_task = false;
 
 		}
 
@@ -187,9 +203,9 @@ int TaskData::get_GPUs_gained(){
 
 }
 
-void TaskData::set_GPUs_gained(int new_CPUs_gained){
+void TaskData::set_GPUs_gained(int new_GPUs_gained){
 
-	GPUs_gained = new_CPUs_gained;
+	GPUs_gained = new_GPUs_gained;
 
 }
 
@@ -207,7 +223,13 @@ void TaskData::set_previous_CPUs(int new_prev){
 
 void TaskData::update_give(int index, int value){
 
-	give_CPU[index]=value;
+	give_CPU[index] = value;
+
+}
+
+void TaskData::update_gpu_give(int index, int value){
+
+	give_GPU[index] = value;
 
 }
 
@@ -275,6 +297,18 @@ int TaskData::get_GPUs(int index){
 int TaskData::get_current_GPUs(){
 
 	return current_GPUs;
+
+}
+
+int TaskData::get_previous_GPUs(){
+
+	return previous_GPUs;
+
+}
+
+void TaskData::set_previous_GPUs(int new_prev){
+
+	previous_GPUs = new_prev;
 
 }
 
@@ -426,16 +460,23 @@ void TaskData::set_current_mode(int new_mode, bool disable)
 {
 	if (new_mode >= 0 && new_mode < num_modes){
 
+		//update CPU parameters
 		current_mode = new_mode;
 		current_work = work[current_mode];
 		current_span = span[current_mode];
 		current_period = period[current_mode];
-		current_utilization = current_work/current_period;
-		percentage_workload = current_work/max_work;
+		current_utilization = current_work / current_period;
+		percentage_workload = current_work / max_work;
 		previous_CPUs = current_CPUs;
 		current_CPUs = CPUs[current_mode];
-		changeable = (disable) ? false : true;
 		
+		//update GPU parameters
+		previous_GPUs = current_GPUs;
+		current_GPUs = GPUs[current_mode];
+
+		//update the changeable flag
+		changeable = (disable) ? false : true;
+
 	}
 
 	else{
@@ -538,42 +579,45 @@ int TaskData::get_total_TPC_count(){
 
 }
 
+bool TaskData::pure_cpu_task(){
+
+	return is_pure_cpu_task;
+
+}
+
+std::vector<int> TaskData::retract_GPUs(int value){
+
+	//loop over our TPC mask and if a bit is set to 1, add it to the vector and set it to 0 in the new mask
+	std::vector<int> TPCs_to_retract;
+
+	for (int i = 0; i < 128; i++){
+
+		if (TPC_mask & (((__uint128_t)1 << i) >> 1) && value > 0){
+
+			TPCs_to_retract.push_back(i);
+			TPC_mask &= ~(((__uint128_t)1 << i) >> 1);
+			value--;
+
+		}
+	}
+
+	return TPCs_to_retract;
+
+}
+
+void TaskData::gifted_GPUs(std::vector<int> TPCs_to_grant){
+
+	//do the opposite of the function above, for each int in the TPC_to_grant vector, set the corresponding bit to 1 in the mask
+	for (unsigned int i = 0; i < TPCs_to_grant.size(); i++){
+
+		TPC_mask |= (((__uint128_t)1 << (__uint128_t)TPCs_to_grant.at(i)) >> 1);
+
+	}
+
+}
+
 //related GPU functions
 #ifdef __NVCC__
-
-	//this function will be used to create a mask of TPCs that are available to the task
-	__uint128_t TaskData::make_TPC_mask(std::vector<int> TPCs_to_add){
-
-		//create a mask
-		__uint128_t mask = 0;
-
-		//loop over each TPC in the vector and set the corresponding bit in the mask
-		for (unsigned int i = 0; i < TPCs_to_add.size(); i++)
-			mask |= (1 << TPCs_to_add[i]);
-
-		//return the mask
-		return mask;
-
-	}
-	
-	//sets a created mask to the mask for the given task
-	void TaskData::set_TPC_mask(__uint128_t TPCs_to_enable){
-
-		//keep track of which sms we have been granted
-		TPC_mask = TPCs_to_enable;
-
-		//loop over each bit in TPCs_to_enable and print each bit that is set equal to 1
-		granted_TPCs = 0;
-		for (int i = 0; i < 128; i++)
-			if (TPCs_to_enable & (1 << i))
-				granted_TPCs += 1;
-
-		//grab TPCs needed
-		for (int i = 0; i < 128; i++)
-			if (TPCs_to_enable & (1 << i))
-				our_TPCs[i] = total_TPCs[i];
-
-	}
 
 	//returns the mask for the given task
 	__uint128_t TaskData::get_TPC_mask(){
@@ -582,48 +626,212 @@ int TaskData::get_total_TPC_count(){
 
 	}
 
-	//quick function to create a SM context for the task
-	CUcontext TaskData::create_partitioned_context(std::vector<int> tpcs_to_add){
+	//quick function to create a SM stream
+	cudaStream_t TaskData::create_partitioned_stream(int TPCs){
 
-		//output mask
-		CUdevResourceDesc phDesc;
+		cudaStream_t stream;
+		cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
 
-		//context variables
-		CUgreenCtx g_Context;
-		CUcontext p_Context;
+		//if TPCs is a positive number, check that we have enough TPCs to grant 
+		//and make a new mask to apply
+		if (TPCs > 0){
 
-		//grab TPCs needed
-		CUdevResource* resources = new CUdevResource[tpcs_to_add.size()];
-		for (unsigned int i = 0; i < tpcs_to_add.size(); i++){
+			//check that we have enough TPCs to grant
+			if (TPCs > __builtin_popcount(TPC_mask)){
 
-			if (tpcs_to_add[i] > granted_TPCs){
-
-				print_module::print(std::cerr, "ERROR: Task ", get_index(), " requested TPC ", tpcs_to_add[i], " but only has ", granted_TPCs, " TPCs.\n skipping TPC request.....\n");
+				print_module::print(std::cerr, "Error: Task ", get_index(), " was told to grant ", TPCs, " TPCs, but only has ", __builtin_popcount(TPC_mask), " to grant. Ignoring.\n");
+				return stream;
 
 			}
 
-			else{
+			//make a new mask
+			__uint128_t TPC_mask_new = 0;
 
-				resources[i] = our_TPCs[tpcs_to_add[i]];
+			for (int i = 0; i < TPCs; i++){
+
+				TPC_mask_new |= (((__uint128_t)1 << (__uint128_t)i) >> 1);
 
 			}
+
+			//apply mask
+			libsmctrl_set_stream_mask(stream, TPC_mask_new);
+
+			return stream;
 
 		}
-			
-		//make mask
-		CUDA_SAFE_CALL(cuDevResourceGenerateDesc(&phDesc, resources, tpcs_to_add.size()));
 
-		//set the mask
-		CUDA_SAFE_CALL(cuGreenCtxCreate(&g_Context, phDesc, 0, CU_GREEN_CTX_DEFAULT_STREAM));
+		//apply mask
+		libsmctrl_set_stream_mask(stream, TPC_mask);
 
-		//make the context
-		CUDA_SAFE_CALL(cuCtxFromGreenCtx(&p_Context, g_Context));
+		return stream;
+	}
 
-		//free the inut resources
-		delete[] resources;
+	//quick function to update an existing stream
+	void TaskData::update_partitioned_stream(cudaStream_t& stream, int TPCs){
 
-		return p_Context;
+		//if TPCs is a positive number, check that we have enough TPCs to grant 
+		//and make a new mask to apply
+		if (TPCs > 0){
 
+			//check that we have enough TPCs to grant
+			if (TPCs > __builtin_popcount(TPC_mask)){
+
+				print_module::print(std::cerr, "Error: Task ", get_index(), " was told to grant ", TPCs, " TPCs, but only has ", __builtin_popcount(TPC_mask), " to grant. Ignoring.\n");
+				return;
+
+			}
+
+			//make a new mask
+			__uint128_t TPC_mask_new = 0;
+
+			for (int i = 0; i < TPCs; i++){
+
+				TPC_mask_new |= (((__uint128_t)1 << (__uint128_t)i) >> 1);
+
+			}
+
+			//apply mask
+			libsmctrl_set_stream_mask(stream, TPC_mask_new);
+
+			return;
+
+		}
+
+		//apply mask
+		libsmctrl_set_stream_mask(stream, TPC_mask);
+
+		return;
 	}
 
 #endif
+
+
+//reworking all the CPU and GPU handoff functions
+//NOTE: all return functions will work from the 
+//highest CPU/SM unit we have down until we run
+//out of CPUs/SMs to return
+void TaskData::set_CPUs_change(int num_cpus_to_return){
+	cpus_to_return = num_cpus_to_return;
+}
+
+void TaskData::set_GPUs_change(int num_gpus_to_return){
+	gpus_to_return = num_gpus_to_return;
+}
+
+int TaskData::get_CPUs_change(){
+	return cpus_to_return;
+}
+
+int TaskData::get_GPUs_change(){
+	return gpus_to_return;
+}
+
+//function to check if this task has transitioned
+//to a new mode yet
+bool TaskData::check_mode_transition(){
+	return mode_transitioned;
+}
+
+void TaskData::set_mode_transition(bool state){
+	mode_transitioned = state;
+}
+
+//functions to work with static vector of CPU indices
+int TaskData::pop_back_cpu(){
+
+	int index = CPUs_owned_by_task.back();
+
+	CPUs_owned_by_task.pop_back();
+
+	return index;
+
+}
+
+int TaskData::push_back_cpu(int index){
+
+	CPUs_owned_by_task.push_back(index);
+
+	return CPUs_owned_by_task.size();
+
+}
+
+int TaskData::get_cpu_at_index(int index){
+
+	return CPUs_owned_by_task.at(index);
+
+}
+
+std::vector<int> TaskData::get_cpu_owned_by_process(){
+
+	return CPUs_owned_by_task;
+
+}
+
+std::vector<int> TaskData::get_gpu_owned_by_process(){
+
+	//loop over our TPC mask and if a bit is set to 1, add it to the vector
+	std::vector<int> TPCS_owned_by_task;
+
+	for (int i = 0; i < 128; i++){
+
+		if (TPC_mask & (((__uint128_t)1 << i) >> 1)){
+
+			TPCS_owned_by_task.push_back(i);
+
+		}
+	}
+
+	return TPCS_owned_by_task;
+
+}
+
+//retrieve the number of CPUs or GPUs we have been given	
+std::vector<std::pair<int, std::vector<int>>> TaskData::get_cpus_granted_from_other_tasks(){
+
+	return cpus_granted_from_other_tasks;
+
+}
+
+std::vector<std::pair<int, std::vector<int>>> TaskData::get_gpus_granted_from_other_tasks(){
+
+	return gpus_granted_from_other_tasks;
+
+}
+
+//give CPUs or GPUs to another task
+void TaskData::set_cpus_granted_from_other_tasks(std::pair<int, std::vector<int>> entry){
+
+	cpus_granted_from_other_tasks.push_back(entry);
+
+}
+
+void TaskData::set_gpus_granted_from_other_tasks(std::pair<int, std::vector<int>> entry){
+
+	gpus_granted_from_other_tasks.push_back(entry);
+
+}	
+
+//make a function which clears these vectors like they are cleared in the constructor
+void TaskData::clear_cpus_granted_from_other_tasks(){
+
+	for (size_t i = 0; i < cpus_granted_from_other_tasks.size(); i++)
+		cpus_granted_from_other_tasks.at(i).second.clear();
+
+	cpus_granted_from_other_tasks.clear();
+
+}
+
+void TaskData::clear_gpus_granted_from_other_tasks(){
+
+	for (size_t i = 0; i < gpus_granted_from_other_tasks.size(); i++)
+		gpus_granted_from_other_tasks.at(i).second.clear();
+
+	gpus_granted_from_other_tasks.clear();
+
+}
+
+
+std::vector<int> TaskData::CPUs_owned_by_task(NUMCPUS + 1, 0);
+
+std::vector<std::pair<int, std::vector<int>>> TaskData::cpus_granted_from_other_tasks(MAXTASKS, {0, std::vector<int>(NUMCPUS + 1, 0)});
+std::vector<std::pair<int, std::vector<int>>> TaskData::gpus_granted_from_other_tasks(MAXTASKS, {0, std::vector<int>(NUMCPUS + 1, 0)});

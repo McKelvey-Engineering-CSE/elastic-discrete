@@ -28,6 +28,9 @@ Class : TaskData
 #include "include.h"
 #include "print_module.h"
 
+
+#include "libsmctrl/libsmctrl.h"
+
 //NVIDIA headers
 #ifdef __NVCC__
 	
@@ -94,6 +97,8 @@ private:
 	//updated in constructor, left with 16 for the event this 
 	//is compiled with g++ and someone forgets to actually update the task.yaml file
 	int NUMGPUS = 16;
+
+	bool is_pure_cpu_task = true;
 
 	static int counter;
 	int index; //unique identifier
@@ -167,6 +172,7 @@ private:
 	bool* transfer_GPU[MAXTASKS];
 	bool* receive_GPU[MAXTASKS];
 
+
 	//GPU SM management variables
 	#ifdef __NVCC__
 		
@@ -183,9 +189,34 @@ private:
 		int granted_TPCs = 0;
 
 		//TPC mask
-		__uint128_t TPC_mask;
+		__uint128_t TPC_mask = 0;
 
 	#endif
+
+	//I never really liked the idea of 
+	//having the CPU amount and GPU 
+	//amount in arrays but I do have a serious
+	//problem/dependency on vectors
+	static std::vector<int> CPUs_owned_by_task;
+
+	//updated variables
+	bool mode_transitioned = false;
+
+	//these variables are set by the scheduler to denote
+	//how many of our resources we are supposed to return
+	int cpus_to_return = 0;
+	int gpus_to_return = 0;
+
+	//these denote the number of tasks we are looking for
+	//when we are collecting our resources. The scheduler 
+	//will use these more than we will as tasks
+	int other_tasks_giving_cpus = 0;
+	int other_tasks_giving_gpus = 0;
+
+	//these will be overridden by the scheduler
+	//as it assigns other tasks to give us resources
+	static std::vector<std::pair<int, std::vector<int>>> cpus_granted_from_other_tasks;
+	static std::vector<std::pair<int, std::vector<int>>> gpus_granted_from_other_tasks;
 
 public:
 
@@ -273,21 +304,73 @@ public:
 	int get_total_TPC_count();
 
 	int get_GPUs_gained();
-	void set_GPUs_gained(int new_CPUs_gained);
+	void set_GPUs_gained(int new_GPUs_gained);
+
+	bool pure_cpu_task();
+
+	int get_previous_GPUs();
+	void set_previous_GPUs(int new_prev);
+
+	void update_gpu_give(int index, int value);
+
+	std::vector<int> retract_GPUs(int value);
+	void gifted_GPUs(std::vector<int> TPCs_to_grant);
 
 
 	//related GPU functions
 	#ifdef __NVCC__
 		
-		void set_TPC_mask(__uint128_t TPCs_to_enable);
-
 		__uint128_t get_TPC_mask();
 
-		CUcontext create_partitioned_context(std::vector<int> tpcs_to_add);
+		cudaStream_t create_partitioned_stream(int TPCs = -1);
 
-		__uint128_t make_TPC_mask(std::vector<int> TPCs_to_add);
+		void update_partitioned_stream(cudaStream_t& stream, int TPCs = -1);
 
 	#endif
+
+	//reworking all the CPU and GPU handoff functions
+	//NOTE: all return functions will work from the 
+	//highest CPU/SM unit we have down until we run
+	//out of CPUs/SMs to return
+	void set_CPUs_change(int num_cpus_to_return);
+
+	void set_GPUs_change(int num_gpus_to_return);
+
+	int get_CPUs_change();
+
+	int get_GPUs_change();
+
+	//function to check if this task has transitioned
+	//to a new mode yet
+	bool check_mode_transition();
+
+	void set_mode_transition(bool state);
+
+	//functions to work with static vector of CPU indices
+	int pop_back_cpu();
+
+	int push_back_cpu(int index);
+
+	int get_cpu_at_index(int index);
+
+	std::vector<int> get_cpu_owned_by_process();
+
+	std::vector<int> get_gpu_owned_by_process();
+
+	//retrieve the number of CPUs or GPUs we have been given	
+	std::vector<std::pair<int, std::vector<int>>> get_cpus_granted_from_other_tasks();
+
+	std::vector<std::pair<int, std::vector<int>>> get_gpus_granted_from_other_tasks();
+
+	//give CPUs or GPUs to another task
+	void set_cpus_granted_from_other_tasks(std::pair<int, std::vector<int>> entry);
+
+	void set_gpus_granted_from_other_tasks(std::pair<int, std::vector<int>> entry);
+
+	//make a function which clears these vectors like they are cleared in the constructor
+	void clear_cpus_granted_from_other_tasks();
+
+	void clear_gpus_granted_from_other_tasks();
 
 };
 

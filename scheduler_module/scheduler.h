@@ -28,10 +28,19 @@ Class : shared_mem
 #include <unistd.h>
 #include "include.h"
 
+//NVIDIA headers
+#ifdef __NVCC__
+	
+	#include "libsmctrl.h"
+
+#endif
+
 #define DEFAULT_MAX_CPU 16
 #define DEFAULT_MAX_SMS 16
 
 class Scheduler{
+
+	enum resource_type {CORE_A, CORE_B};
 
 	//structure for internal knapsack scheduler
 	struct task_mode {
@@ -41,16 +50,52 @@ class Scheduler{
 		size_t sms;
 	};
 
+	//structure for item map cause I'm lazy
+	struct item_map {
+
+		//0 for A core
+		//1 for B core
+		int resource_type = 0;
+
+		int resource_amount = -1;
+		
+		int task_id = -1;
+	};
+
+	//structure for RAG vertices
+	struct vertex {
+
+		int core_A = 0;
+		int core_B = 0;
+
+		int task_id = -1;
+
+		std::vector<item_map> children;
+	};
+
 	pid_t process_group;
 	class Schedule schedule;
 	size_t num_tasks;
 	int num_CPUs;
 	bool first_time;
 
+	uint32_t GPC_size;
+	uint64_t* TPC_to_GPC_masks;
+
+	size_t bound_GPU_device = 0;
+
 	size_t maxSMS = DEFAULT_MAX_SMS;
+
+	bool barrier = true;
 
 	//each entry is a task with each item in the vector representing a mode
 	static std::vector<std::vector<task_mode>> task_table;
+
+	//each entry is a task mode that the corresponding task was last running in
+	static std::vector<Scheduler::task_mode> previous_modes;
+
+	//each entry corresponds to a task that dictates how it will be processed in the knapsack algorithm
+	static std::vector<int> class_mappings;
 	
 public:
 
@@ -61,12 +106,22 @@ public:
 		for (int i = 0; i < num_tasks_; i++)
 			task_table.at(i).clear();
 		task_table.clear();
-    
+
+		//Fetch GPC information if we are compiling ith nvcc
+		#ifdef __NVCC__
+
+			libsmctrl_get_gpc_info(&GPC_size, &TPC_to_GPC_masks, bound_GPU_device);
+
+		#endif
  	}
 
 	~Scheduler(){}
 
 	void do_schedule(size_t maxCPU = DEFAULT_MAX_CPU);
+
+	std::vector<int> sort_classes(std::vector<int> items_in_candidate);
+
+	bool check_RAG_for_safety(std::vector<int> current_solution, std::vector<std::vector<vertex>>& final_RAG);
 
 	void setTermination();
 

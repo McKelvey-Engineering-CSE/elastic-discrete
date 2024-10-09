@@ -133,6 +133,10 @@ std::map<int, pthread_t> thread_at_cpu;
 //tells OMP number of thread
 std::map<pthread_t, int> omp_thread_index;
 
+//vector representing pool of threads associated with
+//this task that are sleeping on cores we gave up
+std::vector<pthread_t> thread_handles;
+
 void sigrt0_handler(int signum){}
 
 void reschedule();
@@ -155,6 +159,41 @@ void allow_change(){
 
 }
 
+//function of pure vanity courtesy of claude
+std::string convertToRanges(const std::string& input) {
+    std::vector<int> numbers;
+    std::istringstream iss(input);
+    std::string token;
+    
+    // Parse input string into vector of integers
+    while (std::getline(iss, token, ',')) {
+        numbers.push_back(std::stoi(token));
+    }
+    
+    if (numbers.empty()) return "";
+
+    std::ostringstream result;
+    int start = numbers[0], prev = numbers[0];
+    
+    for (size_t i = 1; i <= numbers.size(); ++i) {
+        if (i == numbers.size() || numbers[i] != prev + 1) {
+            if (start == prev) {
+                result << start;
+            } else {
+                result << start << "-" << prev;
+            }
+            
+            if (i < numbers.size()) {
+                result << ", ";
+                start = numbers[i];
+            }
+        }
+        if (i < numbers.size()) prev = numbers[i];
+    }
+    
+    return result.str();
+}
+
 //function to either pass off resources or take them from other tasks
 void reschedule(){
 
@@ -165,7 +204,80 @@ void reschedule(){
 	deadline = current_period;
 	percentile = schedule.get_task(task_index)->get_percentage_workload();
 
-	for (int selected_task = 0; selected_task < schedule.count(); selected_task++){
+	//we check to see if we are just returning resources, returning and gaining, or just gaining
+	int cpu_change = schedule.get_task(task_index)->get_CPUs_change();
+	int gpu_change = schedule.get_task(task_index)->get_GPUs_change();
+	
+	//giving cpus
+	if (cpu_change < 0){
+
+		//give up resources immediately and mark our transition
+		for (int i = 0; i < cpu_change * -1; i++){
+			
+			//remove CPUs from our set until we have given up the correct number
+			int CPU_index = schedule.get_task(task_index)->pop_back_cpu();
+
+			//set the thread to sleep
+			global_param.sched_priority = SLEEP_PRIORITY;
+			ret_val = pthread_setschedparam(thread_handles[CPU_index], SCHED_RR, &global_param);
+
+		}
+
+	}
+
+	//gaining cpus
+	if (cpu_change > 0){
+
+		//collect our CPUs
+		auto cpus = schedule.get_task(task_index)->get_cpus_granted_from_other_tasks();
+		std::vector<int> core_indices;
+
+		for (size_t i = 0; i < cpus.size(); i++)
+			for (size_t j = 0; j < cpus.at(i).second.size(); j++)
+				core_indices.push_back(cpus.at(i).second.at(j));
+		
+		//wake up the corresponding cores
+		for (size_t i = 0; i < core_indices.size(); i++){
+
+			global_param.sched_priority = EXEC_PRIORITY;
+			ret_val = pthread_setschedparam(thread_handles[core_indices.at(i)], SCHED_RR, &global_param);
+
+		}
+		
+	}
+
+	//giving gpus
+	if (gpu_change < 0){
+
+		//do the same for GPUs, except we only have to rebuild our mask
+		schedule.get_task(task_index)->retract_GPUs(gpu_change * -1);
+
+	}
+
+	//gaining gpus
+	if (gpu_change > 0){
+
+		//collect our GPUs
+		auto gpus = schedule.get_task(task_index)->get_gpus_granted_from_other_tasks();
+		std::vector<int> tpc_indices;
+
+		for (size_t i = 0; i < gpus.size(); i++)
+			for (size_t j = 0; j < gpus.at(i).second.size(); j++)
+				tpc_indices.push_back(gpus.at(i).second.at(j));
+		
+		//update our mask
+		schedule.get_task(task_index)->gifted_GPUs(tpc_indices);
+
+	}
+
+	//mark that we transitioned
+	schedule.get_task(task_index)->set_mode_transition(true);
+
+	//clear our allocation amounts
+	schedule.get_task(task_index)->clear_cpus_granted_from_other_tasks();
+	schedule.get_task(task_index)->clear_gpus_granted_from_other_tasks();
+
+	/*for (int selected_task = 0; selected_task < schedule.count(); selected_task++){
 
 		for (int cpu_under_consideration = 1; cpu_under_consideration <= NUMCPUS; cpu_under_consideration++){
 
@@ -249,7 +361,7 @@ void reschedule(){
 							schedule.get_task(task_index)->set_active_cpu(cpu_under_consideration); 
 
 							//set the thread to active
-							global_param.sched_priority = 7;
+							global_param.sched_priority = EXEC_PRIORITY;
 							ret_val = pthread_setschedparam(thread_at_cpu[cpu_under_consideration], SCHED_RR, &global_param);	
 
 							//update our CPU mask
@@ -265,7 +377,7 @@ void reschedule(){
 				}
 			}	
 		}
-	}		
+	}*/		
 
 	bar.mc_bar_reinit(schedule.get_task(task_index)->get_current_CPUs());		
 
@@ -368,17 +480,17 @@ int main(int argc, char *argv[])
 
 	}
 
-	// Set up everything to begin as scheduled.
+	//Collect our first schedule and set it ups
 	current_work = schedule.get_task(task_index)->get_current_work();
 	current_period = schedule.get_task(task_index)->get_current_period();
 	deadline = current_period;
 	percentile = schedule.get_task(task_index)->get_percentage_workload();
 
-	CPU_ZERO(&current_cpu_mask);
+	/*CPU_ZERO(&current_cpu_mask);
 	
 	//add each cpu from our min up to our cpu mask
 	for (int i = 0; i < schedule.get_task(task_index)->get_current_CPUs(); i++ )
-		CPU_SET(schedule.get_task(task_index)->get_current_lowest_CPU() + i, &current_cpu_mask);
+		CPU_SET(schedule.get_task(task_index)->get_current_lowest_CPU() + i, &current_cpu_mask);*/
 	
 	std::lock_guard<std::mutex> lk(con_mut);
 
@@ -426,9 +538,9 @@ int main(int argc, char *argv[])
 	omp_set_schedule(omp_sched_dynamic, 1);	
 
 	practical_max_cpus = schedule.get_task(task_index)->get_practical_max_CPUs();
-	omp_set_num_threads(practical_max_cpus);
+	omp_set_num_threads(NUMCPUS);
 
-	for (int t = 1; t <= NUMCPUS; t++){
+	/*for (int t = 1; t <= NUMCPUS; t++){
 
 		schedule.get_task(task_index)->clr_active_cpu(t);
 		schedule.get_task(task_index)->clr_passive_cpu(t);
@@ -437,16 +549,15 @@ int main(int argc, char *argv[])
 
 	for (unsigned int j = 0; j < std::thread::hardware_concurrency(); j++)
 		active_threads[j] = false;
+	*/
  
-	//pretty sure this is a war crime
-	//(translation for those reading this later... each thread as specified by OMP 
-	//gets activated right here and stores it's pthread handle into the "leftmost" 
-	//portion of the double map association structure)
-	threads.reserve(NUMCPUS);
+	//this used to only start up practical_max_cpus threads, 
+	//but now we start up to the number of CPUs we may have
+	thread_handles.reserve(NUMCPUS);
 	#pragma omp parallel
 	{
 
-		threads[omp_get_thread_num()] = pthread_self();
+		thread_handles[omp_get_thread_num()] = pthread_self();
 		omp_thread_index[pthread_self()] = omp_get_thread_num();
 
 	}
@@ -456,7 +567,7 @@ int main(int argc, char *argv[])
 	std::string passive_cpu_string = "  ";
 
 	//for CPUs that we MAY have at some point (practical max)
-	for (int j = 0; j < practical_max_cpus; j++){
+	for (int j = 0; j < NUMCPUS; j++){
 
 		//Mark all cpus from our minimum to our minimum + the number of CPUs we are using as active
 		active_threads[j] = (j < schedule.get_task(task_index)->get_current_CPUs());
@@ -468,11 +579,9 @@ int main(int argc, char *argv[])
 		if (j == 0)
 			schedule.get_task(task_index)->set_permanent_CPU(p);
 
-		if (active_threads[j]){
+		if (j < schedule.get_task(task_index)->get_current_CPUs()){
 
 			global_param.sched_priority = EXEC_PRIORITY;
-
-			schedule.get_task(task_index)->set_active_cpu(p);
 
 			active_cpu_string += std::to_string(p) + ", ";
 
@@ -481,8 +590,6 @@ int main(int argc, char *argv[])
 		else {
 
 			global_param.sched_priority = SLEEP_PRIORITY;
-
-			schedule.get_task(task_index)->set_passive_cpu(p);
 
 			passive_cpu_string += std::to_string(p) + ", ";
 
@@ -501,8 +608,8 @@ int main(int argc, char *argv[])
 
 	//print active vs passive CPUs
 	print_module::buffered_print(task_info, "CPU Core Configuration: \n");
-	print_module::buffered_print(task_info, "	- Active:", active_cpu_string.substr(0, active_cpu_string.size() - 2), "\n");
-	print_module::buffered_print(task_info, "	- Passive:", passive_cpu_string.substr(0, active_cpu_string.size() - 2), "\n\n");
+	print_module::buffered_print(task_info, "	- Active:", convertToRanges(active_cpu_string.substr(0, active_cpu_string.size() - 2)), "\n");
+	print_module::buffered_print(task_info, "	- Passive:", convertToRanges(passive_cpu_string.substr(0, active_cpu_string.size() - 2)), "\n\n");
 
 	//command line params
 	print_module::buffered_print(task_info, "Command Line Parameters: \n");
@@ -618,11 +725,24 @@ int main(int argc, char *argv[])
 			bool ready = true;
 
 			//Check other tasks to see if this task can transition yet. It can if it is giving up a CPU, or is gaining a CPU that has been given up.
-			for (int other_task = 0; other_task < schedule.count(); other_task++)
+			auto cpus = schedule.get_task(task_index)->get_cpus_granted_from_other_tasks();
+			auto gpus = schedule.get_task(task_index)->get_gpus_granted_from_other_tasks();
+
+			//loop over cpus and gpus respectively and check the taskData that is int in the pair to see if 
+			//it has already transitioned and therefore the resources are available
+			for (size_t i = 0; i < cpus.size(); i++)
+				if (!schedule.get_task(cpus.at(i).first)->check_mode_transition())
+					ready = false;
+			
+			for (size_t i = 0; i < gpus.size(); i++)
+				if (!schedule.get_task(gpus.at(i).first)->check_mode_transition())
+					ready = false;
+
+			/*for (int other_task = 0; other_task < schedule.count(); other_task++)
 				for (int cpu_being_considered = 1; cpu_being_considered <= NUMCPUS; cpu_being_considered++)
 					if ((schedule.get_task(other_task)->transfers(task_index, cpu_being_considered)))
 						if ((schedule.get_task(other_task))->get_num_adaptations() <=  (schedule.get_task(task_index))->get_num_adaptations())
-							ready = false;
+							ready = false;*/
 
 			if (ready){
 
@@ -647,7 +767,7 @@ int main(int argc, char *argv[])
 			else{
 
 				//Gaining a processor that wasn't ready yet.
-				print_module::print(std::cerr,  "task ", getpid(), " can't reschedule!\n");
+				print_module::print(std::cerr,  "Task ", getpid(), " can't reschedule yet due to resources not yet being available!\n");
 			
 			}
 		}

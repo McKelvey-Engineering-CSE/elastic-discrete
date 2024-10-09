@@ -40,10 +40,10 @@ int init(int argc, char *argv[])
 int run(int argc, char *argv[]){
 	//*(int * ) 0 = 0;
 
-	if (getpid() % 2 == 0)
+	/*if (getpid() % 2 == 0)
 		modify_self(2);
 	else
-		modify_self(1);
+		modify_self(1);*/
 
 	print_module::task_print(std::cout, "Executing Matrix Manipulations\n");
 

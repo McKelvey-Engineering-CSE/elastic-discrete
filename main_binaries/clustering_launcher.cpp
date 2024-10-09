@@ -277,8 +277,20 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 				mode_info.gpu_work_nsec = mode["gpu_work"]["nsec"].as<int>();
 				mode_info.gpu_span_sec = mode["gpu_span"]["sec"].as<int>();
 				mode_info.gpu_span_nsec = mode["gpu_span"]["nsec"].as<int>();
-				mode_info.gpu_period_sec = mode["gpu_period"]["sec"].as<int>();
-				mode_info.gpu_period_nsec = mode["gpu_period"]["nsec"].as<int>();
+
+				//if an arbitrary period has been set for modifying the GPU assignemnt
+				if (yaml_is_time(mode["gpu_period"])){
+
+					mode_info.gpu_period_sec = mode["gpu_period"]["sec"].as<int>();
+					mode_info.gpu_period_nsec = mode["gpu_period"]["nsec"].as<int>();
+
+				}
+
+				else{
+
+					mode_info.gpu_period_sec = mode_info.period_sec;
+					mode_info.gpu_period_nsec = mode_info.period_nsec;
+				}
 
 			}
 
