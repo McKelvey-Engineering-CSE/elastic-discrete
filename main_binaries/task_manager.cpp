@@ -77,6 +77,8 @@ int practical_max_cpus;
 volatile int total_remain __attribute__ (( aligned (64) ));
 double percentile = 1.0;
 
+int current_threads_active = 0;
+
 //This value is used as a return value for system calls
 int ret_val;
 
@@ -135,7 +137,7 @@ std::map<pthread_t, int> omp_thread_index;
 
 //vector representing pool of threads associated with
 //this task that are sleeping on cores we gave up
-std::vector<pthread_t> thread_handles;
+std::vector<pthread_t> thread_handles(NUMCPUS, pthread_t());
 
 void sigrt0_handler(int signum){}
 
@@ -167,10 +169,20 @@ std::string convertToRanges(const std::string& input) {
     
     // Parse input string into vector of integers
     while (std::getline(iss, token, ',')) {
-        numbers.push_back(std::stoi(token));
+        // Trim leading and trailing whitespace
+        token.erase(0, token.find_first_not_of(" \t"));
+        token.erase(token.find_last_not_of(" \t") + 1);
+        
+        // Skip empty tokens (handles multiple commas)
+        if (!token.empty()) {
+            numbers.push_back(std::stoi(token));
+        }
     }
     
     if (numbers.empty()) return "";
+
+    // Sort the numbers in ascending order
+    std::sort(numbers.begin(), numbers.end());
 
     std::ostringstream result;
     int start = numbers[0], prev = numbers[0];
@@ -184,7 +196,7 @@ std::string convertToRanges(const std::string& input) {
             }
             
             if (i < numbers.size()) {
-                result << ", ";
+                result << ",";
                 start = numbers[i];
             }
         }
@@ -239,8 +251,17 @@ void reschedule(){
 		//wake up the corresponding cores
 		for (size_t i = 0; i < core_indices.size(); i++){
 
+			//determine which threads are coming back to life
+			int previous_CPUs = schedule.get_task(task_index)->get_previous_CPUs();
+
 			global_param.sched_priority = EXEC_PRIORITY;
-			ret_val = pthread_setschedparam(thread_handles[core_indices.at(i)], SCHED_RR, &global_param);
+			ret_val = pthread_setschedparam(thread_handles.at((previous_CPUs - 1) + i), SCHED_RR, &global_param);
+
+			//FIXME: REPINNING THE THREADS IS NOT A GOOD SOLUTION
+			CPU_ZERO(&global_cpuset);
+			CPU_SET(core_indices.at(i), &global_cpuset);
+
+			pthread_setaffinity_np(thread_handles.at((previous_CPUs - 1) + i), sizeof(cpu_set_t), &global_cpuset);
 
 		}
 		
@@ -378,6 +399,9 @@ void reschedule(){
 			}	
 		}
 	}*/		
+
+	//update thread count
+	omp_set_num_threads(schedule.get_task(task_index)->get_current_CPUs());
 
 	bar.mc_bar_reinit(schedule.get_task(task_index)->get_current_CPUs());		
 
@@ -539,21 +563,9 @@ int main(int argc, char *argv[])
 
 	practical_max_cpus = schedule.get_task(task_index)->get_practical_max_CPUs();
 	omp_set_num_threads(NUMCPUS);
-
-	/*for (int t = 1; t <= NUMCPUS; t++){
-
-		schedule.get_task(task_index)->clr_active_cpu(t);
-		schedule.get_task(task_index)->clr_passive_cpu(t);
-	
-	}
-
-	for (unsigned int j = 0; j < std::thread::hardware_concurrency(); j++)
-		active_threads[j] = false;
-	*/
  
 	//this used to only start up practical_max_cpus threads, 
 	//but now we start up to the number of CPUs we may have
-	thread_handles.reserve(NUMCPUS);
 	#pragma omp parallel
 	{
 
@@ -563,14 +575,11 @@ int main(int argc, char *argv[])
 	}
 
 	//Determine which threads are active and passive. Pin, etc.
-	std::string active_cpu_string = "  ";
-	std::string passive_cpu_string = "  ";
+	std::string active_cpu_string = "";
+	std::string passive_cpu_string = "";
 
 	//for CPUs that we MAY have at some point (practical max)
-	for (int j = 0; j < NUMCPUS; j++){
-
-		//Mark all cpus from our minimum to our minimum + the number of CPUs we are using as active
-		active_threads[j] = (j < schedule.get_task(task_index)->get_current_CPUs());
+	for (int j = 0; j < schedule.get_task(task_index)->get_practical_max_CPUs(); j++){
 
 		//"j" does not map to CPU index, so we need to calculate it
 		int p = (schedule.get_task(task_index)->get_current_lowest_CPU() + j - 1) % (NUMCPUS) + 1;
@@ -596,20 +605,19 @@ int main(int argc, char *argv[])
 		}
 		
 		//set our thread at "j" to be at CPU "p" via our thread location map
-		ret_val = pthread_setschedparam(threads[j], SCHED_RR, &global_param);
-		thread_at_cpu[p] = threads[j];
+		ret_val = pthread_setschedparam(thread_handles.at(j), SCHED_RR, &global_param);
 
 		CPU_ZERO(&global_cpuset);
 		CPU_SET(p, &global_cpuset);
 
-		pthread_setaffinity_np(threads[j], sizeof(cpu_set_t), &global_cpuset);
+		pthread_setaffinity_np(thread_handles.at(j), sizeof(cpu_set_t), &global_cpuset);
  
   	}
 
 	//print active vs passive CPUs
 	print_module::buffered_print(task_info, "CPU Core Configuration: \n");
-	print_module::buffered_print(task_info, "	- Active:", convertToRanges(active_cpu_string.substr(0, active_cpu_string.size() - 2)), "\n");
-	print_module::buffered_print(task_info, "	- Passive:", convertToRanges(passive_cpu_string.substr(0, active_cpu_string.size() - 2)), "\n\n");
+	print_module::buffered_print(task_info, "	- Active: ", convertToRanges(active_cpu_string), "\n");
+	print_module::buffered_print(task_info, "	- Passive: ", convertToRanges(passive_cpu_string), "\n\n");
 
 	//command line params
 	print_module::buffered_print(task_info, "Command Line Parameters: \n");
@@ -624,6 +632,9 @@ int main(int argc, char *argv[])
 	#ifdef PER_PERIOD_VERBOSE
 		std::vector<uint64_t> period_timings;
 	#endif
+
+	//set the omp thread limit
+	omp_set_num_threads(schedule.get_task(task_index)->get_current_CPUs());
 
 	// Initialize the task
 	if (schedule.get_task(task_index) && task.init != NULL){
@@ -737,12 +748,6 @@ int main(int argc, char *argv[])
 			for (size_t i = 0; i < gpus.size(); i++)
 				if (!schedule.get_task(gpus.at(i).first)->check_mode_transition())
 					ready = false;
-
-			/*for (int other_task = 0; other_task < schedule.count(); other_task++)
-				for (int cpu_being_considered = 1; cpu_being_considered <= NUMCPUS; cpu_being_considered++)
-					if ((schedule.get_task(other_task)->transfers(task_index, cpu_being_considered)))
-						if ((schedule.get_task(other_task))->get_num_adaptations() <=  (schedule.get_task(task_index))->get_num_adaptations())
-							ready = false;*/
 
 			if (ready){
 

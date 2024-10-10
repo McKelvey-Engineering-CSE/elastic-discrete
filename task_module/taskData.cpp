@@ -22,6 +22,10 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 	
 	}
 
+	cpus_granted_from_other_tasks = std::vector<std::pair<int, std::vector<int>>>(MAXTASKS, {0, std::vector<int>(NUMCPUS + 1, 0)});
+	gpus_granted_from_other_tasks = std::vector<std::pair<int, std::vector<int>>>(MAXTASKS, {0, std::vector<int>(NUMCPUS + 1, 0)});
+	CPUs_owned_by_task = std::vector<int>(NUMCPUS + 1);
+
 	//clear static vectors
 	CPUs_owned_by_task.clear();
 
@@ -829,9 +833,3 @@ void TaskData::clear_gpus_granted_from_other_tasks(){
 	gpus_granted_from_other_tasks.clear();
 
 }
-
-
-std::vector<int> TaskData::CPUs_owned_by_task(NUMCPUS + 1, 0);
-
-std::vector<std::pair<int, std::vector<int>>> TaskData::cpus_granted_from_other_tasks(MAXTASKS, {0, std::vector<int>(NUMCPUS + 1, 0)});
-std::vector<std::pair<int, std::vector<int>>> TaskData::gpus_granted_from_other_tasks(MAXTASKS, {0, std::vector<int>(NUMCPUS + 1, 0)});

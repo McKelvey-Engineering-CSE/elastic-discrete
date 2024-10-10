@@ -92,6 +92,7 @@ Class : TaskData
 #endif
 
 class TaskData{
+
 private:
 
 	//updated in constructor, left with 16 for the event this 
@@ -197,7 +198,7 @@ private:
 	//having the CPU amount and GPU 
 	//amount in arrays but I do have a serious
 	//problem/dependency on vectors
-	static std::vector<int> CPUs_owned_by_task;
+	std::vector<int> CPUs_owned_by_task;
 
 	//updated variables
 	bool mode_transitioned = false;
@@ -215,8 +216,8 @@ private:
 
 	//these will be overridden by the scheduler
 	//as it assigns other tasks to give us resources
-	static std::vector<std::pair<int, std::vector<int>>> cpus_granted_from_other_tasks;
-	static std::vector<std::pair<int, std::vector<int>>> gpus_granted_from_other_tasks;
+	std::vector<std::pair<int, std::vector<int>>> cpus_granted_from_other_tasks;
+	std::vector<std::pair<int, std::vector<int>>> gpus_granted_from_other_tasks;
 
 public:
 

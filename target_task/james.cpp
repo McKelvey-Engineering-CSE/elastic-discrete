@@ -1,4 +1,5 @@
 #include "task.h"
+#include <omp.h>
 
 #if defined(__x86_64__) || defined(_M_X64)
     #include <immintrin.h>
@@ -20,6 +21,8 @@
 
 #endif
 
+#include "timespec_functions.h"
+
 int init(int argc, char *argv[])
 {
 
@@ -40,14 +43,23 @@ int init(int argc, char *argv[])
 int run(int argc, char *argv[]){
 	//*(int * ) 0 = 0;
 
-	/*if (getpid() % 2 == 0)
+	if (getpid() % 2 == 0)
 		modify_self(2);
 	else
-		modify_self(1);*/
+		modify_self(1);
 
 	print_module::task_print(std::cout, "Executing Matrix Manipulations\n");
 
-	#if defined(__x86_64__) || defined(_M_X64)
+	#pragma omp parallel
+	{	
+
+
+		busy_work({3, 0});
+
+		printf("pid: %d | Thread %d running on core %d\n", getpid(), omp_get_thread_num(), sched_getcpu());
+	}
+
+	/*#if defined(__x86_64__) || defined(_M_X64)
 		//Example Vector workload
 		__m256i vec_multi_res = _mm256_setzero_si256();
 		__m256i vec_mat1 = _mm256_setzero_si256();
@@ -92,7 +104,7 @@ int run(int argc, char *argv[]){
 			}
 		}
 
-	#endif
+	#endif*/
 
 
 
