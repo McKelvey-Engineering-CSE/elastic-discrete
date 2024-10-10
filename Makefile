@@ -1,71 +1,89 @@
-CC = g++ -std=c++11 -O0
-FLAGS = -Wall -g -gdwarf-3
-LIBS = -L. -lrt -lm -lclustering -fopenmp
-CLUSTERING_OBJECTS = single_use_barrier.o timespec_functions.o
-NIincludes = -I/usr/local/natinst/nidaqmxbase/include
-NIlibs=-lnidaqmxbase
+##### Compiler Settings ##########################################################
+CC = g++ -std=c++20 -O0 -I.
+HEADERS = $(addprefix -iquote ,$(shell find . -type d -not -path "*/\.*"))
+FLAGS = -Wall -g -gdwarf-3 $(HEADERS)
 
-#all: clustering_distribution simple_task synthetic_task
-#all: clustering_distribution synthetic_task synthetic_task_gd synthetic_task_gd_extra
-all: clustering_distribution
+ifneq (,$(findstring x86_64, $(shell $(CC) -dumpmachine)))
+	FLAGS := $(FLAGS) -mavx2
+endif
 
-synthetic_task: synthetic_task.cpp
-	$(CC) $(FLAGS) -fopenmp synthetic_task.cpp sharedMem.o task.o task_manager.o bar.o schedule.o taskData.o -o synthetic_task $(LIBS)
+LIBS = -L. -lrt -lm -lclustering -fopenmp -L./libyaml-cpp/build/ -lyaml-cpp
+CLUSTERING_OBJECTS = process_barrier.o generic_barrier.o timespec_functions.o
+##################################################################################
 
-synthetic_task_gd: synthetic_task_gd.cpp
-	$(CC) $(FLAGS) -fopenmp synthetic_task_gd.cpp sharedMem.o task_manager.o task.o bar.o -o st_gd $(LIBS)
+##### Task Configuration #########################################################
+TARGET_TASK=james
+RTPS_FILE=./target_task/james.yaml
+##################################################################################
 
-synthetic_task_gd_extra: synthetic_task_gd_extra.cpp
-	$(CC) $(FLAGS) -fopenmp synthetic_task_gd_extra.cpp sharedMem.o task_manager.o task.o bar.o -o st_extra $(LIBS)
+##### Rules ######################################################################
+all: clustering_distribution finish
 
-bar.o: bar.c
-	$(CC) $(FLAGS) -c bar.c
-#synthetic_task_utilization: synthetic_task.cpp
-#       $(CC) $(FLAGS) -fopenmp synthetic_task.cpp utilization_calculator.o -o synthetic_task_utilization $(LIBS)
-#
-#       simple_task: simple_task.cpp
-#               $(CC) $(FLAGS) -fopenmp simple_task.cpp mode.o sharedMem.o task_manager.o bar.o -o simple_task $(LIBS)
-#               #simple_task_utilization: simple_task.cpp
-#       $(CC) $(FLAGS) -fopenmp simple_task.cpp utilization_calculator.o -o simple_task_utilization $(LIBS)
-#
-clustering_distribution: libclustering.a sharedMem.o schedule.o scheduler.o task.o taskData.o task_manager.o bar.o clustering_launcher synthetic_task james
+finish:
+	mkdir -p ./bin
+	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./bin
+
+clean:
+	rm -r ./bin *.o *.a $(TARGET_TASK) clustering_launcher synthetic_task libyaml-cpp/build
+
+synthetic_task: ./task_module/synthetic_task.cpp
+	$(CC) $(FLAGS) -fopenmp ./task_module/synthetic_task.cpp shared_mem.o task.o task_manager.o print_library.o thread_barrier.o schedule.o taskData.o -o synthetic_task $(LIBS)
+
+thread_barrier.o: ./barrier_module/thread_barrier.cpp
+	$(CC) $(FLAGS) -c ./barrier_module/thread_barrier.cpp
+
+clustering_distribution: libclustering.a shared_mem.o schedule.o scheduler.o task.o taskData.o task_manager.o thread_barrier.o print_library.o clustering_launcher synthetic_task james
 
 libclustering.a: $(CLUSTERING_OBJECTS)
 	ar rcsf libclustering.a $(CLUSTERING_OBJECTS)
 
-task.o: task.cpp
-	$(CC) $(FLAGS) -c task.cpp
+task.o: ./task_module/task.cpp
+	$(CC) $(FLAGS) -c ./task_module/task.cpp
 
-task_manager.o: schedule.cpp schedule.cpp sharedMem.c task_manager.cpp
-	$(CC) $(FLAGS) -fopenmp -c task_manager.cpp
+task_manager.o: ./scheduler_module/schedule.cpp ./scheduler_module/schedule.cpp ./shared_memory_module/shared_mem.cpp ./main_binaries/task_manager.cpp
+	$(CC) $(FLAGS) -fopenmp -c ./main_binaries/task_manager.cpp
 
-single_use_barrier.o: single_use_barrier.cpp
-	$(CC) $(FLAGS) -c single_use_barrier.cpp
+process_barrier.o: ./barrier_module/process_barrier.cpp
+	$(CC) $(FLAGS) -c ./barrier_module/process_barrier.cpp
 
-timespec_functions.o: timespec_functions.cpp
-	$(CC) $(FLAGS) -c timespec_functions.cpp
+timespec_functions.o: ./timespec_module/timespec_functions.cpp
+	$(CC) $(FLAGS) -c ./timespec_module/timespec_functions.cpp
 
-scheduler.o: scheduler.cpp
-	$(CC) $(FLAGS) -c scheduler.cpp
+scheduler.o: ./scheduler_module/scheduler.cpp
+	$(CC) $(FLAGS) -c ./scheduler_module/scheduler.cpp
 
-taskData.o: taskData.cpp
-	$(CC) $(FLAGS) -c taskData.cpp
+taskData.o: ./task_module/taskData.cpp
+	$(CC) $(FLAGS) -c ./task_module/taskData.cpp
 
-schedule.o: schedule.cpp
-	$(CC) $(FLAGS) -c schedule.cpp
+schedule.o: ./scheduler_module/schedule.cpp
+	$(CC) $(FLAGS) -c ./scheduler_module/schedule.cpp
 
-sharedMem.o: sharedMem.c
-	$(CC) $(FLAGS) -c sharedMem.c
+shared_mem.o: ./shared_memory_module/shared_mem.cpp
+	$(CC) $(FLAGS) -c ./shared_memory_module/shared_mem.cpp
 
-#mode.o: sharedMem.c mode.cpp
-#	$(CC) $(FLAGS) -c mode.cpp
+generic_barrier.o: process_primitives.o ./barrier_module/generic_barrier.cpp
+	$(CC) $(FLAGS) -c ./barrier_module/generic_barrier.cpp
+	mv generic_barrier.o generic_barrier_inc.o
+	ld -relocatable process_primitives.o generic_barrier_inc.o -o generic_barrier.o
 
-clustering_launcher: clustering_launcher.cpp
-	$(CC) $(FLAGS) taskData.o schedule.o scheduler.o sharedMem.o clustering_launcher.cpp -o clustering_launcher $(LIBS)
+process_primitives.o: ./barrier_module/process_primitives.cpp
+	$(CC) $(FLAGS) -c ./barrier_module/process_primitives.cpp
 
-james: james.cpp task_manager.o
-	$(CC) $(FLAGS) james.cpp sharedMem.o scheduler.o schedule.o taskData.o task.o bar.o  task_manager.o -o james $(LIBS)
-	cp james phil
+print_library.o: print_module.o print_buffer.o
+	ld -relocatable print_module.o print_buffer.o -o print_library.o
 
-clean:
-	rm -f *.o  *.pyc libclustering.a clustering_launcher synthetic_task_gd synthetic_task synthetic_task_gd_extra mixed_crit_test james phil
+print_buffer.o: ./printing_module/print_buffer.cpp
+	$(CC) $(FLAGS) -c ./printing_module/print_buffer.cpp
+
+print_module.o: ./printing_module/print_module.cpp
+	$(CC) $(FLAGS) -c ./printing_module/print_module.cpp 
+
+./libyaml-cpp/build/libyaml-cpp.a:
+	cd libyaml-cpp; mkdir build; cd build; cmake ..; make;
+
+clustering_launcher: ./main_binaries/clustering_launcher.cpp ./libyaml-cpp/build/libyaml-cpp.a
+	$(CC) $(FLAGS) taskData.o schedule.o scheduler.o shared_mem.o process_barrier.o ./main_binaries/clustering_launcher.cpp -o clustering_launcher $(LIBS)
+
+james: ./target_task/james.cpp task_manager.o
+	$(CC) $(FLAGS) ./target_task/james.cpp shared_mem.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o thread_barrier.o -o james $(LIBS)
+##################################################################################

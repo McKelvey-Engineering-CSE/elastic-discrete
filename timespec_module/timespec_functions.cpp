@@ -22,10 +22,12 @@ timespec operator+(const timespec & ts1, const timespec & ts2){
   timespec result;
   result.tv_nsec = ts1.tv_nsec + ts2.tv_nsec;
   result.tv_sec = ts1.tv_sec + ts2.tv_sec;
+
   if( result.tv_nsec >= nanosec_in_sec ){
     result.tv_nsec -= nanosec_in_sec;
     result.tv_sec += 1;
   }
+
   return result;
 }
 
@@ -100,8 +102,9 @@ void sleep_until_ts (timespec& end_time){
 }
 
 void sleep_for_ts (timespec& sleep_time){
+
   //Otherwise, nanosleep
-    timespec zero = { 0, 0 };
+  timespec zero = { 0, 0 };
 	while( nanosleep(&sleep_time,&sleep_time) != 0 )
 	{
 		if (sleep_time <= zero) break;
@@ -119,8 +122,9 @@ workload_for_1micros(int length) {
     double temp = 0;
     long long i;
     temp++;
-        for ( i = 0; i < 52*length; ++i )
-        temp = sqrt((double)i*i);
+
+    for ( i = 0; i < 52*length; ++i )
+      temp = sqrt((double)i*i);
 }
 
 void busy_work(timespec length)
@@ -130,11 +134,13 @@ void busy_work(timespec length)
 	timespec twomicros = { 0, 1000 };
 	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &curr_time);
 	timespec target_time = curr_time + length;
+
 	while(curr_time+twoms < target_time)
 	{
 		workload_for_1micros(1000);
 		clock_gettime(CLOCK_THREAD_CPUTIME_ID, &curr_time);
 	}
+  
 	while(curr_time+twomicros < target_time)
 	{
 		workload_for_1micros(1);

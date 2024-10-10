@@ -156,7 +156,7 @@ int run (int argc, char* argv[])
 			busy_work(segment_length);
 			//busy_work( percentile * segment_length);
 		}
-		mc_bar_wait(&bar);
+		bar.mc_bar_wait();
 		
 		//fprintf(stderr,"(%d) CPU %d is done with first loop, time: %0.3f\n", mapid, thread_id, end-start);
 	}
@@ -173,4 +173,3 @@ int finalize (int argc, char* argv[]){
 }
 
 task_t task = {init, run, finalize};
-

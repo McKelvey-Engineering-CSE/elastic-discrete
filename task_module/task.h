@@ -1,11 +1,27 @@
 #ifndef RT_GOMP_TASK_H
 #define RT_GOMP_TASK_H
 
+/*************************************************************************
+
+task.h
+
+This object is what the presented custom task is compiled against. It
+provides an interface for the task manager to interact with a given task
+throug the use of he task_t struct, which defines each of the functions
+that are needed by a custom task to be utilized here.
+
+
+Struct : task_t
+
+		Task struct type used by task_manager.cpp to control a task.
+        
+**************************************************************************/
+
 #include <condition_variable>
 #include <mutex>
-#include <atomic> //for atomic_bool
-#include "bar.h" //for mc_barrier
-#include <sched.h> //for cpu_set_t
+#include <atomic>
+#include "thread_barrier.h"
+#include <sched.h>
 #include "include.h"
 
 //#define TRACING
@@ -17,8 +33,8 @@ extern FILE * fd;
 // Task struct type used by task_manager.cpp to control a task.
 typedef struct
 {
-	int (*init)(int argc, char *argv[]);//JO, cpu_set_t* all_cpu_mask);
-	int (*run)(int argc, char *argv[]);//JO, cpu_set_t* high_crit_mask);
+	int (*init)(int argc, char *argv[]);
+	int (*run)(int argc, char *argv[]);
 	int (*finalize)(int argc, char *argv[]);
 }
 task_t;
@@ -31,6 +47,7 @@ extern void modify_self(timespec new_value);
 
 // Used to determine current task and its features.
 extern bool missed_dl;
+
 // Task struct that should be defined by the real time task.
 extern task_t task;
 
@@ -44,7 +61,7 @@ extern timespec current_work;
 // transition and the fact that different numbers of threads are expected at
 // the barrier at different times. This provides that, and should be used
 // instead of any other barrier. Initialized in task_manager.cpp
-extern mc_barrier bar;
+extern thread_barrier bar;
 
 volatile extern int total_remain;
 extern int futex_val;
