@@ -121,7 +121,9 @@ public:
 
 	std::vector<int> sort_classes(std::vector<int> items_in_candidate);
 
-	bool check_RAG_for_safety(std::vector<int> current_solution, std::vector<std::vector<vertex>>& final_RAG);
+	void build_RAG(std::vector<int> current_solution, std::vector<std::vector<vertex>>& final_RAG);
+
+	bool check_for_cycles(std::vector<int> current_solution);
 
 	void setTermination();
 

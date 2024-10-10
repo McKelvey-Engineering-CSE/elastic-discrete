@@ -10,6 +10,7 @@
 #include <float.h>
 #include <map>
 #include <tuple>
+#include <queue>
 
 class Schedule * Scheduler::get_schedule(){
 	return &schedule;
@@ -84,13 +85,102 @@ std::vector<int> Scheduler::sort_classes(std::vector<int> items_in_candidate) {
     
 }
 
-//this function is used to build the RAG which
-//is used to determine if a solution is valid
-//or not. If the RAG is acyclical, then the
-//solution is valid. If it is not, then the
-//solution must be skipped unless an explicit
-//barrier is set.
-bool Scheduler::check_RAG_for_safety(std::vector<int> current_solution, std::vector<std::vector<vertex>>& final_RAG){
+//this function checks to see if this solution
+//would have any cycles in it when the RAG was 
+//constructed
+bool Scheduler::check_for_cycles(std::vector<int> current_solution){
+
+	//these variables monitor the state of the possible Resource allocation graph
+	int CPUs_available = 0;
+	int GPUs_available = 0;
+
+	//sort the list into the order that shows safety
+	auto sorted_item_indexes = sort_classes(current_solution);
+
+	//process the resources being exclusively returned
+	size_t i = 0;
+	for (; i < sorted_item_indexes.size(); i++){
+
+		int current_item_index = sorted_item_indexes.at(i);
+
+		if (sorted_item_indexes.at(i) == -1)
+			break;
+
+		else{
+
+			CPUs_available += task_table.at(current_item_index).at(current_solution.at(current_item_index)).cores - previous_modes.at(current_item_index).cores;
+			GPUs_available += task_table.at(current_item_index).at(current_solution.at(current_item_index)).sms - previous_modes.at(current_item_index).sms;
+
+		}
+
+	}
+
+	//next process potentially unsafe modes
+	std::queue<int> unsafe_states;
+
+	for (; i < sorted_item_indexes.size(); i++){
+
+		unsafe_states.push(sorted_item_indexes.at(i));
+
+		if (sorted_item_indexes.at(i) == -1)
+			break;
+
+	}
+
+	unsafe_states.push(-1);
+	bool popped = false;
+
+	while(!unsafe_states.empty()){
+
+		auto current = unsafe_states.front();
+		unsafe_states.pop();
+
+		if (current == -1 && !popped){
+
+			return false;
+
+		}
+
+		else if (current == -1){
+
+			popped = false;
+			unsafe_states.push(-1);
+
+		}
+
+		else {
+
+			int cpus_taken_or_returned = task_table.at(current).at(current_solution.at(current)).cores - previous_modes.at(current).cores;
+			int gpus_taken_or_returned = task_table.at(current).at(current_solution.at(current)).sms - previous_modes.at(current).sms;
+
+			if ((CPUs_available > cpus_taken_or_returned && cpus_taken_or_returned > 0) || (GPUs_available > gpus_taken_or_returned && gpus_taken_or_returned > 0)){
+
+				CPUs_available -= cpus_taken_or_returned;
+				GPUs_available -= gpus_taken_or_returned;
+
+				popped = true;
+
+			}
+
+			else {
+
+				unsafe_states.push(current);
+
+			}
+
+		}
+
+
+	}
+
+	//now we are safe, all other tasks are just taking resources, and the 
+	//knapsack algorithm ensures we have enough resources for this solution
+	return true;
+}
+
+//this function builds the RAG for the solution
+//that is selected by the knapsack algorithm.
+void Scheduler::build_RAG(std::vector<int> current_solution, std::vector<std::vector<vertex>>& final_RAG){
 
 	//sort the list into the order that shows safety
 	auto sorted_item_indexes = sort_classes(current_solution);
@@ -304,7 +394,7 @@ bool Scheduler::check_RAG_for_safety(std::vector<int> current_solution, std::vec
 	if ((!barrier && safe) || barrier)
 		final_RAG = RAG;
 
-	return safe;
+	return;
 
 }
 
@@ -400,7 +490,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 									current_solution.push_back((schedule.get_task(i - 1))->get_current_mode());
 
 									//check the RAG for safety
-									safe = check_RAG_for_safety(current_solution, final_RAG);
+									safe = check_for_cycles(current_solution);
 
 									//if there are no cycles in the RAG, then we can use this solution
 									if (safe){
@@ -451,7 +541,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 									current_solution.push_back(j);
 
 									//check the RAG for safety
-									safe = check_RAG_for_safety(current_solution, final_RAG);
+									safe = check_for_cycles(current_solution);
 
 									//if there are no cycles in the RAG, then we can use this solution
 									if (safe){
@@ -589,8 +679,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 		//either we have to partition them in a way that causes no cycles, or we barrier
 		//and efficiency of transfer does not matter all that much. Either way, we do not 
 		//need the old logic for thread handoff in it's entirety.
-		if (barrier)
-			check_RAG_for_safety(result, final_RAG);
+		build_RAG(result, final_RAG);
 
 		//by this point the RAG has either the previous solution inside of it, or it has
 		//the current solution. Either way, we need to update the previous modes to reflect

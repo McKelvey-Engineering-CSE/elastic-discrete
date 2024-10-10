@@ -298,108 +298,6 @@ void reschedule(){
 	schedule.get_task(task_index)->clear_cpus_granted_from_other_tasks();
 	schedule.get_task(task_index)->clear_gpus_granted_from_other_tasks();
 
-	/*for (int selected_task = 0; selected_task < schedule.count(); selected_task++){
-
-		for (int cpu_under_consideration = 1; cpu_under_consideration <= NUMCPUS; cpu_under_consideration++){
-
-			//if we are giving up a CPU and making it passive
-			if (schedule.get_task(task_index)->transfers(selected_task, cpu_under_consideration)){
-
-				//mark the CPU as passive
-				schedule.get_task(task_index)->clr_active_cpu(cpu_under_consideration);
-				schedule.get_task(task_index)->set_passive_cpu(cpu_under_consideration);
-
-				//remove it from our active table...
-				//FIXME: These two tables should not be separate when switching between passive and active... just combine them
-				active_threads[omp_thread_index[thread_at_cpu[cpu_under_consideration]]] = false;
-
-				//set thread priority to sleep
-				global_param.sched_priority = SLEEP_PRIORITY;
-	            ret_val = pthread_setschedparam(thread_at_cpu[cpu_under_consideration], SCHED_RR, &global_param);
-
-				if (ret_val < 0)
-					print_module::print(std::cerr, "ERROR: could not set sleep priority when making thread passive.\n");
-				
-			}
-
-			//if another task has given up a CPU for us to receive and mark active
-			else if (schedule.get_task(task_index)->receives(selected_task, cpu_under_consideration)){
-
-				//if this cpu was already one of our passive threads
-				if (schedule.get_task(task_index)->get_passive_cpu(cpu_under_consideration)){
-
-					//mark it as active
-					schedule.get_task(task_index)->clr_passive_cpu(cpu_under_consideration);
-					schedule.get_task(task_index)->set_active_cpu(cpu_under_consideration);
-
-					//add it to our active table
-					//FIXME: SEE ABOVE
-					active_threads[omp_thread_index[thread_at_cpu[cpu_under_consideration]]] = true;
-
-					//set thread priority to active
-					global_param.sched_priority = EXEC_PRIORITY;
-					ret_val = pthread_setschedparam(thread_at_cpu[cpu_under_consideration], SCHED_RR, &global_param);
-
-					
-				}
-
-				//if this cpu is new to us
-				else {
-
-					//go through all CPUS 
-					for (int alternate_cpu = NUMCPUS; alternate_cpu >= 1; alternate_cpu--) {
-
-						//until we find one that is in our passive set
-						if (schedule.get_task(task_index)->get_passive_cpu(alternate_cpu)){
-							
-							//your guess is as good as mine as to why we print this
-							for (int i = 1; i <= NUMCPUS; i++)
-								print_module::print(std::cout, active_threads[i] , "\n");
-							print_module::print(std::cout, omp_thread_index[thread_at_cpu[alternate_cpu]], " ", thread_at_cpu[alternate_cpu], " ",  alternate_cpu, "\n");		
-
-							//get the handle of the thread that is at cpu "alternate_cpu"
-							//that handle can be turned into an index via omp_thread_index
-							//using that index, set the thread to active
-							active_threads[omp_thread_index[thread_at_cpu[alternate_cpu]]] = true;
-
-							//set the corresponding CPU to not passive
-							schedule.get_task(task_index)->clr_passive_cpu(alternate_cpu);
-
-							//the thread that was at "cpu_under_consideration" is now at "alternate_cpu"
-							//make a second entry into the map to reflect that
-							//so all queries to "cpu_under_consideration" will return the handle of the thread that was at "alternate_cpu"
-							thread_at_cpu[cpu_under_consideration] = thread_at_cpu[alternate_cpu];
-
-							//remove old entry
-							thread_at_cpu.erase(alternate_cpu);
-
-							//this is confusing.........
-							//we already set the table to active above at the index "alternate_cpu"
-							//which is now the same handle as "cpu_under_consideration"
-							//active_threads[omp_thread_index[thread_at_cpu[cpu_under_consideration]]] = true;
-
-							//set the CPU to active
-							schedule.get_task(task_index)->set_active_cpu(cpu_under_consideration); 
-
-							//set the thread to active
-							global_param.sched_priority = EXEC_PRIORITY;
-							ret_val = pthread_setschedparam(thread_at_cpu[cpu_under_consideration], SCHED_RR, &global_param);	
-
-							//update our CPU mask
-							//to show the gained "cpu_under_consideration" CPU
-							CPU_ZERO(&global_cpuset);
-							CPU_SET(cpu_under_consideration, &global_cpuset);
-
-							pthread_setaffinity_np(thread_at_cpu[cpu_under_consideration], sizeof(cpu_set_t), &global_cpuset);
-
-							break;
-						}
-					}
-				}
-			}	
-		}
-	}*/		
-
 	//update thread count
 	omp_set_num_threads(schedule.get_task(task_index)->get_current_CPUs());
 
@@ -509,12 +407,6 @@ int main(int argc, char *argv[])
 	current_period = schedule.get_task(task_index)->get_current_period();
 	deadline = current_period;
 	percentile = schedule.get_task(task_index)->get_percentage_workload();
-
-	/*CPU_ZERO(&current_cpu_mask);
-	
-	//add each cpu from our min up to our cpu mask
-	for (int i = 0; i < schedule.get_task(task_index)->get_current_CPUs(); i++ )
-		CPU_SET(schedule.get_task(task_index)->get_current_lowest_CPU() + i, &current_cpu_mask);*/
 	
 	std::lock_guard<std::mutex> lk(con_mut);
 
