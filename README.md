@@ -127,6 +127,7 @@ tasks:
       args: "these are arguments"
     elasticity: 150 # For non-elastic mode set to 1
     maxIterations: 100 # Optional
+    priority: 1 # Optional
     modes:
       - work: {sec: 5, nsec: 0}
         span: {sec: 1, nsec: 0}
@@ -136,6 +137,8 @@ tasks:
 A task will run until either it reaches the maximum number of iterations, or the global maximum runtime is reached - if neither is specified it will run forever.
 
 To emulate the behavior of the old clustering launcher, set `elasticity: 1` for every task.
+
+`priority` controls the priority given to the kernel (under the SCHED_RR scheduler). If no priority is set, `7` is used as the default. Note that during task sleep and finalization, the set priority is ignored.
 
 ## Elastic Discrete Legacy Description
 ```

@@ -91,15 +91,24 @@ void scheduler_task()
 	}
 }
 
-void exit_on_signal(int sig){
-	
-	//tell the shared memory that we have to terminate immediately
+void force_cleanup() {
 	scheduler->setTermination();
-	print_module::print(std::cerr, "Signal captured from child. Schedule cannot continue. Exiting.\n");
 	process_barrier::destroy_barrier(barrier_name);
 	process_barrier::destroy_barrier(barrier_name2);
 	kill(0, SIGKILL);
 	delete scheduler;
+}
+
+// User requested to exit
+void exit_user_request(int sig) {
+	force_cleanup();
+	exit(0);
+}
+
+// Child task encountered an error
+void exit_from_child(int sig){
+	print_module::print(std::cerr, "Signal captured from child. Schedule cannot continue. Exiting.\n");
+	force_cleanup();
 	exit(-1);
 }
 
@@ -164,6 +173,8 @@ struct parsed_task_info {
 	std::string program_args = "";
 	int elasticity = 1;
 	int max_iterations = -1;
+	// Default priority carried over from the original scheduler code - no particular reason for this otherwise
+	int sched_priority = 7;
 	std::vector<struct parsed_task_mode_info> modes;
 };
 
@@ -219,6 +230,11 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 		if (task["elasticity"]) {
 			task_info.elasticity = task["elasticity"].as<int>();
 		}
+
+		if (task["priority"]) {
+			task_info.sched_priority = task["priority"].as<int>();
+		}
+
 		if (task["maxIterations"]) {
 			task_info.max_iterations = task["maxIterations"].as<int>();
 		} else if (*sec_to_run == 0) {
@@ -280,8 +296,9 @@ int main(int argc, char *argv[])
 	//setup signal handlers
 	init_signal_handlers();
 
-	//set custom signal handler for task hangup
-	signal(1, exit_on_signal);
+	signal(SIGINT, exit_user_request);
+	signal(SIGTERM, exit_user_request);
+	signal(1, exit_from_child);
 	
 	//open the scheduling file
 
@@ -342,6 +359,8 @@ int main(int argc, char *argv[])
 			task_manager_argvector.push_back(std::to_string(end_time.tv_sec));
 			task_manager_argvector.push_back(std::to_string(end_time.tv_nsec));	
 		}
+
+		task_manager_argvector.push_back(std::to_string(task_info.sched_priority));
 
 		//convert the timing parameters into the desired format
 
