@@ -32,7 +32,9 @@ synthetic_task: ./task_module/synthetic_task.cpp
 thread_barrier.o: ./barrier_module/thread_barrier.cpp
 	$(CC) $(FLAGS) -c ./barrier_module/thread_barrier.cpp
 
-clustering_distribution: libclustering.a shared_mem.o schedule.o scheduler.o task.o taskData.o task_manager.o thread_barrier.o print_library.o clustering_launcher synthetic_task james
+clustering: libclustering.a shared_mem.o schedule.o scheduler.o task.o taskData.o task_manager.o thread_barrier.o print_library.o clustering_launcher
+
+clustering_distribution: clustering synthetic_task james
 
 libclustering.a: $(CLUSTERING_OBJECTS)
 	ar rcsf libclustering.a $(CLUSTERING_OBJECTS)
@@ -86,4 +88,8 @@ clustering_launcher: ./main_binaries/clustering_launcher.cpp ./libyaml-cpp/build
 
 james: ./target_task/james.cpp task_manager.o
 	$(CC) $(FLAGS) ./target_task/james.cpp shared_mem.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o thread_barrier.o -o james $(LIBS)
+
+regression_test_task: ./regression_test_task/regression_test_task.cpp clustering timespec_functions.o
+	$(CC) $(FLAGS) ./regression_test_task/regression_test_task.cpp shared_mem.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o thread_barrier.o timespec_functions.o -o regression_test_task/regression_test_task $(LIBS)
+
 ##################################################################################
