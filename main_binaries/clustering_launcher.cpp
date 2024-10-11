@@ -43,6 +43,9 @@ pid_t process_group;
 bool add_last_task = true;
 TaskData * last_task;
 
+//bool which controls whether or not we are running with explicit syncronization
+bool explicit_sync = false;
+
 /************************************************************************************
 Objects
 *************************************************************************************/
@@ -352,7 +355,7 @@ int main(int argc, char *argv[])
 
 	//create the scheduling object
 	//(retain CPU 0 for the scheduler)
-	scheduler = new Scheduler(parsed_tasks.size(),(int) std::thread::hardware_concurrency()-1);
+	scheduler = new Scheduler(parsed_tasks.size(),(int) std::thread::hardware_concurrency()-1, explicit_sync);
 
 	//Initialize two barriers to synchronize the tasks after creation
 
@@ -429,6 +432,9 @@ int main(int argc, char *argv[])
 		
 		// Add the barrier name to the argument vector
 		task_manager_argvector.push_back(barrier_name);
+
+		// Add whether or not the system has explicit sync enabled
+		task_manager_argvector.push_back(std::to_string(explicit_sync));
 		
 		// Add the task arguments to the argument vector
 		task_manager_argvector.push_back(task_info.program_name);

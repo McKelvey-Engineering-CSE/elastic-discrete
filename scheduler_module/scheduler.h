@@ -100,19 +100,13 @@ class Scheduler{
 public:
 
 	//reserve the necessary space for the class (task) table
-	Scheduler(int num_tasks_, int num_CPUs_) : process_group(getpgrp()), schedule("EFSschedule"), num_tasks(num_tasks_), num_CPUs(num_CPUs_), first_time(true) {
+	Scheduler(int num_tasks_, int num_CPUs_, bool explicit_sync) : process_group(getpgrp()), schedule("EFSschedule"), num_tasks(num_tasks_), num_CPUs(num_CPUs_), first_time(true), barrier(explicit_sync) {
 
 		//clear the vector of vectors (should retain static memory allocation)
 		for (int i = 0; i < num_tasks_; i++)
 			task_table.at(i).clear();
 		task_table.clear();
 
-		//Fetch GPC information if we are compiling ith nvcc
-		#ifdef __NVCC__
-
-			libsmctrl_get_gpc_info(&GPC_size, &TPC_to_GPC_masks, bound_GPU_device);
-
-		#endif
  	}
 
 	~Scheduler(){}

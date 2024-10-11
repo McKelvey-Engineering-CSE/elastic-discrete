@@ -130,7 +130,7 @@ bool Scheduler::check_for_cycles(std::vector<int> current_solution){
 	unsafe_states.push(-1);
 	bool popped = false;
 
-	while(!unsafe_states.empty()){
+	while(!(unsafe_states.size() != 1)){
 
 		auto current = unsafe_states.front();
 		unsafe_states.pop();
@@ -483,7 +483,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 								//check if we are on the final item to add
 								//if we are, then we need to check to make 
 								//sure that the resulting RAG is acyclical
-								if (!barrier && i == num_tasks){
+								if (!barrier && i == num_tasks && !first_time){
 
 									//fetch all the items in the candidate solution
 									auto current_solution = solutions[{i - 1, w - item.cores, v - item.sms}];
@@ -534,7 +534,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 								//check if we are on the final item to add
 								//if we are, then we need to check to make 
 								//sure that the resulting RAG is acyclical
-								if (!barrier && i == num_tasks){
+								if (!barrier && i == num_tasks && !first_time){
 
 									//fetch all the items in the candidate solution
 									auto current_solution = solutions[{i - 1, w - item.cores, v - item.sms}];

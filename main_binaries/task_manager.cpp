@@ -82,6 +82,9 @@ int current_threads_active = 0;
 //This value is used as a return value for system calls
 int ret_val;
 
+//if we set this then we will need a barrier for explicit sync
+bool explicit_sync = false;
+
 //The process group ID is used to notify other tasks in this taskset that
 //it is time to switch to high criticality mode
 pid_t process_group;
@@ -301,7 +304,21 @@ void reschedule(){
 	//update thread count
 	omp_set_num_threads(schedule.get_task(task_index)->get_current_CPUs());
 
-	bar.mc_bar_reinit(schedule.get_task(task_index)->get_current_CPUs());		
+	//sync all threads
+	bar.mc_bar_reinit(schedule.get_task(task_index)->get_current_CPUs());	
+
+	//wait at barrier for all other tasks if we have to
+	if (explicit_sync){
+
+		if (process_barrier::await_and_rearm_barrier("EX_SYNC") != 0){
+
+			print_module::print(std::cerr, "ERROR: Barrier error for task ", task_index, "\n");
+			kill(0, SIGTERM);
+			exit(-1);
+
+		}
+
+	}	
 
 }
 
@@ -390,8 +407,9 @@ int main(int argc, char *argv[])
 	end_time = {end_sec, end_nsec};
 	
 	char *barrier_name = argv[8];
-	int task_argc = argc - 9;                                             
-	char **task_argv = &argv[9];
+	explicit_sync = std::stoi(std::string(argv[9])) == 1;
+	int task_argc = argc - 10;                                             
+	char **task_argv = &argv[10];
 
 	//Wait at barrier for the other tasks but mainly to make sure scheduler has finished
 	if ((ret_val = process_barrier::await_and_destroy_barrier("BAR_2")) != 0){
@@ -454,7 +472,7 @@ int main(int argc, char *argv[])
 	omp_set_schedule(omp_sched_dynamic, 1);	
 
 	practical_max_cpus = schedule.get_task(task_index)->get_practical_max_CPUs();
-	omp_set_num_threads(NUMCPUS);
+	omp_set_num_threads(practical_max_cpus);
  
 	//this used to only start up practical_max_cpus threads, 
 	//but now we start up to the number of CPUs we may have
@@ -641,7 +659,7 @@ int main(int argc, char *argv[])
 				if (!schedule.get_task(gpus.at(i).first)->check_mode_transition())
 					ready = false;
 
-			if (ready){
+			if (ready || explicit_sync){
 
 				#ifdef TRACING
 					fprintf(fd, "thread %d: starting reschedule\n", getpid());
