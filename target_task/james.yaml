@@ -8,21 +8,24 @@ tasks:
     elasticity: 3
     # maxIterations: 100
     modes:
-      - work: {sec: 12, nsec: 0}
+      - type: "cpu_heavy"
+        work: {sec: 12, nsec: 0}
         span: {sec: 3, nsec: 0}
         period: {sec: 5, nsec: 0}
         gpu_work: {sec: 12, nsec: 0}
         gpu_span: {sec: 3, nsec: 0}
         gpu_period: {sec: 5, nsec: 0}
 
-      - work: {sec: 7, nsec: 0}
+      - type: "gpu_heavy"
+        work: {sec: 7, nsec: 0}
         span: {sec: 2, nsec: 0}
         period: {sec: 5, nsec: 0}
         gpu_work: {sec: 7, nsec: 0}
         gpu_span: {sec: 2, nsec: 0}
         gpu_period: {sec: 5, nsec: 0}
 
-      - work: {sec: 9, nsec: 0}
+      - type: "heavy"
+        work: {sec: 9, nsec: 0}
         span: {sec: 2, nsec: 0}
         period: {sec: 5, nsec: 0}
         gpu_work: {sec: 9, nsec: 0}
@@ -36,21 +39,24 @@ tasks:
     # priority: 50
     # maxIterations: 100
     modes:
-      - work: {sec: 15, nsec: 0}
+      - type: "cpu_heavy"
+        work: {sec: 15, nsec: 0}
         span: {sec: 6, nsec: 0}
         period: {sec: 9, nsec: 0}
         gpu_work: {sec: 15, nsec: 0}
         gpu_span: {sec: 6, nsec: 0}
         gpu_period: {sec: 9, nsec: 0}
 
-      - work: {sec: 15, nsec: 0}
+      - type: "gpu_heavy"
+        work: {sec: 15, nsec: 0}
         span: {sec: 6, nsec: 0}
         period: {sec: 11, nsec: 0}
         gpu_work: {sec: 15, nsec: 0}
         gpu_span: {sec: 6, nsec: 0}
         gpu_period: {sec: 11, nsec: 0}
 
-      - work: {sec: 15, nsec: 0}
+      - type: "light"
+        work: {sec: 15, nsec: 0}
         span: {sec: 6, nsec: 0}
         period: {sec: 10, nsec: 0}
         gpu_work: {sec: 15, nsec: 0}

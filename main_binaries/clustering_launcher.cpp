@@ -164,6 +164,9 @@ int get_scheduling_file(std::string name, std::ifstream &ifs){
 
 struct parsed_task_mode_info {
 
+	//mode type
+	std::string mode_type = "";
+
 	//CPU stuff
 	int work_sec = -1;
 	int work_nsec = -1;
@@ -265,7 +268,14 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 			if (!yaml_is_time(mode["work"]) || !yaml_is_time(mode["span"]) || !yaml_is_time(mode["period"])) {
 				return -6;
 			}
+
 			struct parsed_task_mode_info mode_info;
+
+			if (mode["type"])
+				mode_info.mode_type = mode["type"].as<std::string>();
+			else
+				mode_info.mode_type = "heavy";
+
 			mode_info.work_sec = mode["work"]["sec"].as<int>();
 			mode_info.work_nsec = mode["work"]["nsec"].as<int>();
 			mode_info.span_sec = mode["span"]["sec"].as<int>();
