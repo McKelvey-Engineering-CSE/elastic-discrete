@@ -117,8 +117,6 @@ public:
 
 	void build_RAG(std::vector<int> current_solution, std::vector<std::vector<vertex>>& final_RAG);
 
-	bool check_for_cycles(std::vector<int> current_solution);
-
 	void setTermination();
 
 	class Schedule * get_schedule();

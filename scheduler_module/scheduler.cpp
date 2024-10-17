@@ -85,99 +85,6 @@ std::vector<int> Scheduler::sort_classes(std::vector<int> items_in_candidate) {
     
 }
 
-//this function checks to see if this solution
-//would have any cycles in it when the RAG was 
-//constructed
-bool Scheduler::check_for_cycles(std::vector<int> current_solution){
-
-	//these variables monitor the state of the possible Resource allocation graph
-	int CPUs_available = 0;
-	int GPUs_available = 0;
-
-	//sort the list into the order that shows safety
-	auto sorted_item_indexes = sort_classes(current_solution);
-
-	//process the resources being exclusively returned
-	size_t i = 0;
-	for (; i < sorted_item_indexes.size(); i++){
-
-		int current_item_index = sorted_item_indexes.at(i);
-
-		if (sorted_item_indexes.at(i) == -1)
-			break;
-
-		else{
-
-			CPUs_available += task_table.at(current_item_index).at(current_solution.at(current_item_index)).cores - previous_modes.at(current_item_index).cores;
-			GPUs_available += task_table.at(current_item_index).at(current_solution.at(current_item_index)).sms - previous_modes.at(current_item_index).sms;
-
-		}
-
-	}
-
-	//next process potentially unsafe modes
-	std::queue<int> unsafe_states;
-
-	for (; i < sorted_item_indexes.size(); i++){
-
-		unsafe_states.push(sorted_item_indexes.at(i));
-
-		if (sorted_item_indexes.at(i) == -1)
-			break;
-
-	}
-
-	unsafe_states.push(-1);
-	bool popped = false;
-
-	while(!(unsafe_states.size() != 1)){
-
-		auto current = unsafe_states.front();
-		unsafe_states.pop();
-
-		if (current == -1 && !popped){
-
-			return false;
-
-		}
-
-		else if (current == -1){
-
-			popped = false;
-			unsafe_states.push(-1);
-
-		}
-
-		else {
-
-			int cpus_taken_or_returned = task_table.at(current).at(current_solution.at(current)).cores - previous_modes.at(current).cores;
-			int gpus_taken_or_returned = task_table.at(current).at(current_solution.at(current)).sms - previous_modes.at(current).sms;
-
-			if ((CPUs_available > cpus_taken_or_returned && cpus_taken_or_returned > 0) || (GPUs_available > gpus_taken_or_returned && gpus_taken_or_returned > 0)){
-
-				CPUs_available -= cpus_taken_or_returned;
-				GPUs_available -= gpus_taken_or_returned;
-
-				popped = true;
-
-			}
-
-			else {
-
-				unsafe_states.push(current);
-
-			}
-
-		}
-
-
-	}
-
-	//now we are safe, all other tasks are just taking resources, and the 
-	//knapsack algorithm ensures we have enough resources for this solution
-	return true;
-}
-
 //this function builds the RAG for the solution
 //that is selected by the knapsack algorithm.
 void Scheduler::build_RAG(std::vector<int> current_solution, std::vector<std::vector<vertex>>& final_RAG){
@@ -399,14 +306,26 @@ void Scheduler::build_RAG(std::vector<int> current_solution, std::vector<std::ve
 }
 
 //Implement scheduling algorithm
-//NOTES: GPU LOSS HAS AN ENTRY IN
-//THE TABLE (0.0) BUT IS NOT USED IN THE
-//ALGORITHM. MIGHT BE ADDED AS A FUTURE CONSTRAINT.
 void Scheduler::do_schedule(size_t maxCPU){
+
+	//for each run we need to see what resources are left in the pool from the start
+	int starting_CPUs = NUMCPUS;
+	int starting_GPUs = maxSMS;
+
+	if (!first_time){
+
+		for (int i = 0; i < schedule.count(); i++){
+
+			starting_CPUs -= previous_modes.at(i).cores;
+			starting_GPUs -= previous_modes.at(i).sms;
+
+		}
+
+	}
 
 	//dynamic programming table
 	int N = task_table.size();
-    std::vector<std::vector<std::vector<std::pair<double, double>>>> dp(N + 1, std::vector<std::vector<std::pair<double, double>>>(maxCPU + 1, std::vector<std::pair<double, double>>(maxSMS + 1, {100000, 100000})));
+    std::vector<std::vector<std::vector<std::pair<double, std::pair<int, int>>>>> dp(N + 1, std::vector<std::vector<std::pair<double, std::pair<int, int>>>>(maxCPU + 1, std::vector<std::pair<double, std::pair<int, int>>>(maxSMS + 1, {100000, {starting_CPUs, starting_GPUs}})));
     std::map<std::tuple<int,int,int>, std::vector<int>> solutions;
 
 	//try to construct a DAG that represents the resources passed
@@ -462,54 +381,75 @@ void Scheduler::do_schedule(size_t maxCPU){
             for (size_t v = 0; v <= maxSMS; v++) {
 
                 //invalid state
-                dp[i][w][v] = {-1.0, -1.0};  
+                dp[i][w][v] = {-1.0, {0, 0}};  
                 
 				//if the class we are considering is not allowed to switch modes
 				//just treat it as though we did check it normally, and only allow
 				//looking at the current mode.
 				if (!(schedule.get_task(i - 1))->get_changeable()){
 
+						//fetch item definition
 						auto item = task_table.at(i - 1).at((schedule.get_task(i - 1))->get_current_mode());
 
-						//if item fits in both sacks
-						if ((w >= item.cores) && (v >= item.sms) && (dp[i - 1][w - item.cores][v - item.sms].first != -1)) {
+						//fetch initial suspected resource values
+						size_t current_item_sms = item.sms;
+						size_t current_item_cores = item.cores;
 
-							double newCPULoss = dp[i - 1][w - item.cores][v - item.sms].first - item.cpuLoss;
-							
-							//if found solution is better, update
-							bool safe = true;
-							if ((newCPULoss) > (dp[i][w][v].first)) {
+						//if this item is feasible at all 
+						if ((w >= current_item_cores) && (v >= current_item_sms) && (dp[i - 1][w - current_item_cores][v - current_item_sms].first != -1)){
 
-								//check if we are on the final item to add
-								//if we are, then we need to check to make 
-								//sure that the resulting RAG is acyclical
-								if (!barrier && i == num_tasks && !first_time){
+							//fetch the current resource pool
+							auto current_resource_pool = dp[i - 1][w - current_item_cores][v - current_item_sms].second;
 
-									//fetch all the items in the candidate solution
-									auto current_solution = solutions[{i - 1, w - item.cores, v - item.sms}];
-									current_solution.push_back((schedule.get_task(i - 1))->get_current_mode());
+							//if we have no explicit sync,
+							//then we have to do safety checks
+							if (!barrier && !first_time){
 
-									//check the RAG for safety
-									safe = check_for_cycles(current_solution);
+								//fetch the guaranteed resources
+								int returned_cpus = current_resource_pool.first;
+								int returned_gpus = current_resource_pool.second;
+								
+								//negative means we are returning resources
+								int cpu_change = item.cores - previous_modes.at(i - 1).cores;
+								int sm_change = item.sms - previous_modes.at(i - 1).sms;
 
-									//if there are no cycles in the RAG, then we can use this solution
-									if (safe){
+								//check if this mode could cause a cycle
+								if ((cpu_change < 0 && sm_change > 0) || (sm_change < 0 && cpu_change > 0)){
+									
+									returned_cpus -= cpu_change;
+									returned_gpus -= sm_change;
 
-										dp[i][w][v] = {newCPULoss, 0.0};
+									//we have to change our resource demands to make
+									//the system safe again
+									if (returned_cpus < 0)
+										current_item_cores = std::max(item.cores, previous_modes.at(i - 1).cores);
 
-										solutions[{i, w, v}] = solutions[{i - 1, w - item.cores, v - item.sms}];
-										solutions[{i, w, v}].push_back((schedule.get_task(i - 1))->get_current_mode());
+									if (returned_gpus < 0)
+										current_item_sms = std::max(item.sms, previous_modes.at(i - 1).sms);
 
-									}
 								}
+							}
 
-								else {
+							//update the current resource pool
+							current_resource_pool = dp[i - 1][w - current_item_cores][v - current_item_sms].second;
 
-									dp[i][w][v] = {newCPULoss, 0.0};
+							//if item fits in both sacks
+							if ((w >= current_item_cores) && (v >= current_item_sms) && (dp[i - 1][w - current_item_cores][v - current_item_sms].first != -1)) {
 
-									solutions[{i, w, v}] = solutions[{i - 1, w - item.cores, v - item.sms}];
-									solutions[{i, w, v}].push_back((schedule.get_task(i - 1))->get_current_mode());
+								double newCPULoss = dp[i - 1][w - current_item_cores][v - current_item_sms].first - item.cpuLoss;
 
+								//update the pool at this stage
+								current_resource_pool.first -= (current_item_cores - previous_modes.at(i - 1).cores);
+								current_resource_pool.second -= (current_item_sms - previous_modes.at(i - 1).sms);
+								
+								//if found solution is better, update
+								if ((newCPULoss) > (dp[i][w][v].first)) {
+
+										dp[i][w][v] = {newCPULoss, current_resource_pool};
+
+										solutions[{i, w, v}] = solutions[{i - 1, w - current_item_cores, v - current_item_sms}];
+										solutions[{i, w, v}].push_back((schedule.get_task(i - 1))->get_current_mode());
+									
 								}
 							}
 						}
@@ -522,43 +462,69 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 						auto item = task_table.at(i - 1).at(j);
 
-						//if item fits in both sacks
-						if ((w >= item.cores) && (v >= item.sms) && (dp[i - 1][w - item.cores][v - item.sms].first != -1)) {
+						//fetch initial suspected resource values
+						size_t current_item_sms = item.sms;
+						size_t current_item_cores = item.cores;
 
-							double newCPULoss = dp[i - 1][w - item.cores][v - item.sms].first - item.cpuLoss;
-							
-							//if found solution is better, update
-							bool safe = true;
-							if ((newCPULoss) > (dp[i][w][v].first)) {
+						//if this item is feasible at all 
+						if ((w >= current_item_cores) && (v >= current_item_sms) && (dp[i - 1][w - current_item_cores][v - current_item_sms].first != -1)){
 
-								//check if we are on the final item to add
-								//if we are, then we need to check to make 
-								//sure that the resulting RAG is acyclical
-								if (!barrier && i == num_tasks && !first_time){
+							//fetch the current resource pool
+							auto current_resource_pool = dp[i - 1][w - current_item_cores][v - current_item_sms].second;
 
-									//fetch all the items in the candidate solution
-									auto current_solution = solutions[{i - 1, w - item.cores, v - item.sms}];
-									current_solution.push_back(j);
+							//if we have no explicit sync,
+							//then we have to do safety checks
+							if (!barrier && !first_time){
 
-									//check the RAG for safety
-									safe = check_for_cycles(current_solution);
+								//fetch the guaranteed resources
+								int returned_cpus = current_resource_pool.first;
+								int returned_gpus = current_resource_pool.second;
+								
+								//negative means we are returning resources
+								int cpu_change = item.cores - previous_modes.at(i - 1).cores;
+								int sm_change = item.sms - previous_modes.at(i - 1).sms;
 
-									//if there are no cycles in the RAG, then we can use this solution
-									if (safe){
+								//check if this mode could cause a cycle
+								if ((cpu_change < 0 && sm_change > 0) || (sm_change < 0 && cpu_change > 0)){
+									
+									returned_cpus -= cpu_change;
+									returned_gpus -= sm_change;
 
-										dp[i][w][v] = {newCPULoss, 0.0};
+									//we have to change our resource demands to make
+									//the system safe again
+									if (returned_cpus < 0){
 
-										solutions[{i, w, v}] = solutions[{i - 1, w - item.cores, v - item.sms}];
-										solutions[{i, w, v}].push_back(j);
+										current_item_cores = std::max(item.cores, previous_modes.at(i - 1).cores);
 
 									}
+
+									if (returned_gpus < 0){
+										
+										current_item_sms = std::max(item.sms, previous_modes.at(i - 1).sms);
+									
+									}
+
 								}
+							}
 
-								else {
+							//update the current resource pool
+							current_resource_pool = dp[i - 1][w - current_item_cores][v - current_item_sms].second;
 
-									dp[i][w][v] = {newCPULoss, 0.0};
+							//if item fits in both sacks
+							if ((w >= current_item_cores) && (v >= current_item_sms) && (dp[i - 1][w - current_item_cores][v - current_item_sms].first != -1)) {
 
-									solutions[{i, w, v}] = solutions[{i - 1, w - item.cores, v - item.sms}];
+								double newCPULoss = dp[i - 1][w - current_item_cores][v - current_item_sms].first - item.cpuLoss;
+
+								//update the pool at this stage
+								current_resource_pool.first -= (current_item_cores - previous_modes.at(i - 1).cores);
+								current_resource_pool.second -= (current_item_sms - previous_modes.at(i - 1).sms);
+								
+								//if found solution is better, update
+								if ((newCPULoss) > (dp[i][w][v].first)) {
+
+									dp[i][w][v] = {newCPULoss, current_resource_pool};
+
+									solutions[{i, w, v}] = solutions[{i - 1, w - current_item_cores, v - current_item_sms}];
 									solutions[{i, w, v}].push_back(j);
 
 								}
