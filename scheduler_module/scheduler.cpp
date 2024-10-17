@@ -309,7 +309,7 @@ void Scheduler::build_RAG(std::vector<int> current_solution, std::vector<std::ve
 void Scheduler::do_schedule(size_t maxCPU){
 
 	//for each run we need to see what resources are left in the pool from the start
-	int starting_CPUs = NUMCPUS;
+	int starting_CPUs = NUMCPUS - 1;
 	int starting_GPUs = maxSMS;
 
 	if (!first_time){
