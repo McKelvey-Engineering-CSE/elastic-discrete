@@ -1,0 +1,130 @@
+Notifying all processes
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+Error: Task 0 was told to go to invalid mode 231545824. Ignoring.
+Error: Task 1 was told to go to invalid mode 32652. Ignoring.
+Task 2526823 started with command string:
+>./../../regression_test_task/regression_test_task 1658580 538325980 -1 1658585 538325980 0 BAR ./../../regression_test_task/regression_test_task 0 100000000 2 50 
+Task 2526824 started with command string:
+>./../../regression_test_task/regression_test_task 1658580 538325980 -1 1658585 538325980 1 BAR ./../../regression_test_task/regression_test_task 1 100000000 2 50 
+Task 2526824 lowest CPU: -2147483647, currentCPUS, -2147483648 minCPUS: -2147483648, maxCPUS: 0, practical max: -2147483633, 0ns
+Task 2526823 lowest CPU: 1, currentCPUS, -2147483648 minCPUS: -2147483648, maxCPUS: 0, practical max: -2147483633, 0ns
+WARNING: 2526824 Could not set priority. Returned: 1  (Operation not permitted)
+WARNING: 2526823 Could not set priority. Returned: 1  (Operation not permitted)
+All tasks started.
+TEST: [1,0] core count: 1
+TEST: [0,0] core count: 1
+TEST: [1,1] core count: 1
+TEST: [0,1] core count: 1
+TEST: [1,2] core count: 1
+TEST: [0,2] core count: 1
+TEST: [1,3] core count: 1
+TEST: [0,3] core count: 1
+TEST: [1,4] core count: 1
+TEST: [0,4] core count: 1
+TEST: [1,5] core count: 1
+TEST: [0,5] core count: 1
+TEST: [1,6] core count: 1
+TEST: [0,6] core count: 1
+TEST: [1,7] core count: 1
+TEST: [0,7] core count: 1
+TEST: [1,8] core count: 1
+TEST: [0,8] core count: 1
+TEST: [1,9] core count: 1
+TEST: [0,9] core count: 1
+TEST: [1,10] core count: 1
+TEST: [0,10] core count: 1
+TEST: [1,11] core count: 1
+TEST: [0,11] core count: 1
+TEST: [1,12] core count: 1
+TEST: [0,12] core count: 1
+TEST: [1,13] core count: 1
+TEST: [0,13] core count: 1
+TEST: [1,14] core count: 1
+TEST: [0,14] core count: 1
+TEST: [1,15] core count: 1
+TEST: [0,15] core count: 1
+TEST: [1,16] core count: 1
+TEST: [0,16] core count: 1
+TEST: [1,17] core count: 1
+TEST: [0,17] core count: 1
+TEST: [1,18] core count: 1
+TEST: [0,18] core count: 1
+TEST: [1,19] core count: 1
+TEST: [0,19] core count: 1
+TEST: [1,20] core count: 1
+TEST: [0,20] core count: 1
+TEST: [1,21] core count: 1
+TEST: [0,21] core count: 1
+TEST: [1,22] core count: 1
+TEST: [0,22] core count: 1
+TEST: [1,23] core count: 1
+TEST: [0,23] core count: 1
+TEST: [1,24] core count: 1
+TEST: [0,24] core count: 1
+TEST: [1,25] core count: 1
+TEST: [0,25] core count: 1
+TEST: [1,26] core count: 1
+TEST: [0,26] core count: 1
+TEST: [1,27] core count: 1
+TEST: [0,27] core count: 1
+TEST: [1,28] core count: 1
+TEST: [0,28] core count: 1
+TEST: [1,29] core count: 1
+TEST: [0,29] core count: 1
+TEST: [1,30] core count: 1
+TEST: [0,30] core count: 1
+TEST: [1,31] core count: 1
+TEST: [0,31] core count: 1
+TEST: [1,32] core count: 1
+TEST: [0,32] core count: 1
+TEST: [1,33] core count: 1
+TEST: [0,33] core count: 1
+TEST: [1,34] core count: 1
+TEST: [0,34] core count: 1
+TEST: [1,35] core count: 1
+TEST: [0,35] core count: 1
+TEST: [1,36] core count: 1
+TEST: [0,36] core count: 1
+TEST: [1,37] core count: 1
+TEST: [0,37] core count: 1
+TEST: [1,38] core count: 1
+TEST: [0,38] core count: 1
+TEST: [1,39] core count: 1
+TEST: [0,39] core count: 1
+TEST: [1,40] core count: 1
+TEST: [0,40] core count: 1
+TEST: [1,41] core count: 1
+TEST: [0,41] core count: 1
+TEST: [1,42] core count: 1
+TEST: [0,42] core count: 1
+TEST: [1,43] core count: 1
+TEST: [0,43] core count: 1
+TEST: [1,44] core count: 1
+TEST: [0,44] core count: 1
+TEST: [1,45] core count: 1
+TEST: [0,45] core count: 1
+TEST: [1,46] core count: 1
+TEST: [0,46] core count: 1
+TEST: [1,47] core count: 1
+TEST: [0,47] core count: 1
+TEST: [1,48] core count: 1
+TEST: [0,48] core count: 1
+TEST: [1,49] core count: 1
+TEST: [0,49] core count: 1
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+(2526824) Deadlines missed for task ./../../regression_test_task/regression_test_task: 50/50
+(2526824) Max running time for task ./../../regression_test_task/regression_test_task: 5 sec  490588 nsec
+(2526824) Avg running time for task ./../../regression_test_task/regression_test_task: 2550.27 msec
+50 50 1 5.000490588
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+(2526823) Deadlines missed for task ./../../regression_test_task/regression_test_task: 50/50
+(2526823) Max running time for task ./../../regression_test_task/regression_test_task: 5 sec  647117 nsec
+(2526823) Avg running time for task ./../../regression_test_task/regression_test_task: 2550.39 msec
+50 50 1 5.000647117
+All tasks finished.
+14.0000000000 1.0000000000 1.0000000000
+1.0000000000 1.0000000000 1.0000000000
+1.0000000000 1.0000000000 1.0000000000
+14.0000000000 1.0000000000 1.0000000000
+Got this allocation: 1.79769e+308 
