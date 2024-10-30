@@ -39,16 +39,17 @@ int init(int argc, char *argv[])
 }
 
 int run(int argc, char *argv[]){
-    #pragma omp parallel
+    int count = 0;
+    #pragma omp parallel shared(count)
      {
+        if (active[omp_get_thread_num()]) {
+            #pragma omp atomic
+            count++;
 
-        #pragma omp master
-        {
-            std::cout << "TEST: [" << logging_index << "," << iterations_complete << "] core count: " << omp_get_num_threads() << std::endl;
+            busy_work(spin_tv);
         }
-
-        busy_work(spin_tv);
     }
+    std::cout << "TEST: [" << logging_index << "," << iterations_complete << "] core count: " << count << std::endl;
 
     iterations_complete++;
 

@@ -17,14 +17,14 @@ RTPS_FILE=./target_task/james.yaml
 ##################################################################################
 
 ##### Rules ######################################################################
-all: clustering_distribution finish
+all: clustering_distribution finish regression_test_task
 
 finish:
 	mkdir -p ./bin
 	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./bin
 
 clean:
-	rm -r ./bin *.o *.a $(TARGET_TASK) clustering_launcher synthetic_task libyaml-cpp/build
+	rm -r ./bin *.o *.a $(TARGET_TASK) clustering_launcher synthetic_task libyaml-cpp/build regression_test_task/regression_test_task
 
 synthetic_task: ./task_module/synthetic_task.cpp
 	$(CC) $(FLAGS) -fopenmp ./task_module/synthetic_task.cpp shared_mem.o task.o task_manager.o print_library.o thread_barrier.o schedule.o taskData.o -o synthetic_task $(LIBS)
