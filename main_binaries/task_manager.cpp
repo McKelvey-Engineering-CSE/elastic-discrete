@@ -66,6 +66,9 @@ const unsigned FINALIZE_PRIORITY = 1;
 //The priority that we use when sleeping.
 const unsigned SLEEP_PRIORITY = 97;
 
+//The priority that we use during normal execution (configurable by user)
+unsigned EXEC_PRIORITY = 7;
+
 //These variables are declared extern in task.h, but need to be
 //visible in both places
 int futex_val;
@@ -184,7 +187,7 @@ void reschedule()
 					schedule.get_task(iindex)->clr_passive(j);
 					schedule.get_task(iindex)->set_active(j);
 
-					global_param.sched_priority=7;
+					global_param.sched_priority = EXEC_PRIORITY;
 					ret_val = pthread_setschedparam(thread_locations[j], SCHED_RR, &global_param);
 					
 					active[omp_thread_index[thread_locations[j]]] = true;
@@ -210,7 +213,7 @@ void reschedule()
 
 							active[omp_thread_index[thread_locations[j]]] = true;
 							schedule.get_task(iindex)->set_active(j); 
-							global_param.sched_priority=7;
+							global_param.sched_priority = EXEC_PRIORITY;
 							ret_val = pthread_setschedparam(thread_locations[j], SCHED_RR, &global_param);	
 
 							CPU_ZERO(&global_cpuset);
@@ -296,19 +299,20 @@ int main(int argc, char *argv[])
 		(std::istringstream(argv[3]) >> iterations) &&
 		(std::istringstream(argv[4]) >> end_sec) &&
         (std::istringstream(argv[5]) >> end_nsec) &&
-		(std::istringstream(argv[6]) >> iindex)))
+		(std::istringstream(argv[6]) >> EXEC_PRIORITY) &&
+		(std::istringstream(argv[7]) >> iindex)))
 	{
 		print_module::print(std::cerr,  "ERROR: Cannot parse input argument for task " , task_name , "\n");
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_ARG_PARSE_ERROR;
 	}
-
+	
 	start_time = {start_sec, start_nsec};
 	end_time = {end_sec, end_nsec};
 	
-	char *barrier_name = argv[7];
-	int task_argc = argc - 8;                                             
-	char **task_argv = &argv[8];
+	char *barrier_name = argv[8];
+	int task_argc = argc - 9;                                             
+	char **task_argv = &argv[9];
 
 	//Wait at barrier for the other tasks but mainly to make sure scheduler has finished
 	if ((ret_val = process_barrier::await_and_destroy_barrier("BAR_2")) != 0)
@@ -334,7 +338,7 @@ int main(int argc, char *argv[])
 	print_module::print(std::cerr,  "Task " , getpid() , " lowest CPU: " , schedule.get_task(iindex)->get_current_lowest_CPU() , ", currentCPUS, " , schedule.get_task(iindex)->get_current_CPUs() , " minCPUS: " , schedule.get_task(iindex)->get_min_CPUs() , ", maxCPUS: " , schedule.get_task(iindex)->get_max_CPUs() , ", practical max: " , schedule.get_task(iindex)->get_practical_max_CPUs() , ", " , schedule.get_task(iindex)->get_current_period().tv_nsec , "ns\n");
 
 	struct sched_param param;
-	param.sched_priority = 7;//rtprio;
+	param.sched_priority = EXEC_PRIORITY;
 	ret_val = sched_setscheduler(getpid(), SCHED_RR, &param);
 
 	if (ret_val != 0)
@@ -379,7 +383,7 @@ int main(int argc, char *argv[])
 			if(j==0)
 				schedule.get_task(iindex)->set_permanent_CPU(p);
 				
-			global_param.sched_priority=7;
+			global_param.sched_priority = EXEC_PRIORITY;
             ret_val = pthread_setschedparam(threads[j], SCHED_RR, &global_param);
 			thread_locations[p]=threads[j];
 
