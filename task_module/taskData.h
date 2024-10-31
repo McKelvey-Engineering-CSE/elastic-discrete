@@ -28,14 +28,12 @@ Class : TaskData
 #include "include.h"
 #include "print_module.h"
 
-
-#include "libsmctrl/libsmctrl.h"
-
 //NVIDIA headers
 #ifdef __NVCC__
 	
 	#include <cuda.h>
 	#include <cuda_runtime.h>
+	#include "libsmctrl/libsmctrl.h"
 
 	#define NVRTC_SAFE_CALL(x)                                        \
 	do {                                                              \
@@ -138,7 +136,7 @@ private:
 	int current_lowest_CPU;
 
 	int practical_max_GPUs;	
-	int current_lowest_GPU;
+	int current_lowest_GPU = 0;
 
 	double percentage_workload;
 
@@ -183,16 +181,16 @@ private:
 		//assume we have the largest GPU (in theory) possible
 		CUdevResource our_TPCs[144];
 
-		//and store the actual number of TPCs we have
-		unsigned int num_TPCs = 1000;
-
-		//store how many TPCs we are granted
-		int granted_TPCs = 0;
-
-		//TPC mask
-		__uint128_t TPC_mask = 0;
-
 	#endif
+
+	//and store the actual number of TPCs we have
+	unsigned int num_TPCs = 1000;
+
+	//store how many TPCs we are granted
+	int granted_TPCs = 0;
+
+	//TPC mask
+	__uint128_t TPC_mask = 0;
 
 	//I never really liked the idea of 
 	//having the CPU amount and GPU 

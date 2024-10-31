@@ -385,6 +385,8 @@ int main(int argc, char *argv[])
 	start_time.tv_nsec = current_time.tv_nsec;
 	end_time = start_time + run_time;
 
+	print_module::print(std::cerr, "Explicit Sync: ", explicit_sync, "\n");
+
 	// Iterate over the tasks, gather their arguments, timing parameters, and name 
 	// and then fork and execv each one
 	for (unsigned t = 0; t < parsed_tasks.size(); ++t)

@@ -1,112 +1,61 @@
+/*
+Configurable task to use in unit tests. Features:
+* Takes a mode count as an argument, cycles bewteen the modes at a configurable interval
+* Does a configurable amount of work in the meantime
+* Prints the number of cores on which it is running at each iteration
+*/
+
 #include "task.h"
+#include <cstring>
 #include <omp.h>
-
-#if defined(__x86_64__) || defined(_M_X64)
-    #include <immintrin.h>
-#elif defined(__aarch64__) || defined(_M_ARM64)
-    #include <arm_neon.h>
-#endif
-
-#define N 100
-
-#if defined(__x86_64__) || defined(_M_X64)
-	int mat1[N][N];
-	int mat2[N][N];
-	int result[N][N];
-
-#elif defined(__aarch64__) || defined(_M_ARM64)
-	uint8_t mat1[N][N];
-	uint8_t mat2[N][N];
-	uint8_t result[N][N];
-
-#endif
-
 #include "timespec_functions.h"
+
+int logging_index = -1;
+
+timespec spin_tv;
+int mode_count = 0;
+int mode_change_interval = -1;
+
+int synth_current_mode = 0;
+int iterations_complete = 0;
 
 int init(int argc, char *argv[])
 {
 
-	print_module::task_print(std::cout, "Initializing Arrays\n");
+    if (argc < 2) {
+        std::cerr << "synthetic_test_task: not enough arguments" << std::endl;
+        return -1;
+    }
 
-	//give some random values
-	for (int x = 0; x < N; x++){
-		for (int y = 0; y < N; y++){
-			mat1[x][y] = x+y;
-			mat2[x][y] = int(x/2)+int(y/4);
-			result[x][y] = 0;
-		}
-	}
+    spin_tv.tv_sec = 0;
+
+    //TODO all args are passed in as a single string - should change clustering_launcher to fix this
+    if (sscanf(argv[1], "%d %ld %d %d", &logging_index, &spin_tv.tv_nsec, &mode_count, &mode_change_interval) < 3) {
+        std::cerr << "synthetic_test_task: failed to parse args" << std::endl;
+        return -2;
+    }
 
 	return 0;       
 }
 
 int run(int argc, char *argv[]){
-	//*(int * ) 0 = 0;
+    int count = 0;
+    #pragma omp parallel
+     {
+		#pragma omp atomic
+		count++;
 
-	if (getpid() % 2 == 0)
-		modify_self(2);
-	else
-		modify_self(1);
+		busy_work(spin_tv);
+        
+    }
+    std::cout << "TEST: [" << logging_index << "," << iterations_complete << "] core count: " << count << std::endl;
 
-	print_module::task_print(std::cout, "Executing Matrix Manipulations\n");
+    iterations_complete++;
 
-	#pragma omp parallel
-	{	
-
-
-		busy_work({3, 0});
-
-		printf("pid: %d | Thread %d running on core %d\n", getpid(), omp_get_thread_num(), sched_getcpu());
-	}
-
-	/*#if defined(__x86_64__) || defined(_M_X64)
-		//Example Vector workload
-		__m256i vec_multi_res = _mm256_setzero_si256();
-		__m256i vec_mat1 = _mm256_setzero_si256();
-		__m256i vec_mat2 = _mm256_setzero_si256();
-
-		int i, j, k;
-		for (i = 0; i < N; i++){
-			for (j = 0; j < N; ++j){
-				//Stores one element in mat1 and use it in all computations needed before proceeding
-				//Stores as vector to increase computations per cycle
-				vec_mat1 = _mm256_set1_epi32(mat1[i][j]);
-
-				for (k = 0; k < N; k += 8){
-					vec_mat2 = _mm256_loadu_si256((__m256i*)&mat2[j][k]);
-					vec_multi_res = _mm256_loadu_si256((__m256i*)&result[i][k]);
-					vec_multi_res = _mm256_add_epi32(vec_multi_res ,_mm256_mullo_epi32(vec_mat1, vec_mat2));
-				}
-			}
-		}
-
-	#elif defined(__aarch64__) || defined(_M_ARM64)
-
-		//can only do 128 bit vectors..... I think....?
-		//make 3 128 bit vectors
-		uint8x16x3_t vec_multi_res;
-		
-		int i, j, k;
-		for (i = 0; i < N; i++){
-			for (j = 0; j < N; ++j){
-				//Stores one element in mat1 and use it in all computations needed before proceeding
-				//Stores as vector to increase computations per cycle
-				vec_multi_res.val[1] = vld1q_u8(mat1[i]);
-
-				for (k = 0; k < N; k += 8){
-					vec_multi_res.val[2] = vld1q_u8(mat2[j]);
-					vec_multi_res.val[0] = vld1q_u8(result[i]);
-
-					//mult -> add -> store
-					vec_multi_res.val[0] = (vec_multi_res.val[1] + vec_multi_res.val[2]) * vec_multi_res.val[0];
-					vst1q_u8(result[i], vec_multi_res.val[0]);
-				}
-			}
-		}
-
-	#endif*/
-
-
+    if (mode_count > 1 && mode_change_interval > 0 && iterations_complete > 0 && (iterations_complete % mode_change_interval == 0)) {
+        synth_current_mode = (synth_current_mode + 1) % mode_count;
+        modify_self(synth_current_mode);
+    }
 
 	return 0;
 }
