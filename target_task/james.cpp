@@ -12,7 +12,7 @@ Configurable task to use in unit tests. Features:
 
 #include "omp_replacement.hpp"
 
-extern ThreadPool<void(int, int, int)> omp;
+extern ThreadPool<> omp;
 
 int logging_index = -1;
 
