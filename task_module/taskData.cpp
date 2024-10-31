@@ -833,3 +833,17 @@ void TaskData::clear_gpus_granted_from_other_tasks(){
 	gpus_granted_from_other_tasks.clear();
 
 }
+
+__uint128_t TaskData::get_cpu_mask() {
+		__uint128_t result = 0;
+		
+		for (int pos : CPUs_owned_by_task) {
+			// Skip invalid positions
+			if (pos < 0 || pos >= 128) continue;
+			
+			// Set the bit at position pos
+			result |= ((__uint128_t)1 << pos);
+		}
+		
+		return result;
+	}

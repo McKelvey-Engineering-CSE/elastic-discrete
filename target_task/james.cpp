@@ -10,6 +10,10 @@ Configurable task to use in unit tests. Features:
 #include <omp.h>
 #include "timespec_functions.h"
 
+#include "omp_replacement.hpp"
+
+extern ThreadPool<void(int, int, int)> omp;
+
 int logging_index = -1;
 
 timespec spin_tv;
@@ -39,15 +43,16 @@ int init(int argc, char *argv[])
 }
 
 int run(int argc, char *argv[]){
-    int count = 0;
-    #pragma omp parallel
-     {
-		#pragma omp atomic
+
+    std::atomic<int> count = 0;
+    omp( pragma_omp_parallel
+    {
 		count++;
 
 		busy_work(spin_tv);
         
-    }
+    });
+
     std::cout << "TEST: [" << logging_index << "," << iterations_complete << "] core count: " << count << std::endl;
 
     iterations_complete++;

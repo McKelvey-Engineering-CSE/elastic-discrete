@@ -371,6 +371,8 @@ public:
 
 	void clear_gpus_granted_from_other_tasks();
 
+	__uint128_t get_cpu_mask();
+
 };
 
 #endif
