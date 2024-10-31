@@ -30,6 +30,7 @@
 #include <limits.h>
 #include <map>
 #include "print_module.h"
+#include "omp_replacement.hpp"
 
 #include <chrono>
 using namespace std::chrono;
@@ -93,6 +94,10 @@ pid_t mypid;
 cpu_set_t global_cpuset;
 struct sched_param global_param;
 
+//omp replacement thread pool
+__uint128_t current_cpu_mask;
+ThreadPool omp(NUMCPUS);
+
 enum rt_gomp_task_manager_error_codes
 { 
 	RT_GOMP_TASK_MANAGER_SUCCESS,
@@ -121,7 +126,6 @@ void initiate_reschedule(){
 
 }
 
-cpu_set_t current_cpu_mask;
 struct sched_param sp;
 bool active_threads[64];
 bool needs_reschedule = false;
@@ -232,9 +236,9 @@ void reschedule(){
 			//remove CPUs from our set until we have given up the correct number
 			int CPU_index = schedule.get_task(task_index)->pop_back_cpu();
 
-			//set the thread to sleep
+			/*//set the thread to sleep
 			global_param.sched_priority = SLEEP_PRIORITY;
-			ret_val = pthread_setschedparam(thread_handles[CPU_index], SCHED_RR, &global_param);
+			ret_val = pthread_setschedparam(thread_handles[CPU_index], SCHED_RR, &global_param);*/
 
 		}
 
@@ -257,14 +261,14 @@ void reschedule(){
 			//determine which threads are coming back to life
 			int previous_CPUs = schedule.get_task(task_index)->get_previous_CPUs();
 
-			global_param.sched_priority = EXEC_PRIORITY;
-			ret_val = pthread_setschedparam(thread_handles.at((previous_CPUs - 1) + i), SCHED_RR, &global_param);
+			/*global_param.sched_priority = EXEC_PRIORITY;
+			ret_val = pthread_setschedparam(thread_handles.at((previous_CPUs - 1) + i), SCHED_RR, &global_param);*/
 
 			//FIXME: REPINNING THE THREADS IS NOT A GOOD SOLUTION
-			CPU_ZERO(&global_cpuset);
+			/*CPU_ZERO(&global_cpuset);
 			CPU_SET(core_indices.at(i), &global_cpuset);
 
-			pthread_setaffinity_np(thread_handles.at((previous_CPUs - 1) + i), sizeof(cpu_set_t), &global_cpuset);
+			pthread_setaffinity_np(thread_handles.at((previous_CPUs - 1) + i), sizeof(cpu_set_t), &global_cpuset);*/
 
 		}
 		
@@ -302,7 +306,11 @@ void reschedule(){
 	schedule.get_task(task_index)->clear_gpus_granted_from_other_tasks();
 
 	//update thread count
-	omp_set_num_threads(schedule.get_task(task_index)->get_current_CPUs());
+	//omp_set_num_threads(schedule.get_task(task_index)->get_current_CPUs());
+
+	//update our cpu mask
+	current_cpu_mask = schedule.get_task(task_index)->get_cpu_mask();
+	omp.set_override_mask(current_cpu_mask);
 
 	//sync all threads
 	bar.mc_bar_reinit(schedule.get_task(task_index)->get_current_CPUs());	
@@ -467,42 +475,52 @@ int main(int argc, char *argv[])
  		print_module::print(std::cerr,  "WARNING: " , getpid() , " Could not set priority. Returned: " , errno , "  (" , strerror(errno) , ")\n");
 
 	// OMP settings
-	omp_set_nested(0);
-	omp_set_dynamic(0);
-	omp_set_schedule(omp_sched_dynamic, 1);	
+	//omp_set_nested(0);
+	//omp_set_dynamic(0);
+	//omp_set_schedule(omp_sched_dynamic, 1);	
 
 	practical_max_cpus = schedule.get_task(task_index)->get_practical_max_CPUs();
-	omp_set_num_threads(practical_max_cpus);
- 
-	//this used to only start up practical_max_cpus threads, 
-	//but now we start up to the number of CPUs we may have
-	#pragma omp parallel
+	//omp_set_num_threads(practical_max_cpus);
+
+	//pin each thread to a core
+	omp(pragma_omp_parallel
 	{
 
-		thread_handles[omp_get_thread_num()] = pthread_self();
-		omp_thread_index[pthread_self()] = omp_get_thread_num();
+		cpu_set_t local_cpuset;
+		CPU_ZERO(&local_cpuset);
+		CPU_SET(thread_id, &local_cpuset);
 
-	}
+		pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &local_cpuset);
+
+	});
 
 	//Determine which threads are active and passive. Pin, etc.
 	std::string active_cpu_string = "";
 	std::string passive_cpu_string = "";
 
 	//for CPUs that we MAY have at some point (practical max)
-	for (int j = 0; j < schedule.get_task(task_index)->get_practical_max_CPUs(); j++){
-
-		//"j" does not map to CPU index, so we need to calculate it
-		int p = (schedule.get_task(task_index)->get_current_lowest_CPU() + j - 1) % (NUMCPUS) + 1;
+	for (int j = 1; j < NUMCPUS; j++){
 
 		//Our first CPU is our permanent CPU 
-		if (j == 0)
-			schedule.get_task(task_index)->set_permanent_CPU(p);
+		if (j == schedule.get_task(task_index)->get_current_lowest_CPU()){
+		
+			cpu_set_t local_cpuset;
+			CPU_ZERO(&local_cpuset);
+			CPU_SET(j, &local_cpuset);
 
-		if (j < schedule.get_task(task_index)->get_current_CPUs()){
+			//pin the main thread to this core
+			pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &local_cpuset);
+		
+			schedule.get_task(task_index)->set_permanent_CPU(j);
+
+		}
+		if (j >= schedule.get_task(task_index)->get_current_lowest_CPU() && j < schedule.get_task(task_index)->get_current_lowest_CPU() + schedule.get_task(task_index)->get_current_CPUs()){
 
 			global_param.sched_priority = EXEC_PRIORITY;
 
-			active_cpu_string += std::to_string(p) + ", ";
+			active_cpu_string += std::to_string(j) + ", ";
+
+			schedule.get_task(task_index)->push_back_cpu(j);
 
 		}
 
@@ -510,19 +528,16 @@ int main(int argc, char *argv[])
 
 			global_param.sched_priority = SLEEP_PRIORITY;
 
-			passive_cpu_string += std::to_string(p) + ", ";
+			passive_cpu_string += std::to_string(j) + ", ";
 
 		}
-		
-		//set our thread at "j" to be at CPU "p" via our thread location map
-		ret_val = pthread_setschedparam(thread_handles.at(j), SCHED_RR, &global_param);
-
-		CPU_ZERO(&global_cpuset);
-		CPU_SET(p, &global_cpuset);
-
-		pthread_setaffinity_np(thread_handles.at(j), sizeof(cpu_set_t), &global_cpuset);
  
   	}
+
+	//set the cpu mask
+	current_cpu_mask = schedule.get_task(task_index)->get_cpu_mask();
+	std::cout << "CPU Mask: " << (unsigned long long) current_cpu_mask << std::endl;
+	omp.set_override_mask(current_cpu_mask);
 
 	//print active vs passive CPUs
 	print_module::buffered_print(task_info, "CPU Core Configuration: \n");
