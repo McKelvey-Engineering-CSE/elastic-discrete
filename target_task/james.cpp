@@ -10,10 +10,6 @@ Configurable task to use in unit tests. Features:
 #include <omp.h>
 #include "timespec_functions.h"
 
-#include "omp_replacement.hpp"
-
-extern ThreadPool<> omp;
-
 int logging_index = -1;
 
 timespec spin_tv;
@@ -22,6 +18,8 @@ int mode_change_interval = -1;
 
 int synth_current_mode = 0;
 int iterations_complete = 0;
+
+extern int task_index;
 
 int init(int argc, char *argv[])
 {
@@ -53,11 +51,11 @@ int run(int argc, char *argv[]){
         
     });
 
-    std::cout << "TEST: [" << logging_index << "," << iterations_complete << "] core count: " << count << std::endl;
+    std::cout << "TEST: [" << task_index << "," << iterations_complete << "] core count: " << count << std::endl;
 
     iterations_complete++;
 
-    if (mode_count > 1 && mode_change_interval > 0 && iterations_complete > 0 && (iterations_complete % mode_change_interval == 0)) {
+    if (task_index == 1 && mode_count > 1 && mode_change_interval > 0 && iterations_complete > 0 && (iterations_complete % mode_change_interval == 0)) {
         synth_current_mode = (synth_current_mode + 1) % mode_count;
         modify_self(synth_current_mode);
     }

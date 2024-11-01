@@ -24,6 +24,7 @@ Class : TaskData
 #include <stdio.h>
 #include <unistd.h>
 #include <vector>
+#include <array>
 #include "timespec_functions.h"
 #include "include.h"
 #include "print_module.h"
@@ -192,11 +193,14 @@ private:
 	//TPC mask
 	__uint128_t TPC_mask = 0;
 
+	//CPU core mask
+	__uint128_t CPU_mask = 0;
+
 	//I never really liked the idea of 
 	//having the CPU amount and GPU 
 	//amount in arrays but I do have a serious
 	//problem/dependency on vectors
-	std::vector<int> CPUs_owned_by_task;
+	//std::vector<int> CPUs_owned_by_task;
 
 	//updated variables
 	bool mode_transitioned = false;
@@ -212,10 +216,10 @@ private:
 	int other_tasks_giving_cpus = 0;
 	int other_tasks_giving_gpus = 0;
 
-	//these will be overridden by the scheduler
-	//as it assigns other tasks to give us resources
-	std::vector<std::pair<int, std::vector<int>>> cpus_granted_from_other_tasks;
-	std::vector<std::pair<int, std::vector<int>>> gpus_granted_from_other_tasks;
+	//these are the indicies of processors we are gaining
+	//and which processors they came from
+	int cpus_granted_from_other_tasks [MAXTASKS][NUMCPUS + 1];
+	int gpus_granted_from_other_tasks [MAXTASKS][NUMCPUS + 1];
 
 public:
 

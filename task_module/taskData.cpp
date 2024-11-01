@@ -22,24 +22,6 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 	
 	}
 
-	cpus_granted_from_other_tasks = std::vector<std::pair<int, std::vector<int>>>(MAXTASKS, {0, std::vector<int>(NUMCPUS + 1, 0)});
-	gpus_granted_from_other_tasks = std::vector<std::pair<int, std::vector<int>>>(MAXTASKS, {0, std::vector<int>(NUMCPUS + 1, 0)});
-	CPUs_owned_by_task = std::vector<int>(NUMCPUS + 1);
-
-	//clear static vectors
-	CPUs_owned_by_task.clear();
-
-	for (size_t i = 0; i < cpus_granted_from_other_tasks.size(); i++)
-		cpus_granted_from_other_tasks.at(i).second.clear();
-
-	cpus_granted_from_other_tasks.clear();
-
-	for (size_t i = 0; i < gpus_granted_from_other_tasks.size(); i++)
-		gpus_granted_from_other_tasks.at(i).second.clear();
-
-	gpus_granted_from_other_tasks.clear();
-
-
 	//if we are compiling using NVCC on a CUDA-enabled machine, update this param
 	#ifdef __NVCC__
 
@@ -743,31 +725,70 @@ void TaskData::set_mode_transition(bool state){
 //functions to work with static vector of CPU indices
 int TaskData::pop_back_cpu(){
 
-	int index = CPUs_owned_by_task.back();
+    // Handle empty vector case
+    if (CPU_mask == 0) {
+        return -1;
+    }
 
-	CPUs_owned_by_task.pop_back();
+    int msb = 127;  // Start from highest possible bit
+    __uint128_t test_bit = (__uint128_t)1 << 127;
 
-	return index;
+    // Find the most significant 1 bit
+    while ((CPU_mask & test_bit) == 0) {
+        msb--;
+        test_bit >>= 1;
+    }
+
+	//check if it's our permanent
+	if (msb == get_permanent_CPU()){
+		 while ((CPU_mask & test_bit) == 0) {
+			msb--;
+			test_bit >>= 1;
+		}
+	}
+
+    // Clear the MSB
+    CPU_mask ^= test_bit;
+
+    return msb;
 
 }
 
-int TaskData::push_back_cpu(int index){
+int TaskData::push_back_cpu(int value){
 
-	CPUs_owned_by_task.push_back(index);
-
-	return CPUs_owned_by_task.size();
-
-}
-
-int TaskData::get_cpu_at_index(int index){
-
-	return CPUs_owned_by_task.at(index);
-
+    // Check if value is in valid range
+    if (value < 0 || value > 127) {
+        return false;
+    }
+    
+    // Check if bit is already set
+    __uint128_t bit = (__uint128_t)1 << value;
+    if (CPU_mask & bit) {
+        return false;
+    }
+    
+    // Set the bit
+    CPU_mask |= bit;
+    return true;
 }
 
 std::vector<int> TaskData::get_cpu_owned_by_process(){
+	
+    std::vector<int> result;
 
-	return CPUs_owned_by_task;
+    result.reserve(128);
+    
+    for (int i = 0; i < 128; i++) {
+        if (CPU_mask & ((__uint128_t)1 << i)) {
+
+			//do not allow our permanent CPU to be returned as
+			//a cpu we can pass or keep
+			if (i != get_permanent_CPU())
+            	result.push_back(i);
+        }
+    }
+
+    return result;
 
 }
 
@@ -792,58 +813,85 @@ std::vector<int> TaskData::get_gpu_owned_by_process(){
 //retrieve the number of CPUs or GPUs we have been given	
 std::vector<std::pair<int, std::vector<int>>> TaskData::get_cpus_granted_from_other_tasks(){
 
-	return cpus_granted_from_other_tasks;
+	std::vector<std::pair<int, std::vector<int>>> returning_cpus_granted_from_other_tasks;
+
+	//stupid conversion to make the vectors
+	for (int i = 0; i < MAXTASKS; i++){
+		if (cpus_granted_from_other_tasks[i][0] != -1){
+
+			auto current = std::make_pair(i, std::vector<int>());
+
+			for (int j = 1; j < cpus_granted_from_other_tasks[i][0] + 1; j++)
+				current.second.push_back(cpus_granted_from_other_tasks[i][j]);
+
+			returning_cpus_granted_from_other_tasks.push_back(current);
+
+		}
+
+	}
+
+	return returning_cpus_granted_from_other_tasks;
 
 }
 
 std::vector<std::pair<int, std::vector<int>>> TaskData::get_gpus_granted_from_other_tasks(){
 
-	return gpus_granted_from_other_tasks;
+	std::vector<std::pair<int, std::vector<int>>> returning_gpus_granted_from_other_tasks;
+
+	//stupid conversion to make the vectors
+	for (int i = 0; i < MAXTASKS; i++){
+		if (gpus_granted_from_other_tasks[i][0] != -1){
+
+			auto current = std::make_pair(i, std::vector<int>());
+
+			for (int j = 1; j < cpus_granted_from_other_tasks[i][0] + 1; j++)
+				current.second.push_back(cpus_granted_from_other_tasks[i][j]);
+
+			returning_gpus_granted_from_other_tasks.push_back(current);
+		}
+
+	}
+
+	return returning_gpus_granted_from_other_tasks;
 
 }
 
 //give CPUs or GPUs to another task
 void TaskData::set_cpus_granted_from_other_tasks(std::pair<int, std::vector<int>> entry){
 
-	cpus_granted_from_other_tasks.push_back(entry);
+	for (int i = 0; i < entry.second.size(); i++)
+		cpus_granted_from_other_tasks[entry.first][i+1] = entry.second.at(i);
+
+	cpus_granted_from_other_tasks[entry.first][0] = entry.second.size();
 
 }
 
 void TaskData::set_gpus_granted_from_other_tasks(std::pair<int, std::vector<int>> entry){
 
-	gpus_granted_from_other_tasks.push_back(entry);
+	for (int i = 0; i < entry.second.size(); i++)
+		gpus_granted_from_other_tasks[entry.first][i+1] = entry.second.at(i);
+
+	gpus_granted_from_other_tasks[entry.first][0] = entry.second.size();
 
 }	
 
 //make a function which clears these vectors like they are cleared in the constructor
 void TaskData::clear_cpus_granted_from_other_tasks(){
 
-	for (size_t i = 0; i < cpus_granted_from_other_tasks.size(); i++)
-		cpus_granted_from_other_tasks.at(i).second.clear();
-
-	cpus_granted_from_other_tasks.clear();
+	for (size_t i = 0; i < MAXTASKS; i++)
+		cpus_granted_from_other_tasks[i][0] = -1;
 
 }
 
 void TaskData::clear_gpus_granted_from_other_tasks(){
 
-	for (size_t i = 0; i < gpus_granted_from_other_tasks.size(); i++)
-		gpus_granted_from_other_tasks.at(i).second.clear();
-
-	gpus_granted_from_other_tasks.clear();
+	for (size_t i = 0; i < MAXTASKS; i++)
+		gpus_granted_from_other_tasks[i][0] = -1;
 
 }
 
 __uint128_t TaskData::get_cpu_mask() {
-		__uint128_t result = 0;
-		
-		for (int pos : CPUs_owned_by_task) {
-			// Skip invalid positions
-			if (pos < 0 || pos >= 128) continue;
-			
-			// Set the bit at position pos
-			result |= ((__uint128_t)1 << pos);
-		}
-		
-		return result;
-	}
+	
+	return CPU_mask;
+
+}

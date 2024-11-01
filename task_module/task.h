@@ -23,6 +23,7 @@ Struct : task_t
 #include "thread_barrier.h"
 #include <sched.h>
 #include "include.h"
+#include "omp_replacement.hpp"
 
 //#define TRACING
 
@@ -53,6 +54,8 @@ extern task_t task;
 
 extern const int NUMCPUS;
 extern const int MAXTASKS;
+
+extern ThreadPool<> omp;
 
 extern timespec current_period;
 extern timespec current_work;

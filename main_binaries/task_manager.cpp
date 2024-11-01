@@ -96,7 +96,7 @@ struct sched_param global_param;
 
 //omp replacement thread pool
 __uint128_t current_cpu_mask;
-ThreadPool omp(NUMCPUS);
+ThreadPool<> omp(NUMCPUS);
 
 enum rt_gomp_task_manager_error_codes
 { 
@@ -226,15 +226,16 @@ void reschedule(){
 	//we check to see if we are just returning resources, returning and gaining, or just gaining
 	int cpu_change = schedule.get_task(task_index)->get_CPUs_change();
 	int gpu_change = schedule.get_task(task_index)->get_GPUs_change();
-	
+
 	//giving cpus
-	if (cpu_change < 0){
+	if (cpu_change > 0){
 
 		//give up resources immediately and mark our transition
-		for (int i = 0; i < cpu_change * -1; i++){
+		for (int i = 0; i < cpu_change; i++){
 			
 			//remove CPUs from our set until we have given up the correct number
-			int CPU_index = schedule.get_task(task_index)->pop_back_cpu();
+			//int CPU_index = schedule.get_task(task_index)->pop_back_cpu();
+			int cpu_i = schedule.get_task(task_index)->pop_back_cpu();
 
 			/*//set the thread to sleep
 			global_param.sched_priority = SLEEP_PRIORITY;
@@ -245,7 +246,7 @@ void reschedule(){
 	}
 
 	//gaining cpus
-	if (cpu_change > 0){
+	if (cpu_change < 0){
 
 		//collect our CPUs
 		auto cpus = schedule.get_task(task_index)->get_cpus_granted_from_other_tasks();
@@ -258,8 +259,11 @@ void reschedule(){
 		//wake up the corresponding cores
 		for (size_t i = 0; i < core_indices.size(); i++){
 
+			//add them to our set
+			schedule.get_task(task_index)->push_back_cpu(core_indices.at(i));
+
 			//determine which threads are coming back to life
-			int previous_CPUs = schedule.get_task(task_index)->get_previous_CPUs();
+			//int previous_CPUs = schedule.get_task(task_index)->get_previous_CPUs();
 
 			/*global_param.sched_priority = EXEC_PRIORITY;
 			ret_val = pthread_setschedparam(thread_handles.at((previous_CPUs - 1) + i), SCHED_RR, &global_param);*/
@@ -275,7 +279,7 @@ void reschedule(){
 	}
 
 	//giving gpus
-	if (gpu_change < 0){
+	if (gpu_change > 0){
 
 		//do the same for GPUs, except we only have to rebuild our mask
 		schedule.get_task(task_index)->retract_GPUs(gpu_change * -1);
@@ -283,7 +287,7 @@ void reschedule(){
 	}
 
 	//gaining gpus
-	if (gpu_change > 0){
+	if (gpu_change < 0){
 
 		//collect our GPUs
 		auto gpus = schedule.get_task(task_index)->get_gpus_granted_from_other_tasks();
@@ -304,6 +308,10 @@ void reschedule(){
 	//clear our allocation amounts
 	schedule.get_task(task_index)->clear_cpus_granted_from_other_tasks();
 	schedule.get_task(task_index)->clear_gpus_granted_from_other_tasks();
+
+	//clear our change amount as well
+	schedule.get_task(task_index)->set_CPUs_change(0);
+	schedule.get_task(task_index)->set_GPUs_change(0);
 
 	//update thread count
 	//omp_set_num_threads(schedule.get_task(task_index)->get_current_CPUs());

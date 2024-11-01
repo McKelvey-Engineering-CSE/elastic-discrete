@@ -15,7 +15,7 @@
 template <typename T = void(int, int, int)>
 class ThreadPool {
 private:
-    static constexpr size_t MAX_THREADS = 128;
+    static constexpr int MAX_THREADS = 128;
     
     std::vector<std::thread> workers;
     std::function<T> task;
@@ -31,19 +31,19 @@ private:
     unsigned long long job_id = 0;
 
 public:
-    explicit ThreadPool(size_t threads) : 
-        stop(false),
+    explicit ThreadPool(int threads) : 
         queue_mutex(MAX_THREADS),
         condition(MAX_THREADS),
         completed(MAX_THREADS, true),  // Initialize as true
         dimension(MAX_THREADS),
-        rank(MAX_THREADS) {
+        rank(MAX_THREADS),
+        stop(false) {
         
         assert(threads <= MAX_THREADS && "Thread count exceeds maximum supported threads");
         
         workers.reserve(threads - 1);
         
-        for (size_t i = 1; i < threads; i++) {
+        for (int i = 1; i < threads; i++) {
             workers.emplace_back([this]{
                 const int my_index = threadIDs.fetch_add(1);
                 bool first = true;
@@ -74,7 +74,7 @@ public:
                     if (last_job_id == job_id) {
                         continue;
                     }
-                    
+
                     task(rank[my_index], dimension[my_index], my_index);
                     last_job_id = job_id;
                     
