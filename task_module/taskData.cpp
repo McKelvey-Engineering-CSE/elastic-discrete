@@ -145,6 +145,25 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 		}
 	}
+
+	//clear the tables so I can actually read them when needed
+	for (int i  = 0; i < MAXTASKS + 1; i++){
+
+		for (int j = 0; j < NUMGPUS + 1; j++){
+
+			gpus_granted_from_other_tasks[i][j] = -1;
+
+		}
+	}
+
+	for (int i  = 0; i < MAXTASKS + 1; i++){
+
+		for (int j = 0; j < NUMCPUS + 1; j++){
+
+			cpus_granted_from_other_tasks[i][j] = -1;
+
+		}
+	}
 }
 
 TaskData::~TaskData(){
@@ -916,14 +935,14 @@ void TaskData::set_gpus_granted_from_other_tasks(std::pair<int, std::vector<int>
 //make a function which clears these vectors like they are cleared in the constructor
 void TaskData::clear_cpus_granted_from_other_tasks(){
 
-	for (size_t i = 0; i < MAXTASKS; i++)
+	for (size_t i = 0; i < MAXTASKS + 1; i++)
 		cpus_granted_from_other_tasks[i][0] = -1;
 
 }
 
 void TaskData::clear_gpus_granted_from_other_tasks(){
 
-	for (size_t i = 0; i < MAXTASKS; i++)
+	for (size_t i = 0; i < MAXTASKS + 1; i++)
 		gpus_granted_from_other_tasks[i][0] = -1;
 
 }
