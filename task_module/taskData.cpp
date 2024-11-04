@@ -8,7 +8,7 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 																													elasticity(elasticity_), num_modes(num_modes_), 
 																													max_utilization(0), max_CPUs(0), min_CPUs(NUMCPUS), 
 																													max_GPUs(0), min_GPUs(NUMCPUS),  
-																													CPUs_gained(0), practical_max_utilization(max_utilization),  
+																													CPUs_gained(0),  
 																													practical_max_CPUs(max_CPUs), current_lowest_CPU(-1), 
 																													percentage_workload(1.0), current_period({0,0}), 
 																													current_work({0,0}), current_span({0,0}), 
@@ -20,17 +20,6 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 		print_module::print(std::cerr, "ERROR: No task can have more than ", MAXMODES,  " modes.\n");
 		kill(0, SIGTERM);
 	
-	}
-
-	//make the GPU related stuff
-	active_gpus = new int[NUMGPUS + 1];
-	passive_gpus = new int[NUMGPUS + 1];
-
-	for (int i = 0; i < MAXTASKS; i++){
-
-		transfer_GPU[i] = new bool[NUMGPUS + 1];
-		receive_GPU[i] = new bool[NUMGPUS + 1];
-
 	}
 
 	//read in all the task parameters
@@ -119,33 +108,6 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 	current_CPUs = min_CPUs;
 	current_GPUs = min_GPUs;
 
-	for (int i = 0; i < MAXTASKS; i++){
-		
-		//set shared to 0
-		give_CPU[i] = 0;
-		give_GPU[i] = 0;
-
-		//set CPU to 0
-		for (int j = 1; j <= NUMCPUS; j++){
-
-			transfer_CPU[i][j] = false;
-			receive_CPU[i][j] = false;
-			active_cpus[i] = false;
-			passive_cpus[i] = false;
-
-		}
-
-		//set GPU to 0
-		for (int j = 1; j <= NUMGPUS; j++){
-
-			transfer_GPU[i][j] = false;
-			receive_GPU[i][j] = false;
-			active_gpus[i] = false;
-			passive_gpus[i] = false;
-
-		}
-	}
-
 	//clear the tables so I can actually read them when needed
 	for (int i  = 0; i < MAXTASKS + 1; i++){
 
@@ -167,16 +129,6 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 }
 
 TaskData::~TaskData(){
-
-	//clear the GPU related stuff
-	delete[] active_gpus;
-	delete[] passive_gpus;
-
-	for (int i = 0; i < MAXTASKS; i++){
-		delete[] transfer_GPU[i];
-		delete[] receive_GPU[i];
-	}
-
 }
 
 int TaskData::counter = 0;	        

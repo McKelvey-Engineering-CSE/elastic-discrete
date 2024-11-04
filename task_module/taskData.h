@@ -66,8 +66,6 @@ private:
 	int CPUs_gained;
 	int GPUs_gained;
 
-	double practical_max_utilization;
-
 	int practical_max_CPUs;	
 	int current_lowest_CPU;
 
@@ -92,38 +90,11 @@ private:
 	int current_mode;
 	timespec max_work;
 
-	int active_cpus[NUMCPUS + 1];
-	int passive_cpus[NUMCPUS + 1];
-
-	int give_CPU[MAXTASKS];
-	bool transfer_CPU[MAXTASKS][NUMCPUS + 1];
-	bool receive_CPU[MAXTASKS][NUMCPUS + 1];
-
-	//all are the size of NUMGPU + 1
-	int* active_gpus;
-	int* passive_gpus;
-
-	int give_GPU[MAXTASKS];
-	bool* transfer_GPU[MAXTASKS];
-	bool* receive_GPU[MAXTASKS];
-
-	//and store the actual number of TPCs we have
-	unsigned int num_TPCs = 1000;
-
-	//store how many TPCs we are granted
-	int granted_TPCs = 0;
-
 	//TPC mask
 	__uint128_t TPC_mask = 0;
 
 	//CPU core mask
 	__uint128_t CPU_mask = 0;
-
-	//I never really liked the idea of 
-	//having the CPU amount and GPU 
-	//amount in arrays but I do have a serious
-	//problem/dependency on vectors
-	//std::vector<int> CPUs_owned_by_task;
 
 	//updated variables
 	bool mode_transitioned = false;
