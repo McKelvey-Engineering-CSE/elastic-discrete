@@ -36,9 +36,6 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 		
 	}
 
-	//update the system TPC count
-	maxSMS = taskData_object->get_total_TPC_count();
-
 	return taskData_object;
 }
 
@@ -58,8 +55,10 @@ bool Scheduler::has_cycle(const std::unordered_map<int, Node>& nodes, int start)
         
         for (const Edge& edge : nodes.at(node_id).edges) {
 
-            if (!visited.count(edge.to_node))
-                if (dfs(edge.to_node)) return true;
+            if (!visited.count(edge.to_node)){
+                if (dfs(edge.to_node)) 
+					return true;
+			}
             
             else if (recursion_stack.count(edge.to_node))
                 return true;
@@ -76,14 +75,15 @@ bool Scheduler::has_cycle(const std::unordered_map<int, Node>& nodes, int start)
 
 //Returns true if graph was successfully built, false if impossible due to cycles
 bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_pairs, 
-                        std::unordered_map<int, Node>& nodes) {
+                        std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node>& static_nodes) {
     nodes.clear();
     
     //create all nodes
-    for (int i = 0; i < resource_pairs.size(); i++) {
+    for (size_t i = 0; i < resource_pairs.size(); i++) {
 
 		auto [x, y] = resource_pairs[i];
-		nodes[i] = Node{i, x, y, {}};
+		nodes[i] = Node{(int)i, x, y, {}};
+		static_nodes[i] = nodes[i];
     
 	}
     
@@ -166,7 +166,7 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 }
 
 //convert the print_graph function to use buffered print
-void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes) {
+void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes) {
 
 	std::ostringstream mode_strings;
 
@@ -174,10 +174,10 @@ void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes) {
 	
 	for (const auto& [id, node] : nodes) {
 
-		if (id != (nodes.size() - 1))
-			print_module::buffered_print(mode_strings, "Node ", id, " <", node.x, ",", node.y, "> → ");
+		if (id != ((int) nodes.size() - 1))
+			print_module::buffered_print(mode_strings, "Node ", id, " <", static_nodes[id].x, ",", static_nodes[id].y, "> → ");
 		else
-			print_module::buffered_print(mode_strings, "Free Resources", " <", node.x, ",", node.y, "> → ");
+			print_module::buffered_print(mode_strings, "Free Resources", " <", static_nodes[id].x, ",", static_nodes[id].y, "> → ");
 
 		if (node.edges.empty())
 			print_module::buffered_print(mode_strings, "no edges");
@@ -520,7 +520,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 			free_cores_A.push_back(i);
 
 		//Now assign TPC units to tasks, same method as before
-		//(don't worry about holding TPC 1)
+		//(don't worry about holding TPC 1) 
 		int next_TPC = 0;
 
 		for (int i = 0; i < schedule.count(); i++){
@@ -537,7 +537,9 @@ void Scheduler::do_schedule(size_t maxCPU){
 			if (!(schedule.get_task(i))->pure_cpu_task()){
 
 				(schedule.get_task(i))->set_current_lowest_GPU(next_TPC);
-				next_TPC += (schedule.get_task(i))->get_current_GPUs();
+
+				for (int j = 0; j < (schedule.get_task(i))->get_current_GPUs(); j++)
+					(schedule.get_task(i))->push_back_gpu(next_TPC ++);
 
 				if (next_TPC > (int)(maxSMS) + 1){
 
@@ -551,8 +553,9 @@ void Scheduler::do_schedule(size_t maxCPU){
 		}
 
 		//assign all the unassigned gpus to the scheduler to hold
-		for (int i = next_TPC; i < (int)(maxSMS) + 1; i++)
+		for (int i = next_TPC; i < (int)(maxSMS); i++)
 			free_cores_B.push_back(i);
+
 	}
 
 	//Transfer as efficiently as possible.
@@ -566,9 +569,10 @@ void Scheduler::do_schedule(size_t maxCPU){
 		//for each mode in result, subtract the new mode from the old mode to determine how many resources are being given up or taken
 		//from each task. This will be used to build the RAG.
 		std::unordered_map<int, Node> nodes;
+		std::unordered_map<int, Node> static_nodes;
 		std::vector<std::pair<int, int>> dependencies;
 
-		for (int i = 0; i < result.size(); i++){
+		for (size_t i = 0; i < result.size(); i++){
 
 			//fetch the current mode
 			auto current_mode = task_table.at(i).at(result.at(i));
@@ -587,22 +591,20 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		//if this returns false, then we have a cycle and only a barrier
 		//can allow the handoff
-		if (build_resource_graph(dependencies, nodes)){
+		if (build_resource_graph(dependencies, nodes, static_nodes)){
 
 			//show the resource graph (debugging)
 			print_module::print(std::cerr, "\n========================= \n", "New Schedule RAG:\n");
-	        print_graph(nodes);
+	        print_graph(nodes, static_nodes);
 			print_module::print(std::cerr, "========================= \n\n");
 
 			//by this point the RAG has either the previous solution inside of it, or it has
 			//the current solution. Either way, we need to update the previous modes to reflect
 			//the current modes.
-			for (int i = 0; i < result.size(); i++){
+			for (size_t i = 0; i < result.size(); i++){
 
 				(schedule.get_task(i))->clear_cpus_granted_from_other_tasks();
 				(schedule.get_task(i))->clear_gpus_granted_from_other_tasks();
-
-				previous_modes.at(i) = task_table.at(i).at(result.at(i));
 
 			}
 
@@ -623,9 +625,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 				Scheduler::task_mode previous_mode;
 
 				//check if the resources are coming from the free pool
-				if (id != (nodes.size() - 1)){
-
-					std::cout << "fetching processor holds for tasks: " << id << std::endl;
+				if (id != ((int) nodes.size() - 1)){
 
 					task_owned_gpus = (schedule.get_task(id))->get_gpu_owned_by_process();
 					task_owned_cpus = (schedule.get_task(id))->get_cpu_owned_by_process();
@@ -636,7 +636,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 				}
 				
 				//if only receiving resources, just skip
-				if (node.edges.empty() && id != (nodes.size() - 1)){
+				if (node.edges.empty() && id != ((int) nodes.size() - 1)){
 
 					//check that they are not just giving up resources
 					//to the free pool
@@ -692,7 +692,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 							std::vector<int> cpus_being_given;
 
-							if (task_owned_cpus.size() < edge.x_amount){
+							if (id != ((int) nodes.size() - 1) && (int) task_owned_cpus.size() < edge.x_amount){
 
 								print_module::print(std::cerr, "Error: not enough CPUs to give to task ", task_being_given_to, " from task ", id, " size gotten: ", task_owned_cpus.size(), " expected: ", edge.x_amount, ". Exiting.\n");
 								killpg(process_group, SIGINT);
@@ -700,9 +700,17 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 							}
 
+							else if (id == ((int) nodes.size() - 1) && (int) free_cores_A.size() < edge.x_amount){
+
+								print_module::print(std::cerr, "Error: not enough CPUs to give to task ", task_being_given_to, " from free pool. size gotten: ", free_cores_A.size(), " expected: ", edge.x_amount, ". Exiting.\n");
+								killpg(process_group, SIGINT);
+								return;
+
+							}
+
 							for (int z = 0; z < edge.x_amount; z++){
 
-								if (id != (nodes.size() - 1)){
+								if (id != ((int) nodes.size() - 1)){
 
 									cpus_being_given.push_back(task_owned_cpus.at(task_owned_cpus.size() - 1));
 									task_owned_cpus.pop_back();
@@ -718,7 +726,10 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 							}
 
-							(schedule.get_task(task_being_given_to))->set_cpus_granted_from_other_tasks({id, cpus_being_given});
+							if (id == ((int) nodes.size() - 1))
+								(schedule.get_task(task_being_given_to))->set_cpus_granted_from_other_tasks({MAXTASKS, cpus_being_given});
+							else
+								(schedule.get_task(task_being_given_to))->set_cpus_granted_from_other_tasks({id, cpus_being_given});
 
 							//update other task's cpu change
 							auto change_amount = (schedule.get_task(task_being_given_to))->get_CPUs_change();
@@ -734,7 +745,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 							std::vector<int> gpus_being_given;
 
-							if (task_owned_gpus.size() < edge.y_amount){
+							if (id != ((int) nodes.size() - 1) && (int) task_owned_gpus.size() < edge.y_amount){
 
 								print_module::print(std::cerr, "Error: not enough GPUs to give to task ", task_being_given_to, " from task ", id, " size gotten: ", task_owned_gpus.size(), " expected: ", edge.y_amount, ". Exiting.\n");
 								killpg(process_group, SIGINT);
@@ -742,9 +753,17 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 							}
 
+							else if (id == ((int) nodes.size() - 1) && (int) free_cores_B.size() < edge.y_amount){
+
+								print_module::print(std::cerr, "Error: not enough GPUs to give to task ", task_being_given_to, " from free pool. size gotten: ", free_cores_B.size(), " expected: ", edge.y_amount, ". Exiting.\n");
+								killpg(process_group, SIGINT);
+								return;
+
+							}
+
 							for (int z = 0; z < edge.y_amount; z++){
 
-								if (id != (nodes.size() - 1)){
+								if (id != ((int) nodes.size() - 1)){
 
 									gpus_being_given.push_back(task_owned_gpus.at(task_owned_gpus.size() - 1));
 									task_owned_gpus.pop_back();
@@ -759,12 +778,16 @@ void Scheduler::do_schedule(size_t maxCPU){
 								}
 
 							}
+							
+							if (id == ((int) nodes.size() - 1))
+								(schedule.get_task(task_being_given_to))->set_gpus_granted_from_other_tasks({MAXTASKS, gpus_being_given});
+							else
+								(schedule.get_task(task_being_given_to))->set_gpus_granted_from_other_tasks({id, gpus_being_given});
+							
 
-							(schedule.get_task(task_being_given_to))->set_gpus_granted_from_other_tasks({id, gpus_being_given});
-
-							//update other task's cpu change
-							auto change_amount = (schedule.get_task(task_being_given_to))->get_CPUs_change();
-							(schedule.get_task(task_being_given_to))->set_CPUs_change(change_amount - edge.y_amount);
+							//update other task's gpu change
+							auto change_amount = (schedule.get_task(task_being_given_to))->get_GPUs_change();
+							(schedule.get_task(task_being_given_to))->set_GPUs_change(change_amount - edge.y_amount);
 
 							//update our own
 							GPUs_given_up += edge.y_amount;
@@ -782,6 +805,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 						free_cores_A.push_back(task_owned_cpus.at(task_owned_cpus.size() - 1));
 						task_owned_cpus.pop_back();
+
+						CPUs_given_up++;
 						
 					}
 
@@ -792,7 +817,10 @@ void Scheduler::do_schedule(size_t maxCPU){
 					for (int i = GPUs_given_up; i < (previous_mode.sms - current_mode.sms); i++){
 
 						free_cores_B.push_back(task_owned_gpus.at(task_owned_gpus.size() - 1));
+
 						task_owned_gpus.pop_back();
+
+						GPUs_given_up++;
 						
 					}
 
@@ -808,6 +836,13 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 			}
 		}	
+ 
+	}
+
+	//update the previous modes to the current modes
+	for (size_t i = 0; i < result.size(); i++){
+
+		previous_modes.at(i) = task_table.at(i).at(result.at(i));
 
 	}
 

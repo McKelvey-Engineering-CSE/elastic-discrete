@@ -94,10 +94,6 @@ class TaskData{
 
 private:
 
-	//updated in constructor, left with 16 for the event this 
-	//is compiled with g++ and someone forgets to actually update the task.yaml file
-	int NUMGPUS = 16;
-
 	bool is_pure_cpu_task = true;
 
 	static int counter;
@@ -218,8 +214,12 @@ private:
 
 	//these are the indicies of processors we are gaining
 	//and which processors they came from
-	int cpus_granted_from_other_tasks [MAXTASKS][NUMCPUS + 1];
-	int gpus_granted_from_other_tasks [MAXTASKS][NUMCPUS + 1];
+
+	//the position MAXTASKS + 1 is the free resource pool
+	//it is treated as a task for no reason other than 
+	//consistency
+	int cpus_granted_from_other_tasks [MAXTASKS + 1][NUMCPUS + 1];
+	int gpus_granted_from_other_tasks [MAXTASKS + 1][NUMGPUS + 1];
 
 public:
 
@@ -304,8 +304,6 @@ public:
 	void set_current_lowest_GPU(int _lowest);
 	int get_current_lowest_GPU();
 
-	int get_total_TPC_count();
-
 	int get_GPUs_gained();
 	void set_GPUs_gained(int new_GPUs_gained);
 
@@ -354,6 +352,10 @@ public:
 
 	int push_back_cpu(int index);
 
+	int pop_back_gpu();
+
+	int push_back_gpu(int index);
+
 	int get_cpu_at_index(int index);
 
 	std::vector<int> get_cpu_owned_by_process();
@@ -376,6 +378,8 @@ public:
 	void clear_gpus_granted_from_other_tasks();
 
 	__uint128_t get_cpu_mask();
+
+	__uint128_t get_gpu_mask();
 
 };
 

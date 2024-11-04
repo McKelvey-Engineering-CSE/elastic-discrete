@@ -37,6 +37,7 @@ typedef struct
 	int (*init)(int argc, char *argv[]);
 	int (*run)(int argc, char *argv[]);
 	int (*finalize)(int argc, char *argv[]);
+	void (*update_core_B)(__uint128_t mask);
 }
 task_t;
 

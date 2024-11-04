@@ -21,6 +21,22 @@ int iterations_complete = 0;
 
 extern int task_index;
 
+void update_core_B(__uint128_t mask) {
+
+    std::ostringstream buffer;
+
+    print_module::buffered_print(buffer, "Core B Mask: ");
+
+    //print the mask
+    for (int i = 0; i < 128; i++) {
+        print_module::buffered_print(buffer, (unsigned long long)((mask & ((__uint128_t)1 << (__uint128_t(i)))) >> (__uint128_t(i))));
+    }
+
+    print_module::buffered_print(buffer, "\n");
+    print_module::flush(std::cerr, buffer);
+
+}
+
 int init(int argc, char *argv[])
 {
 
@@ -68,4 +84,4 @@ int finalize(int argc, char *argv[])
     return 0;
 }
 
-task_t task = { init, run, finalize };
+task_t task = { init, run, finalize, update_core_B };

@@ -27,6 +27,7 @@ private:
     std::atomic<bool> stop;
     std::atomic<int> threadIDs{1};
     std::atomic<int> threads_ready{1};
+    size_t permanent_cpu = 0;
     __uint128_t global_override_mask = ~(__uint128_t)0;
     unsigned long long job_id = 0;
 
@@ -93,6 +94,10 @@ public:
 
     template<class F>
     void execute_parallel(F&& f, __uint128_t mask) {
+
+        //only 1 thread may use the pool at a time
+        std::unique_lock<std::mutex> lock(queue_mutex[0]);
+
         std::bitset<MAX_THREADS> thread_mask(mask);
         task = std::forward<F>(f);
 
@@ -101,32 +106,62 @@ public:
         const int thread_dim = static_cast<int>(thread_mask.count());
         int rank_ct = 0;
         int active_threads = 0;
+        
+        bool participating = false;
 
         // Wake up the correct threads
         for (size_t i = 1; i < workers.size() + 1; ++i) {
+
             if (thread_mask[i]) {
-                std::lock_guard<std::mutex> lock(queue_mutex[i]);
-                completed[i] = false;
-                dimension[i] = thread_dim;
-                rank[i] = rank_ct++;
-                active_threads++;
-                condition[i].notify_one();
+                
+                if (permanent_cpu != i){
+
+                    std::lock_guard<std::mutex> lock(queue_mutex[i]);
+                    completed[i] = false;
+                    dimension[i] = thread_dim;
+                    rank[i] = rank_ct++;
+                    active_threads++;
+                    condition[i].notify_one();
+
+                }
+
+                else
+                    participating = true;
+            
             }
         }
 
+        //if the main thread is participating, run the task
+        if (participating)
+            task(rank_ct++, thread_dim, 0);
+
         // Wait for all active threads to complete
         if (active_threads > 0) {
-            std::unique_lock<std::mutex> lock(queue_mutex[0]);
-            condition[0].wait(lock, [this, &thread_mask, active_threads]() {
-                int completed_count = 0;
+
+            int completed_count = 0;
+            
+            while(completed_count != active_threads){
+
                 for (size_t i = 1; i < workers.size() + 1; ++i) {
-                    if (thread_mask[i] && completed[i]) {
+
+                    if (thread_mask[i] && completed[i] && permanent_cpu != i) {
+
+                        thread_mask[i] = false;
+                    
                         completed_count++;
+                    
                     }
+
                 }
-                return completed_count == active_threads;
-            });
+
+            }
+
         }
+
+    }
+
+    void set_perm_cpu(size_t cpu) {
+        permanent_cpu = cpu;
     }
 
     template<class F>

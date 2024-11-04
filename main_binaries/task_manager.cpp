@@ -96,6 +96,7 @@ struct sched_param global_param;
 
 //omp replacement thread pool
 __uint128_t current_cpu_mask;
+__uint128_t current_gpu_mask;
 ThreadPool<> omp(NUMCPUS);
 
 enum rt_gomp_task_manager_error_codes
@@ -234,12 +235,7 @@ void reschedule(){
 		for (int i = 0; i < cpu_change; i++){
 			
 			//remove CPUs from our set until we have given up the correct number
-			//int CPU_index = schedule.get_task(task_index)->pop_back_cpu();
-			int cpu_i = schedule.get_task(task_index)->pop_back_cpu();
-
-			/*//set the thread to sleep
-			global_param.sched_priority = SLEEP_PRIORITY;
-			ret_val = pthread_setschedparam(thread_handles[CPU_index], SCHED_RR, &global_param);*/
+			schedule.get_task(task_index)->pop_back_cpu();
 
 		}
 
@@ -262,18 +258,6 @@ void reschedule(){
 			//add them to our set
 			schedule.get_task(task_index)->push_back_cpu(core_indices.at(i));
 
-			//determine which threads are coming back to life
-			//int previous_CPUs = schedule.get_task(task_index)->get_previous_CPUs();
-
-			/*global_param.sched_priority = EXEC_PRIORITY;
-			ret_val = pthread_setschedparam(thread_handles.at((previous_CPUs - 1) + i), SCHED_RR, &global_param);*/
-
-			//FIXME: REPINNING THE THREADS IS NOT A GOOD SOLUTION
-			/*CPU_ZERO(&global_cpuset);
-			CPU_SET(core_indices.at(i), &global_cpuset);
-
-			pthread_setaffinity_np(thread_handles.at((previous_CPUs - 1) + i), sizeof(cpu_set_t), &global_cpuset);*/
-
 		}
 		
 	}
@@ -281,8 +265,13 @@ void reschedule(){
 	//giving gpus
 	if (gpu_change > 0){
 
-		//do the same for GPUs, except we only have to rebuild our mask
-		schedule.get_task(task_index)->retract_GPUs(gpu_change * -1);
+		//give up resources immediately and mark our transition
+		for (int i = 0; i < gpu_change; i++){
+			
+			//remove GPUs from our set until we have given up the correct number
+			schedule.get_task(task_index)->pop_back_gpu();
+
+		}
 
 	}
 
@@ -297,8 +286,13 @@ void reschedule(){
 			for (size_t j = 0; j < gpus.at(i).second.size(); j++)
 				tpc_indices.push_back(gpus.at(i).second.at(j));
 		
-		//update our mask
-		schedule.get_task(task_index)->gifted_GPUs(tpc_indices);
+		//wake up the corresponding SMs
+		for (size_t i = 0; i < tpc_indices.size(); i++){
+
+			//add them to our set
+			schedule.get_task(task_index)->push_back_gpu(tpc_indices.at(i));
+
+		}
 
 	}
 
@@ -313,12 +307,13 @@ void reschedule(){
 	schedule.get_task(task_index)->set_CPUs_change(0);
 	schedule.get_task(task_index)->set_GPUs_change(0);
 
-	//update thread count
-	//omp_set_num_threads(schedule.get_task(task_index)->get_current_CPUs());
-
 	//update our cpu mask
 	current_cpu_mask = schedule.get_task(task_index)->get_cpu_mask();
 	omp.set_override_mask(current_cpu_mask);
+		
+	//update our gpu mask
+	current_gpu_mask = schedule.get_task(task_index)->get_gpu_mask();
+	task.update_core_B(current_gpu_mask);
 
 	print_module::task_print(std::cerr, (unsigned long long) current_cpu_mask, "\n");
 
@@ -591,7 +586,10 @@ int main(int argc, char *argv[])
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_BARRIER_ERROR;
 	
-	}
+	}	
+
+	//tell the pool which cpu is permanent
+	omp.set_perm_cpu(schedule.get_task(task_index)->get_permanent_CPU());
 	
 	//Don't go until it's time.
 	//Grab a timestamp at the start of real-time operation
@@ -677,12 +675,12 @@ int main(int argc, char *argv[])
 			//loop over cpus and gpus respectively and check the taskData that is int in the pair to see if 
 			//it has already transitioned and therefore the resources are available
 			for (size_t i = 0; i < cpus.size(); i++)
-				if (cpus.at(i).first != -1)
+				if (cpus.at(i).first != MAXTASKS)
 					if (!schedule.get_task(cpus.at(i).first)->check_mode_transition())
 						ready = false;
 			
 			for (size_t i = 0; i < gpus.size(); i++)
-				if (gpus.at(i).first != -1)
+				if (gpus.at(i).first != MAXTASKS)
 					if (!schedule.get_task(gpus.at(i).first)->check_mode_transition())
 						ready = false;
 

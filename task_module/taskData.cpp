@@ -22,24 +22,6 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 	
 	}
 
-	//if we are compiling using NVCC on a CUDA-enabled machine, update this param
-	#ifdef __NVCC__
-
-		CUdevResource initial_resources;
-
-		//init device driver
-		CUDA_SAFE_CALL(cuInit(0));
-
-		//fill the initial descriptor
-		CUDA_SAFE_CALL(cuDeviceGetDevResource(0, &initial_resources, CU_DEV_RESOURCE_TYPE_SM));
-
-		//get the individual TPC slices
-		CUDA_SAFE_CALL(cuDevSmResourceSplitByCount(total_TPCs, &num_TPCs, &initial_resources, NULL, CU_DEV_SM_RESOURCE_SPLIT_IGNORE_SM_COSCHEDULING, 2));
-
-		NUMGPUS = num_TPCs;
-
-	#endif
-
 	//make the GPU related stuff
 	active_gpus = new int[NUMGPUS + 1];
 	passive_gpus = new int[NUMGPUS + 1];
@@ -111,6 +93,8 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 			ts_diff(modified_period, GPU_span[i], denominator);
 
 			GPUs[i] = (int)ceil(numerator / denominator);
+
+			is_pure_cpu_task = false;
 
 		}
 
@@ -572,12 +556,6 @@ int TaskData::get_CPUs(int index){
 
 }
 
-int TaskData::get_total_TPC_count(){
-
-	return NUMGPUS;
-
-}
-
 bool TaskData::pure_cpu_task(){
 
 	return is_pure_cpu_task;
@@ -772,6 +750,30 @@ int TaskData::pop_back_cpu(){
 
 }
 
+//functions to work with static vector of CPU indices
+int TaskData::pop_back_gpu(){
+
+    // Handle empty vector case
+    if (TPC_mask == 0) {
+        return -1;
+    }
+
+    int msb = 127;  // Start from highest possible bit
+    __uint128_t test_bit = (__uint128_t)1 << 127;
+
+    // Find the most significant 1 bit
+    while ((TPC_mask & test_bit) == 0) {
+        msb--;
+        test_bit >>= 1;
+    }
+
+    // Clear the MSB
+    TPC_mask ^= test_bit;
+
+    return msb;
+
+}
+
 int TaskData::push_back_cpu(int value){
 
     // Check if value is in valid range
@@ -787,6 +789,24 @@ int TaskData::push_back_cpu(int value){
     
     // Set the bit
     CPU_mask |= bit;
+    return true;
+}
+
+int TaskData::push_back_gpu(int value){
+
+    // Check if value is in valid range
+    if (value < 0 || value > 127) {
+        return false;
+    }
+    
+    // Check if bit is already set
+    __uint128_t bit = (__uint128_t)1 << value;
+    if (TPC_mask & bit) {
+        return false;
+    }
+    
+    // Set the bit
+    TPC_mask |= bit;
     return true;
 }
 
@@ -817,7 +837,7 @@ std::vector<int> TaskData::get_gpu_owned_by_process(){
 
 	for (int i = 0; i < 128; i++){
 
-		if (TPC_mask & (((__uint128_t)1 << i) >> 1)){
+		if (TPC_mask & ((__uint128_t)1 << i)) {
 
 			TPCS_owned_by_task.push_back(i);
 
@@ -834,7 +854,7 @@ std::vector<std::pair<int, std::vector<int>>> TaskData::get_cpus_granted_from_ot
 	std::vector<std::pair<int, std::vector<int>>> returning_cpus_granted_from_other_tasks;
 
 	//stupid conversion to make the vectors
-	for (int i = 0; i < MAXTASKS; i++){
+	for (int i = 0; i < MAXTASKS + 1; i++){
 		if (cpus_granted_from_other_tasks[i][0] != -1){
 
 			auto current = std::make_pair(i, std::vector<int>());
@@ -857,13 +877,13 @@ std::vector<std::pair<int, std::vector<int>>> TaskData::get_gpus_granted_from_ot
 	std::vector<std::pair<int, std::vector<int>>> returning_gpus_granted_from_other_tasks;
 
 	//stupid conversion to make the vectors
-	for (int i = 0; i < MAXTASKS; i++){
+	for (int i = 0; i < MAXTASKS + 1; i++){
 		if (gpus_granted_from_other_tasks[i][0] != -1){
 
 			auto current = std::make_pair(i, std::vector<int>());
 
-			for (int j = 1; j < cpus_granted_from_other_tasks[i][0] + 1; j++)
-				current.second.push_back(cpus_granted_from_other_tasks[i][j]);
+			for (int j = 1; j < gpus_granted_from_other_tasks[i][0] + 1; j++)
+				current.second.push_back(gpus_granted_from_other_tasks[i][j]);
 
 			returning_gpus_granted_from_other_tasks.push_back(current);
 		}
@@ -877,7 +897,7 @@ std::vector<std::pair<int, std::vector<int>>> TaskData::get_gpus_granted_from_ot
 //give CPUs or GPUs to another task
 void TaskData::set_cpus_granted_from_other_tasks(std::pair<int, std::vector<int>> entry){
 
-	for (int i = 0; i < entry.second.size(); i++)
+	for (size_t i = 0; i < entry.second.size(); i++)
 		cpus_granted_from_other_tasks[entry.first][i+1] = entry.second.at(i);
 
 	cpus_granted_from_other_tasks[entry.first][0] = entry.second.size();
@@ -886,7 +906,7 @@ void TaskData::set_cpus_granted_from_other_tasks(std::pair<int, std::vector<int>
 
 void TaskData::set_gpus_granted_from_other_tasks(std::pair<int, std::vector<int>> entry){
 
-	for (int i = 0; i < entry.second.size(); i++)
+	for (size_t i = 0; i < entry.second.size(); i++)
 		gpus_granted_from_other_tasks[entry.first][i+1] = entry.second.at(i);
 
 	gpus_granted_from_other_tasks[entry.first][0] = entry.second.size();
@@ -911,5 +931,11 @@ void TaskData::clear_gpus_granted_from_other_tasks(){
 __uint128_t TaskData::get_cpu_mask() {
 	
 	return CPU_mask;
+
+}
+
+__uint128_t TaskData::get_gpu_mask() {
+	
+	return TPC_mask;
 
 }

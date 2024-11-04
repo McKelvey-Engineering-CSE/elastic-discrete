@@ -1,26 +1,34 @@
 ---
 schedulable: true
-maxRuntime: {sec: 35, nsec: 0}
+maxRuntime: {sec: 5, nsec: 0}
 tasks:
   - program:
       name: james
-      args: "0 71428571 2 10"
+      args: "0 61428571 2 10"
     elasticity: 1
     modes:
-      - work: {sec: 11, nsec: 600000000}
-        span: {sec: 0, nsec: 100000000}
-        period: {sec: 1, nsec: 0}
-      - work: {sec: 1, nsec: 500000000}
-        span: {sec: 0, nsec: 500000000}
-        period: {sec: 1, nsec: 0}
+      - work: {sec: 0, nsec: 157350000}
+        span: {sec: 0, nsec: 75690000}
+        gpu_work: {sec: 0, nsec: 178160000}
+        gpu_span: {sec: 0, nsec: 72290000}
+        period: {sec: 0, nsec: 183610000}
+      - work: {sec: 0, nsec: 200040000}
+        span: {sec: 0, nsec: 75690000}
+        gpu_work: {sec: 0, nsec: 221270000}
+        gpu_span: {sec: 0, nsec: 72290000}
+        period: {sec: 0, nsec: 183610000}
   - program:
       name: james
-      args: "1 71428571 2 10"
+      args: "1 61428571 2 10"
     elasticity: 1
     modes:
-      - work: {sec: 1, nsec: 500000000}
-        span: {sec: 0, nsec: 500000000}
-        period: {sec: 1, nsec: 0}
-      - work: {sec: 11, nsec: 600000000}
-        span: {sec: 0, nsec: 100000000}
-        period: {sec: 1, nsec: 0}
+      - work: {sec: 0, nsec: 157350000}
+        span: {sec: 0, nsec: 75690000}
+        gpu_work: {sec: 0, nsec: 178160000}
+        gpu_span: {sec: 0, nsec: 72290000}
+        period: {sec: 0, nsec: 183610000}
+      - work: {sec: 0, nsec: 200040000}
+        span: {sec: 0, nsec: 75690000}
+        gpu_work: {sec: 0, nsec: 221270000}
+        gpu_span: {sec: 0, nsec: 72290000}
+        period: {sec: 0, nsec: 183610000}

@@ -126,7 +126,7 @@ public:
 
 	~Scheduler(){}
 
-	void do_schedule(size_t maxCPU = DEFAULT_MAX_CPU);
+	void do_schedule(size_t maxCPU = NUMCPUS - 1);
 
 	std::vector<int> sort_classes(std::vector<int> items_in_candidate);
 
@@ -137,9 +137,9 @@ public:
 	bool has_cycle(const std::unordered_map<int, Node>& nodes, int start);
 
 	bool build_resource_graph(std::vector<std::pair<int, int>> resource_pairs, 
-                        std::unordered_map<int, Node>& nodes);
+                        std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node>& static_nodes);
 
-	void print_graph(const std::unordered_map<int, Node>& nodes);
+	void print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes);
 
 	TaskData * add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_);
 };
