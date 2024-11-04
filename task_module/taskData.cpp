@@ -75,15 +75,46 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 	//determine resources
 	for (int i = 0; i < num_modes; i++){
 
-		//CPU resources
-		if (work[i] / period[i] > max_utilization)
-			max_utilization = work[i] / period[i];
+		//determine if the task is a hybrid task or not
+		if (GPU_work[i] == timespec({0, 0}) &&  GPU_span[i] == timespec({0, 0})){
 
-		ts_diff(work[i], span[i], numerator);
-		ts_diff(period[i], span[i], denominator);
+			//CPU resources
+			if (work[i] / period[i] > max_utilization)
+				max_utilization = work[i] / period[i];
 
-		CPUs[i] = (int)ceil(numerator / denominator);
-	
+			ts_diff(work[i], span[i], numerator);
+			ts_diff(period[i], span[i], denominator);
+
+			CPUs[i] = (int)ceil(numerator / denominator);
+
+			GPUs[i] = 0;
+
+		}
+
+		//if the task is hybrid, the calc has period / 2
+		else {
+
+			//calc the modified period
+			auto modified_period = (period[i] / 2);
+
+			//CPU resources
+			if (work[i] / period[i] > max_utilization)
+				max_utilization = work[i] / period[i];
+
+			ts_diff(work[i], span[i], numerator);
+			ts_diff(modified_period, span[i], denominator);
+
+			CPUs[i] = (int)ceil(numerator / denominator);
+
+			//GPU resources
+			ts_diff(GPU_work[i], GPU_span[i], numerator);
+			ts_diff(modified_period, GPU_span[i], denominator);
+
+			GPUs[i] = (int)ceil(numerator / denominator);
+
+		}
+
+		//update the parameters
 		if (CPUs[i] > max_CPUs)
 			max_CPUs = CPUs[i];
 
@@ -92,24 +123,6 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 		if (work[i] > max_work)
 			max_work = work[i];
-
-		//GPU resources
-		ts_diff(GPU_work[i], GPU_span[i], numerator);
-		ts_diff(GPU_period[i], GPU_span[i], denominator);
-
-		if (GPU_work[i] != timespec({0, 0}) &&  GPU_span[i] != timespec({0, 0}) && GPU_period[i] != timespec({0, 0})){
-
-			GPUs[i] = (int)ceil(numerator / denominator);
-
-			is_pure_cpu_task = false;
-
-		}
-
-		else{
-
-			GPUs[i] = 0;
-
-		}
 
 		if (GPUs[i] > max_GPUs)
 			max_GPUs = GPUs[i];
@@ -741,6 +754,11 @@ int TaskData::pop_back_cpu(){
 
 	//check if it's our permanent
 	if (msb == get_permanent_CPU()){
+
+		//skip the current bit
+		msb--;
+		test_bit >>= 1;
+
 		 while ((CPU_mask & test_bit) == 0) {
 			msb--;
 			test_bit >>= 1;

@@ -1,6 +1,6 @@
 ---
 schedulable: true
-maxRuntime: {sec: 25, nsec: 0}
+maxRuntime: {sec: 35, nsec: 0}
 tasks:
   - program:
       name: james

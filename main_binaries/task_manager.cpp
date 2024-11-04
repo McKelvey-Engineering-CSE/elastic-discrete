@@ -320,6 +320,8 @@ void reschedule(){
 	current_cpu_mask = schedule.get_task(task_index)->get_cpu_mask();
 	omp.set_override_mask(current_cpu_mask);
 
+	print_module::task_print(std::cerr, (unsigned long long) current_cpu_mask, "\n");
+
 	//sync all threads
 	bar.mc_bar_reinit(schedule.get_task(task_index)->get_current_CPUs());	
 
@@ -675,12 +677,14 @@ int main(int argc, char *argv[])
 			//loop over cpus and gpus respectively and check the taskData that is int in the pair to see if 
 			//it has already transitioned and therefore the resources are available
 			for (size_t i = 0; i < cpus.size(); i++)
-				if (!schedule.get_task(cpus.at(i).first)->check_mode_transition())
-					ready = false;
+				if (cpus.at(i).first != -1)
+					if (!schedule.get_task(cpus.at(i).first)->check_mode_transition())
+						ready = false;
 			
 			for (size_t i = 0; i < gpus.size(); i++)
-				if (!schedule.get_task(gpus.at(i).first)->check_mode_transition())
-					ready = false;
+				if (gpus.at(i).first != -1)
+					if (!schedule.get_task(gpus.at(i).first)->check_mode_transition())
+						ready = false;
 
 			if (ready || explicit_sync){
 

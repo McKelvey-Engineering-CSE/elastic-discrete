@@ -82,8 +82,8 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
     //create all nodes
     for (int i = 0; i < resource_pairs.size(); i++) {
 
-        auto [x, y] = resource_pairs[i];
-        nodes[i] = Node{i, x, y, {}};
+		auto [x, y] = resource_pairs[i];
+		nodes[i] = Node{i, x, y, {}};
     
 	}
     
@@ -162,37 +162,62 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
     }
     
     return true;
+
 }
 
-//superficial function for printing the RAG
+//convert the print_graph function to use buffered print
 void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes) {
-    std::cout << "\nNodes and resource transfers:\n";
-    for (const auto& [id, node] : nodes) {
-        std::cout << "Node " << id << " <" << node.x << "," << node.y << "> → ";
-        if (node.edges.empty()) {
-            std::cout << "no edges";
-        } else {
-            for (const Edge& edge : node.edges) {
-                std::cout << edge.to_node << "(";
-                bool first = true;
-                if (edge.x_amount > 0) {
-                    std::cout << "x:" << edge.x_amount;
-                    first = false;
-                }
-                if (edge.y_amount > 0) {
-                    if (!first) std::cout << ",";
-                    std::cout << "y:" << edge.y_amount;
-                }
-                std::cout << ") ";
-            }
-        }
-        std::cout << "\n";
-    }
-    std::cout << "\n";
+
+	std::ostringstream mode_strings;
+
+	print_module::buffered_print(mode_strings, "\nNodes and resource transfers:\n");
+	
+	for (const auto& [id, node] : nodes) {
+
+		if (id != (nodes.size() - 1))
+			print_module::buffered_print(mode_strings, "Node ", id, " <", node.x, ",", node.y, "> → ");
+		else
+			print_module::buffered_print(mode_strings, "Free Resources", " <", node.x, ",", node.y, "> → ");
+
+		if (node.edges.empty())
+			print_module::buffered_print(mode_strings, "no edges");
+
+		else {
+			
+			for (const Edge& edge : node.edges) {
+
+				print_module::buffered_print(mode_strings, edge.to_node, "(");
+				bool first = true;
+
+				if (edge.x_amount > 0) {
+				
+				    print_module::buffered_print(mode_strings, "x:", edge.x_amount);
+					first = false;
+				
+				}
+
+				if (edge.y_amount > 0) {
+				
+				    if (!first) print_module::buffered_print(mode_strings, ",");
+					print_module::buffered_print(mode_strings, "y:", edge.y_amount);
+				
+				}
+				
+				print_module::buffered_print(mode_strings, ") ");
+			}
+		}
+		print_module::buffered_print(mode_strings, "\n");
+	}
+	print_module::buffered_print(mode_strings, "\n");
+
+	print_module::flush(std::cerr, mode_strings);
 }
 
 //Implement scheduling algorithm
 void Scheduler::do_schedule(size_t maxCPU){
+
+	//vector for transitioned tasks
+	std::vector<int> transitioned_tasks;
 
 	//for each run we need to see what resources are left in the pool from the start
 	int starting_CPUs = NUMCPUS - 1;
@@ -487,7 +512,12 @@ void Scheduler::do_schedule(size_t maxCPU){
 				return;
 
 			}		
+
 		}
+
+		//assign all the unassigned cpus to the scheduler to hold
+		for (int i = next_CPU; i < num_CPUs + 1; i++)
+			free_cores_A.push_back(i);
 
 		//Now assign TPC units to tasks, same method as before
 		//(don't worry about holding TPC 1)
@@ -519,6 +549,10 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 			}
 		}
+
+		//assign all the unassigned gpus to the scheduler to hold
+		for (int i = next_TPC; i < (int)(maxSMS) + 1; i++)
+			free_cores_B.push_back(i);
 	}
 
 	//Transfer as efficiently as possible.
@@ -546,6 +580,10 @@ void Scheduler::do_schedule(size_t maxCPU){
 			dependencies.push_back({previous_mode.cores - current_mode.cores, previous_mode.sms - current_mode.sms});
 
 		}
+
+		//for all the free cores of both types, add them to the RAG
+		//via adding a node that gives up that many resources
+		dependencies.push_back({free_cores_A.size(), free_cores_B.size()});
 
 		//if this returns false, then we have a cycle and only a barrier
 		//can allow the handoff
@@ -575,12 +613,73 @@ void Scheduler::do_schedule(size_t maxCPU){
 				int CPUs_given_up = 0;
 				int GPUs_given_up = 0;
 
-				auto task_owned_gpus = (schedule.get_task(id))->get_gpu_owned_by_process();
-				auto task_owned_cpus = (schedule.get_task(id))->get_cpu_owned_by_process();
+				std::vector<int> task_owned_gpus;
+				std::vector<int> task_owned_cpus;
+
+				//fetch the current mode
+				Scheduler::task_mode current_mode;
+
+				//fetch the previous mode
+				Scheduler::task_mode previous_mode;
+
+				//check if the resources are coming from the free pool
+				if (id != (nodes.size() - 1)){
+
+					std::cout << "fetching processor holds for tasks: " << id << std::endl;
+
+					task_owned_gpus = (schedule.get_task(id))->get_gpu_owned_by_process();
+					task_owned_cpus = (schedule.get_task(id))->get_cpu_owned_by_process();
+
+					current_mode = task_table.at(id).at(result.at(id));
+					previous_mode = previous_modes.at(id);
+
+				}
 				
 				//if only receiving resources, just skip
-				if (node.edges.empty())
+				if (node.edges.empty() && id != (nodes.size() - 1)){
+
+					//check that they are not just giving up resources
+					//to the free pool
+					bool transitioned = false;
+
+					if ((previous_mode.cores - current_mode.cores) > 0){
+
+						for (int i = 0; i < (previous_mode.cores - current_mode.cores); i++){
+
+							free_cores_A.push_back(task_owned_cpus.at(task_owned_cpus.size() - 1));
+							task_owned_cpus.pop_back();
+						
+						}
+
+						transitioned = true;
+
+					}
+
+					if ((previous_mode.sms - current_mode.sms) > 0){
+
+						for (int i = 0; i < (previous_mode.sms - current_mode.sms); i++){
+
+							free_cores_B.push_back(task_owned_gpus.at(task_owned_gpus.size() - 1));
+							task_owned_gpus.pop_back();
+						
+						}
+
+						transitioned = true;
+
+					}
+
+					//let the task know what it should give up when it can change modes
+					if (transitioned){
+
+						(schedule.get_task(id))->set_CPUs_change(CPUs_given_up);
+						(schedule.get_task(id))->set_GPUs_change(GPUs_given_up);
+						(schedule.get_task(id))->set_mode_transition(false);
+
+					}
+
 					continue;
+
+				}
 				
 				else {
 
@@ -603,8 +702,19 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 							for (int z = 0; z < edge.x_amount; z++){
 
-								cpus_being_given.push_back(task_owned_cpus.at(task_owned_cpus.size() - 1));
-								task_owned_cpus.pop_back();
+								if (id != (nodes.size() - 1)){
+
+									cpus_being_given.push_back(task_owned_cpus.at(task_owned_cpus.size() - 1));
+									task_owned_cpus.pop_back();
+								
+								}
+
+								else{
+
+									cpus_being_given.push_back(free_cores_A.at(free_cores_A.size() - 1));
+									free_cores_A.pop_back();
+
+								}
 
 							}
 
@@ -634,8 +744,19 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 							for (int z = 0; z < edge.y_amount; z++){
 
-								gpus_being_given.push_back(task_owned_gpus.at(task_owned_gpus.size() - 1));
-								task_owned_gpus.pop_back();
+								if (id != (nodes.size() - 1)){
+
+									gpus_being_given.push_back(task_owned_gpus.at(task_owned_gpus.size() - 1));
+									task_owned_gpus.pop_back();
+
+								}
+
+								else{
+
+									gpus_being_given.push_back(free_cores_B.at(free_cores_B.size() - 1));
+									free_cores_B.pop_back();
+
+								}
 
 							}
 
@@ -653,20 +774,49 @@ void Scheduler::do_schedule(size_t maxCPU){
 					}
 
 				}
+
+				//check if we gave up resource AND we are giving resources to the free pool
+				if ((previous_mode.cores - current_mode.cores) != CPUs_given_up){
+
+					for (int i = CPUs_given_up; i < (previous_mode.cores - current_mode.cores); i++){
+
+						free_cores_A.push_back(task_owned_cpus.at(task_owned_cpus.size() - 1));
+						task_owned_cpus.pop_back();
+						
+					}
+
+				}
+
+				if ((previous_mode.sms - current_mode.sms) != GPUs_given_up){
+
+					for (int i = GPUs_given_up; i < (previous_mode.sms - current_mode.sms); i++){
+
+						free_cores_B.push_back(task_owned_gpus.at(task_owned_gpus.size() - 1));
+						task_owned_gpus.pop_back();
+						
+					}
+
+				}
 				
 				//let the task know what it should give up when it can change modes
 				(schedule.get_task(id))->set_CPUs_change(CPUs_given_up);
 				(schedule.get_task(id))->set_GPUs_change(GPUs_given_up);
 				(schedule.get_task(id))->set_mode_transition(false);
 
+				//add the task to list of tasks that had to transition
+				transitioned_tasks.push_back(id);
+
 			}
 		}	
 
 	}
 
-	first_time = false;
+	//we prevent the scheduler from doing another reschedule until the tasks have
+	//actually transitioned
+	//for (int id : transitioned_tasks)
+	//	while ((schedule.get_task(id))->check_mode_transition() == false);
 
-//FIXME: DONT ALLOW MOVING ON UNTIL RESCHEDULE IS COMPLETE!!! NO DOUBLE SCHEDULING
+	first_time = false;
 }
 
 void Scheduler::setTermination(){

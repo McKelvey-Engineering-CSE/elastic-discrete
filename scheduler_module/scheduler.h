@@ -102,6 +102,10 @@ class Scheduler{
 
 	//each entry corresponds to a task that dictates how it will be processed in the knapsack algorithm
 	static std::vector<int> class_mappings;
+
+	//each entry corresponds to a core which is held by a task
+	std::vector<int> free_cores_A;
+	std::vector<int> free_cores_B;
 	
 public:
 
@@ -114,6 +118,9 @@ public:
 		for (int i = 0; i < num_tasks_; i++)
 			task_table.at(i).clear();
 		task_table.clear();
+
+		free_cores_A.reserve(num_CPUs);
+		free_cores_B.reserve(maxSMS);
 
  	}
 
