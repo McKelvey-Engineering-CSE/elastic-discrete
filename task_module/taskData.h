@@ -29,67 +29,6 @@ Class : TaskData
 #include "include.h"
 #include "print_module.h"
 
-//NVIDIA headers
-#ifdef __NVCC__
-	
-	#include <cuda.h>
-	#include <cuda_runtime.h>
-	#include "libsmctrl/libsmctrl.h"
-
-	#define NVRTC_SAFE_CALL(x)                                        \
-	do {                                                              \
-	nvrtcResult result = x;                                           \
-	if (result != NVRTC_SUCCESS) {                                    \
-		std::cerr << "\nerror: " #x " failed with error "             \
-					<< nvrtcGetErrorString(result) << '\n';           \
-		exit(1);                                                      \
-	}                                                                 \
-	} while(0)
-
-	#define CUDA_SAFE_CALL(x)                                         \
-	do {                                                              \
-	CUresult result = x;                                              \
-	if (result != CUDA_SUCCESS) {                                     \
-		const char *msg;                                              \
-		cuGetErrorName(result, &msg);                                 \
-		std::cerr << "\nerror: " #x " failed with error "             \
-					<< msg << '\n';                                   \
-		exit(1);                                                      \
-	}                                                                 \
-	} while(0)
-
-	#define CUDA_NEW_SAFE_CALL(x)                                     \
-	do {                                                              \
-	cudaError_t result = x;                                           \
-	if (result != cudaSuccess) {                                      \
-		std::cerr << "\nerror: " #x " failed with error "             \
-					<< cudaGetErrorName(result) << '\n';              \
-		exit(1);                                                      \
-	}                                                                 \
-	} while(0)
-
-	#define NVJITLINK_SAFE_CALL(h,x)                                  \
-	do {                                                              \
-	nvJitLinkResult result = x;                                       \
-	if (result != NVJITLINK_SUCCESS) {                                \
-		std::cerr << "\nerror: " #x " failed with error "             \
-					<< result << '\n';                                \
-		size_t lsize;                                                 \
-		result = nvJitLinkGetErrorLogSize(h, &lsize);                 \
-		if (result == NVJITLINK_SUCCESS && lsize > 0) {               \
-			char *log = (char*)malloc(lsize);                         \
-			result = nvJitLinkGetErrorLog(h, log);                    \
-			if (result == NVJITLINK_SUCCESS) {                        \
-				std::cerr << "error: " << log << '\n';                \
-				free(log);                                            \
-			}                                                         \
-		}                                                             \
-		exit(1);                                                      \
-	}                                                                 \
-	} while(0)
-
-#endif
-
 class TaskData{
 
 private:
@@ -168,18 +107,6 @@ private:
 	bool* transfer_GPU[MAXTASKS];
 	bool* receive_GPU[MAXTASKS];
 
-
-	//GPU SM management variables
-	#ifdef __NVCC__
-		
-		//assume we have the largest GPU (in theory) possible
-		CUdevResource total_TPCs[144];
-
-		//assume we have the largest GPU (in theory) possible
-		CUdevResource our_TPCs[144];
-
-	#endif
-
 	//and store the actual number of TPCs we have
 	unsigned int num_TPCs = 1000;
 
@@ -227,7 +154,6 @@ public:
 
 	~TaskData();
 
-	int get_num_modes();	
 	int get_index();
 	double get_elasticity();
 	double get_percentage_workload();
@@ -237,9 +163,6 @@ public:
 	int get_max_CPUs();
 	int get_min_CPUs();
 
-	timespec get_max_work();
-
-	double get_practical_max_utilization();
 	int get_practical_max_CPUs();
 	void set_practical_max_CPUs(int new_value);
 
@@ -247,15 +170,11 @@ public:
 	timespec get_current_work();
 	timespec get_current_span();
 
-    double get_current_utilization();
 	int get_current_CPUs();
 	int get_current_lowest_CPU();
 	
 	int get_CPUs_gained();
 	void set_CPUs_gained(int new_CPUs_gained);
-
-	int get_previous_CPUs();
-	void set_previous_CPUs(int new_prev);
 
 	void set_current_mode(int new_mode, bool disable);
 	int get_current_mode();
@@ -263,25 +182,9 @@ public:
 	void reset_changeable();
 	void set_current_lowest_CPU(int _lowest);
 
-	void update_give(int index, int value);
-	int gives(int index);
-
-	bool transfers(int task, int CPU);
-	void set_transfer(int task, int CPU, bool value);
-
-	bool receives(int task, int CPU);
-	void set_receive(int task, int CPU, bool value);
-
 	int get_permanent_CPU();
 	void set_permanent_CPU(int perm);
 	
-	void set_active_cpu(int i);
-	void clr_active_cpu(int i);
-	void set_passive_cpu(int i);
-	void clr_passive_cpu(int i);
-	bool get_active_cpu(int i);
-	bool get_passive_cpu(int i);
-
 	int get_num_adaptations();
 	void set_num_adaptations(int new_num);
 
@@ -294,6 +197,7 @@ public:
 	timespec get_GPU_work(int index);
 	timespec get_GPU_span(int index);
 	timespec get_GPU_period(int index);
+
 	int get_GPUs(int index);
 	int get_max_GPUs();
 	int get_min_GPUs();
@@ -308,26 +212,6 @@ public:
 	void set_GPUs_gained(int new_GPUs_gained);
 
 	bool pure_cpu_task();
-
-	int get_previous_GPUs();
-	void set_previous_GPUs(int new_prev);
-
-	void update_gpu_give(int index, int value);
-
-	std::vector<int> retract_GPUs(int value);
-	void gifted_GPUs(std::vector<int> TPCs_to_grant);
-
-
-	//related GPU functions
-	#ifdef __NVCC__
-		
-		__uint128_t get_TPC_mask();
-
-		cudaStream_t create_partitioned_stream(int TPCs = -1);
-
-		void update_partitioned_stream(cudaStream_t& stream, int TPCs = -1);
-
-	#endif
 
 	//reworking all the CPU and GPU handoff functions
 	//NOTE: all return functions will work from the 

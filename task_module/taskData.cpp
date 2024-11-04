@@ -182,280 +182,123 @@ TaskData::~TaskData(){
 int TaskData::counter = 0;	        
 
 int TaskData::get_index(){
-
 	return index;
-
 }
 
 int TaskData::get_CPUs_gained(){
-
 	return CPUs_gained;
-
 }
 
 void TaskData::set_CPUs_gained(int new_CPUs_gained){
-
 	CPUs_gained = new_CPUs_gained;
-
 }
 
 int TaskData::get_GPUs_gained(){
-
 	return GPUs_gained;
-
 }
 
 void TaskData::set_GPUs_gained(int new_GPUs_gained){
-
 	GPUs_gained = new_GPUs_gained;
-
-}
-
-int TaskData::get_previous_CPUs(){
-
-	return previous_CPUs;
-
-}
-
-void TaskData::set_previous_CPUs(int new_prev){
-
-	previous_CPUs = new_prev;
-
-}
-
-void TaskData::update_give(int index, int value){
-
-	give_CPU[index] = value;
-
-}
-
-void TaskData::update_gpu_give(int index, int value){
-
-	give_GPU[index] = value;
-
-}
-
-int TaskData::gives(int index){
-
-	return give_CPU[index];
-
-}
-
-timespec TaskData::get_max_work(){
-
-	return max_work;
-
 }
 
 double TaskData::get_elasticity(){
-
 	return elasticity;
-
 }
 
 double TaskData::get_max_utilization(){
-
 	return max_utilization;
-
 }
 
 int TaskData::get_max_CPUs(){
-
 	return max_CPUs;
-
 }
 
 int TaskData::get_min_CPUs(){
-
 	return min_CPUs;
-
 }
 
-//add the needed getters and setters for the gpu parameters
 timespec TaskData::get_GPU_work(int index){
-
 	return GPU_work[index];
-
 }
 
 timespec TaskData::get_GPU_span(int index){
-
 	return GPU_span[index];
-
 }
 
 timespec TaskData::get_GPU_period(int index){
-
 	return GPU_period[index];
-
 }
 
 int TaskData::get_GPUs(int index){
-
 	return GPUs[index];
-
 }
 
 int TaskData::get_current_GPUs(){
-
 	return current_GPUs;
-
-}
-
-int TaskData::get_previous_GPUs(){
-
-	return previous_GPUs;
-
-}
-
-void TaskData::set_previous_GPUs(int new_prev){
-
-	previous_GPUs = new_prev;
-
 }
 
 int TaskData::get_max_GPUs(){
-
 	return max_GPUs;
-
 }
 
 int TaskData::get_min_GPUs(){
-
 	return min_GPUs;
-
 }
 
 timespec TaskData::get_current_span(){
-
 	return current_span;
-
 }
 
 timespec TaskData::get_current_work(){
-
 	return current_work;
-
 }	
 
 timespec TaskData::get_current_period(){
-
 	return current_period;
-
-}
-
-double TaskData::get_current_utilization(){
-
-	return current_utilization;
-
 }
 
 int TaskData::get_current_CPUs(){
-
 	return current_CPUs;
-
 }
 
 double TaskData::get_percentage_workload(){
-
 	return percentage_workload;
-
 }
 
 bool TaskData::get_changeable(){
-
 	return changeable;
-
 }
 
 int TaskData::get_current_lowest_CPU(){
-
 	return current_lowest_CPU;
-
-}
-
-double TaskData::get_practical_max_utilization(){
-
-	return practical_max_utilization;
-
 }
 
 void TaskData::set_practical_max_CPUs(int new_value){
-
 	practical_max_CPUs = new_value;
-
 }
 
 int TaskData::get_practical_max_CPUs(){
-
 	return practical_max_CPUs;
-
 }
 
 void TaskData::set_current_lowest_CPU(int _lowest){
-
 	current_lowest_CPU = _lowest;
-
 }
 
 void TaskData::set_practical_max_GPUs(int new_value){
-
 	practical_max_GPUs = new_value;
-
 }
 
 int TaskData::get_practical_max_GPUs(){
-
 	return practical_max_GPUs;
-
 }
 
 void TaskData::set_current_lowest_GPU(int _lowest){
-
 	current_lowest_GPU = _lowest;
-
 }
 
 int TaskData::get_current_lowest_GPU(){
-
 	return current_lowest_GPU;
-
-}
-
-void TaskData::set_active_cpu(int i){
-
-	active_cpus[i] = true;
-
-}
-
-void TaskData::clr_active_cpu(int i){
-
-	active_cpus[i] = false;
-
-}
-
-void TaskData::set_passive_cpu(int i){
-
-	passive_cpus[i] = true;
-
-}
-
-void TaskData::clr_passive_cpu(int i){
-
-	passive_cpus[i] = false;
-
-}
-
-bool TaskData::get_active_cpu(int i){
-
-	return active_cpus[i];
-
-}
-
-bool TaskData::get_passive_cpu(int i){
-	
-	return passive_cpus[i];
-
 }
 
 void TaskData::set_current_mode(int new_mode, bool disable)
@@ -482,230 +325,54 @@ void TaskData::set_current_mode(int new_mode, bool disable)
 	}
 
 	else{
-
 		print_module::print(std::cerr, "Error: Task ", get_index(), " was told to go to invalid mode ", new_mode, ". Ignoring.\n");
-	
 	}
 }
 
 int TaskData::get_current_mode(){
-
 	return current_mode;
-
 }
 
 void TaskData::reset_changeable(){
-
 	changeable = true;
-
-}
-
-bool TaskData::transfers(int task, int CPU){
-
-	return transfer_CPU[task][CPU];
-
-}
-	
-void TaskData::set_transfer(int task, int CPU, bool value){
-
-	transfer_CPU[task][CPU] = value;
-
-}
-
-bool TaskData::receives(int task, int CPU){
-
-	return receive_CPU[task][CPU];
-
-}
-
-void TaskData::set_receive(int task, int CPU, bool value){
-
-	receive_CPU[task][CPU] = value;
-
 }
 
 int TaskData::get_permanent_CPU(){
-
 	return permanent_CPU;
-
 }
 	
 void TaskData::set_permanent_CPU(int perm){
-
 	permanent_CPU = perm;
-
 }
 
 int TaskData::get_num_adaptations(){
-
 	return num_adaptations;
-
 }
 
 void TaskData::set_num_adaptations(int new_num){
-
 	num_adaptations = new_num;
-
-}
-
-int TaskData::get_num_modes(){
-
-	return num_modes;
-
 }
 
 timespec TaskData::get_work(int index){
-
 	return work[index];
-
 }
+
 timespec TaskData::get_span(int index){
-
 	return span[index];
-
 }
+
 timespec TaskData::get_period(int index){
-
 	return period[index];
-
 }
+
 int TaskData::get_CPUs(int index){
-
 	return CPUs[index];
-
 }
 
 bool TaskData::pure_cpu_task(){
-
 	return is_pure_cpu_task;
-
 }
 
-std::vector<int> TaskData::retract_GPUs(int value){
-
-	//loop over our TPC mask and if a bit is set to 1, add it to the vector and set it to 0 in the new mask
-	std::vector<int> TPCs_to_retract;
-
-	for (int i = 0; i < 128; i++){
-
-		if (TPC_mask & (((__uint128_t)1 << i) >> 1) && value > 0){
-
-			TPCs_to_retract.push_back(i);
-			TPC_mask &= ~(((__uint128_t)1 << i) >> 1);
-			value--;
-
-		}
-	}
-
-	return TPCs_to_retract;
-
-}
-
-void TaskData::gifted_GPUs(std::vector<int> TPCs_to_grant){
-
-	//do the opposite of the function above, for each int in the TPC_to_grant vector, set the corresponding bit to 1 in the mask
-	for (unsigned int i = 0; i < TPCs_to_grant.size(); i++){
-
-		TPC_mask |= (((__uint128_t)1 << (__uint128_t)TPCs_to_grant.at(i)) >> 1);
-
-	}
-
-}
-
-//related GPU functions
-#ifdef __NVCC__
-
-	//returns the mask for the given task
-	__uint128_t TaskData::get_TPC_mask(){
-
-		return TPC_mask;
-
-	}
-
-	//quick function to create a SM stream
-	cudaStream_t TaskData::create_partitioned_stream(int TPCs){
-
-		cudaStream_t stream;
-		cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
-
-		//if TPCs is a positive number, check that we have enough TPCs to grant 
-		//and make a new mask to apply
-		if (TPCs > 0){
-
-			//check that we have enough TPCs to grant
-			if (TPCs > __builtin_popcount(TPC_mask)){
-
-				print_module::print(std::cerr, "Error: Task ", get_index(), " was told to grant ", TPCs, " TPCs, but only has ", __builtin_popcount(TPC_mask), " to grant. Ignoring.\n");
-				return stream;
-
-			}
-
-			//make a new mask
-			__uint128_t TPC_mask_new = 0;
-
-			for (int i = 0; i < TPCs; i++){
-
-				TPC_mask_new |= (((__uint128_t)1 << (__uint128_t)i) >> 1);
-
-			}
-
-			//apply mask
-			libsmctrl_set_stream_mask(stream, TPC_mask_new);
-
-			return stream;
-
-		}
-
-		//apply mask
-		libsmctrl_set_stream_mask(stream, TPC_mask);
-
-		return stream;
-	}
-
-	//quick function to update an existing stream
-	void TaskData::update_partitioned_stream(cudaStream_t& stream, int TPCs){
-
-		//if TPCs is a positive number, check that we have enough TPCs to grant 
-		//and make a new mask to apply
-		if (TPCs > 0){
-
-			//check that we have enough TPCs to grant
-			if (TPCs > __builtin_popcount(TPC_mask)){
-
-				print_module::print(std::cerr, "Error: Task ", get_index(), " was told to grant ", TPCs, " TPCs, but only has ", __builtin_popcount(TPC_mask), " to grant. Ignoring.\n");
-				return;
-
-			}
-
-			//make a new mask
-			__uint128_t TPC_mask_new = 0;
-
-			for (int i = 0; i < TPCs; i++){
-
-				TPC_mask_new |= (((__uint128_t)1 << (__uint128_t)i) >> 1);
-
-			}
-
-			//apply mask
-			libsmctrl_set_stream_mask(stream, TPC_mask_new);
-
-			return;
-
-		}
-
-		//apply mask
-		libsmctrl_set_stream_mask(stream, TPC_mask);
-
-		return;
-	}
-
-#endif
-
-
-//reworking all the CPU and GPU handoff functions
-//NOTE: all return functions will work from the 
-//highest CPU/SM unit we have down until we run
-//out of CPUs/SMs to return
 void TaskData::set_CPUs_change(int num_cpus_to_return){
 	cpus_to_return = num_cpus_to_return;
 }
@@ -722,8 +389,6 @@ int TaskData::get_GPUs_change(){
 	return gpus_to_return;
 }
 
-//function to check if this task has transitioned
-//to a new mode yet
 bool TaskData::check_mode_transition(){
 	return mode_transitioned;
 }
@@ -732,9 +397,7 @@ void TaskData::set_mode_transition(bool state){
 	mode_transitioned = state;
 }
 
-//functions to work with static vector of CPU indices
 int TaskData::pop_back_cpu(){
-
     // Handle empty vector case
     if (CPU_mask == 0) {
         return -1;
@@ -751,12 +414,11 @@ int TaskData::pop_back_cpu(){
 
 	//check if it's our permanent
 	if (msb == get_permanent_CPU()){
-
 		//skip the current bit
 		msb--;
 		test_bit >>= 1;
 
-		 while ((CPU_mask & test_bit) == 0) {
+		while ((CPU_mask & test_bit) == 0) {
 			msb--;
 			test_bit >>= 1;
 		}
@@ -766,12 +428,9 @@ int TaskData::pop_back_cpu(){
     CPU_mask ^= test_bit;
 
     return msb;
-
 }
 
-//functions to work with static vector of CPU indices
 int TaskData::pop_back_gpu(){
-
     // Handle empty vector case
     if (TPC_mask == 0) {
         return -1;
@@ -790,11 +449,9 @@ int TaskData::pop_back_gpu(){
     TPC_mask ^= test_bit;
 
     return msb;
-
 }
 
 int TaskData::push_back_cpu(int value){
-
     // Check if value is in valid range
     if (value < 0 || value > 127) {
         return false;
@@ -812,7 +469,6 @@ int TaskData::push_back_cpu(int value){
 }
 
 int TaskData::push_back_gpu(int value){
-
     // Check if value is in valid range
     if (value < 0 || value > 127) {
         return false;
@@ -830,23 +486,18 @@ int TaskData::push_back_gpu(int value){
 }
 
 std::vector<int> TaskData::get_cpu_owned_by_process(){
-	
     std::vector<int> result;
-
     result.reserve(128);
     
     for (int i = 0; i < 128; i++) {
         if (CPU_mask & ((__uint128_t)1 << i)) {
-
 			//do not allow our permanent CPU to be returned as
 			//a cpu we can pass or keep
 			if (i != get_permanent_CPU())
             	result.push_back(i);
         }
     }
-
     return result;
-
 }
 
 std::vector<int> TaskData::get_gpu_owned_by_process(){

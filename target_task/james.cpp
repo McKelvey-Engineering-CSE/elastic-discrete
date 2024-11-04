@@ -21,6 +21,17 @@ int iterations_complete = 0;
 
 extern int task_index;
 
+
+#ifdef __NVCC__
+
+    #include "libsmctrl.h"
+    #include <cuda.h>
+	#include <cuda_runtime.h>
+
+    cudaStream_t stream;
+
+#endif
+
 void update_core_B(__uint128_t mask) {
 
     std::ostringstream buffer;
@@ -35,10 +46,23 @@ void update_core_B(__uint128_t mask) {
     print_module::buffered_print(buffer, "\n");
     print_module::flush(std::cerr, buffer);
 
+     //example of how to use core B masks
+    #ifdef __NVCC__
+
+        libsmctrl_set_stream_mask(stream, mask);
+
+    #endif
+
 }
 
 int init(int argc, char *argv[])
 {
+
+    #ifdef __NVCC__
+
+        cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+
+    #endif
 
     if (argc < 2) {
         std::cerr << "synthetic_test_task: not enough arguments" << std::endl;
