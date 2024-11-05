@@ -24,6 +24,8 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 
 	task_table.push_back(std::vector<task_mode>());
 
+	std::cout << "Task Losses:" << std::endl; 
+
 	for (int j = 0; j < num_modes_; j++){
 
 		task_mode item;
@@ -35,6 +37,9 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 		
 		else 
 			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - ((taskData_object->get_work(j) / taskData_object->get_period(j)) + (taskData_object->get_GPU_work(j) / taskData_object->get_period(j))), 2)));
+
+
+		std::cout << "Mode "<< j << " Loss: " << item.cpuLoss << std::endl;
 
 		item.gpuLoss = 0;
 		item.cores = taskData_object->get_CPUs(j);
@@ -483,6 +488,12 @@ void Scheduler::do_schedule(size_t maxCPU){
 	for (size_t i = 0; i < result.size(); i++)
 		print_module::buffered_print(mode_strings, "Task ", i, " is now in mode: ", result.at(i), "\n");
 	print_module::buffered_print(mode_strings, "Total Loss from Mode Change: ", 100000 - dp[N][maxCPU][maxSMS].first, "\n=========================\n\n");
+
+	//print resources now held by each task
+	print_module::buffered_print(mode_strings, "\n========================= \n", "New Resource Layout:\n");
+	for (size_t i = 0; i < result.size(); i++)
+		print_module::buffered_print(mode_strings, "Task ", i, " now has: ", task_table.at(i).at(result.at(i)).cores, " Core A | ", task_table.at(i).at(result.at(i)).sms, " Core B\n");
+	print_module::buffered_print(mode_strings, "=========================\n\n");
 	print_module::flush(std::cerr, mode_strings);
 
 	//this changes the number of CPUs each task needs for a given mode
