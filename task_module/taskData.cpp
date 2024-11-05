@@ -77,6 +77,13 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 			CPUs[i] = (int)ceil(numerator / denominator);
 
+			//isofunctional tasks can have only usage for core B
+			//but since for now, core A is still dominant, we force
+			//it to hold on to it's permanent core regardless of whether
+			//or not it has a use for it
+			if (CPUs[i] == 0)
+				CPUs[i] = 1;
+
 			//GPU resources
 			ts_diff(GPU_work[i], GPU_span[i], numerator);
 			ts_diff(modified_period, GPU_span[i], denominator);
