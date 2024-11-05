@@ -38,7 +38,7 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 	}			
 
 	for (int i = 0; i < num_modes; i++)
-		print_module::print(std::cout, work[i], " ", span[i], " ", period[i], "\n");	
+		print_module::print(std::cout, work[i], " ", span[i], " ", period[i], " ", GPU_work[i], " ", GPU_span[i], "\n");	
 
 	timespec numerator;
 	timespec denominator;
@@ -65,12 +65,12 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 		//if the task is hybrid, the calc has period / 2
 		else {
 
+			//CPU resources
+			if (((work[i] / period[i]) + (GPU_work[i] / period[i])) > max_utilization)
+				max_utilization = ((work[i] / period[i]) + (GPU_work[i] / period[i]));
+
 			//calc the modified period
 			auto modified_period = (period[i] / 2);
-
-			//CPU resources
-			if (work[i] / period[i] > max_utilization)
-				max_utilization = work[i] / period[i];
 
 			ts_diff(work[i], span[i], numerator);
 			ts_diff(modified_period, span[i], denominator);

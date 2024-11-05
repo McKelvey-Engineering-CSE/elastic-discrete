@@ -27,7 +27,15 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 	for (int j = 0; j < num_modes_; j++){
 
 		task_mode item;
-		item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - (taskData_object->get_work(j) / taskData_object->get_period(j)), 2)));
+
+		//the loss function is different if the 
+		//task is a pure cpu task or hybrid task
+		if (taskData_object->pure_cpu_task())
+			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - (taskData_object->get_work(j) / taskData_object->get_period(j)), 2)));
+		
+		else 
+			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - ((taskData_object->get_work(j) / taskData_object->get_period(j)) + (taskData_object->get_GPU_work(j) / taskData_object->get_period(j))), 2)));
+
 		item.gpuLoss = 0;
 		item.cores = taskData_object->get_CPUs(j);
 		item.sms = taskData_object->get_GPUs(j);
