@@ -366,8 +366,13 @@ void Scheduler::do_schedule(size_t maxCPU){
 								double newCPULoss = dp[i - 1][w - current_item_cores][v - current_item_sms].first - item.cpuLoss;
 
 								//update the pool at this stage
-								current_resource_pool.first -= (current_item_cores - previous_modes.at(i - 1).cores);
-								current_resource_pool.second -= (current_item_sms - previous_modes.at(i - 1).sms);
+								//only update with root nodes
+								if ((item.cores - previous_modes.at(i - 1).cores) < 0 && (item.sms - previous_modes.at(i - 1).sms) > 0){
+
+									current_resource_pool.first -= (current_item_cores - previous_modes.at(i - 1).cores);
+									current_resource_pool.second -= (current_item_sms - previous_modes.at(i - 1).sms);
+
+								}
 								
 								//if found solution is better, update
 								if ((newCPULoss) > (dp[i][w][v].first)) {
@@ -443,8 +448,13 @@ void Scheduler::do_schedule(size_t maxCPU){
 								double newCPULoss = dp[i - 1][w - current_item_cores][v - current_item_sms].first - item.cpuLoss;
 
 								//update the pool at this stage
-								current_resource_pool.first -= (current_item_cores - previous_modes.at(i - 1).cores);
-								current_resource_pool.second -= (current_item_sms - previous_modes.at(i - 1).sms);
+								//only update with root nodes
+								if ((item.cores - previous_modes.at(i - 1).cores) < 0 && (item.sms - previous_modes.at(i - 1).sms) > 0){
+
+									current_resource_pool.first -= (current_item_cores - previous_modes.at(i - 1).cores);
+									current_resource_pool.second -= (current_item_sms - previous_modes.at(i - 1).sms);
+
+								}
 								
 								//if found solution is better, update
 								if ((newCPULoss) > (dp[i][w][v].first)) {
