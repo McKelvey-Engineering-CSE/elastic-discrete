@@ -112,6 +112,37 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 	}
 
+	//loop over all modes, and compare the allocated processor A
+	//and processor B to all other modes in the task. If the task
+	//has any mode where it gains cpus and loses gpus compared to 
+	//any other mode in the task or vice versa, then the task is
+	//combinatorially elastic
+	for (int i = 0; i < num_modes; i++){
+
+		for (int j = 0; j < num_modes; j++){
+
+			if (i != j){
+
+				if (CPUs[i] > CPUs[j] && GPUs[i] < GPUs[j]){
+
+					combinatorially_elastic = true;
+					break;
+
+				}
+
+				if (CPUs[i] < CPUs[j] && GPUs[i] > GPUs[j]){
+
+					combinatorially_elastic = true;
+					break;
+
+				}
+
+			}
+
+		}
+
+	}
+
 	current_CPUs = min_CPUs;
 	current_GPUs = min_GPUs;
 
@@ -567,4 +598,8 @@ __uint128_t TaskData::get_gpu_mask() {
 	
 	return TPC_mask;
 
+}
+
+bool TaskData::is_combinatorially_elastic(){
+	return combinatorially_elastic;
 }

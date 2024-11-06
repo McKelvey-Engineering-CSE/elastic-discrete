@@ -33,7 +33,11 @@ class TaskData{
 
 private:
 
+	//variable to track if this task is a pure CPU task
 	bool is_pure_cpu_task = true;
+
+	//variable to track if the task is combinatorially elastic
+	bool combinatorially_elastic = false;
 
 	static int counter;
 	int index; //unique identifier
@@ -235,6 +239,9 @@ public:
 	__uint128_t get_cpu_mask();
 
 	__uint128_t get_gpu_mask();
+
+	//function to get and set combinationally elastic
+	bool is_combinatorially_elastic();
 
 };
 

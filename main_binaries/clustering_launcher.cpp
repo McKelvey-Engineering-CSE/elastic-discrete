@@ -98,6 +98,11 @@ void force_cleanup() {
 	scheduler->setTermination();
 	process_barrier::destroy_barrier(barrier_name);
 	process_barrier::destroy_barrier(barrier_name2);
+
+	if (explicit_sync) {
+		process_barrier::destroy_barrier("EX_SYNC");
+	}
+
 	kill(0, SIGKILL);
 	delete scheduler;
 }
@@ -212,6 +217,9 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 	
 	if (!config["schedulable"]) {
 		return -1;
+	}
+	if (config["explicit_sync"]){
+		explicit_sync = config["explicit_sync"].as<bool>();
 	}
 	if (config["schedulable"].as<bool>()) {
 		*schedulable = 1;
@@ -367,8 +375,18 @@ int main(int argc, char *argv[])
 	//(retain CPU 0 for the scheduler)
 	scheduler = new Scheduler(parsed_tasks.size(),(int) std::thread::hardware_concurrency()-1, explicit_sync);
 
-	//Initialize two barriers to synchronize the tasks after creation
+	//if explicit sync is enabled, we need to create a barrier to synchronize the tasks after creation
+	if (explicit_sync)
+	{
+		if (process_barrier::create_process_barrier("EX_SYNC", parsed_tasks.size()) == nullptr)
+		{
+			print_module::print(std::cerr, "ERROR: Failed to initialize barrier.\n");
+			return RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR;
+		}
+	}
 
+
+	//Initialize two barriers to synchronize the tasks after creation
 	if (process_barrier::create_process_barrier(barrier_name, parsed_tasks.size() + 1) == nullptr || 
 		process_barrier::create_process_barrier(barrier_name2, parsed_tasks.size() + 1) == nullptr)
 	{
@@ -508,6 +526,10 @@ int main(int argc, char *argv[])
 	t.join();
 
 	print_module::print(std::cerr, "All tasks finished.\n");
+
+	if (explicit_sync) {
+		process_barrier::destroy_barrier("EX_SYNC");
+	}
 	
 	delete scheduler;
 	

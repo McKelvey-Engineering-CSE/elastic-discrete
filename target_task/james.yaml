@@ -1,5 +1,6 @@
 ---
 schedulable: true
+explicit_sync: false
 maxRuntime: {sec: 5, nsec: 0}
 tasks:
   - program:
