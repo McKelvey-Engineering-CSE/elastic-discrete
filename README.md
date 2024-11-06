@@ -140,6 +140,42 @@ To emulate the behavior of the old clustering launcher, set `elasticity: 1` for 
 
 `priority` controls the priority given to the kernel (under the SCHED_RR scheduler). If no priority is set, `7` is used as the default. Note that during task sleep and finalization, the set priority is ignored.
 
+## Testing
+
+### Adding a testcase
+
+First, set up the synthetic tasks you wish to test. A `regression_test_task` has been provided for this purpose; it takes arguments of the form `<nsec> <mode_count> <mode_change_interval>`. On every iteration, it will spin for `nsec` nanoseconds; after every `<mode_change_interval>`, it will advance to the next mode. On every iteration, it prints out the number of cores it has been assigned; if you write your own synthetic task, you should print the core assignments in the same format.
+
+Then, create a `.yaml` file describing your task system and save it in `regression_tests/tests/`. Make sure to use the correct relative paths to refer to your compiled synthetic tasks. Compile both `clustering_launcher` and your synthetic tasks. Run your testcase and save the expected output in the same folder, with a `.txt` file extension, like so:
+
+```
+cd regression_tests/build/
+../../clustering_launcher ../tests/basic.yaml &> ../tests/basic.txt
+```
+
+Finally, add a testcase to `test_runner.cpp` describing the properties you wish to check. For example, to check that all the core assignments match the expected results:
+
+```
+TEST(Scheduler, BasicAssignment) {
+    clusteringRunResult result = runClustering("basic");
+    ASSERT_EQ(result.exit_code, 0);
+    assert_same_core_assignments(parse_core_assignments(result.stdout), parse_core_assignments(get_expected_output("basic")));
+}
+```
+
+### Executing tests
+
+```
+cd regression_tests
+mkdir build
+cd build
+cmake ../
+make
+./test_runner ../../clustering_launcher ../tests/
+```
+
+The first argument to `test_runner` can be replaced with the path to any instance of `clustering_launcher` that you wish to test. You can also add additional arguments; they will be passed through to [gtest](https://google.github.io/googletest/).
+
 ## Elastic Discrete Legacy Description
 ```
 Author: James Orr
