@@ -241,11 +241,27 @@ void reschedule(){
 
 	}
 
+	//giving gpus
+	if (gpu_change > 0){
+
+		//give up resources immediately and mark our transition
+		for (int i = 0; i < gpu_change; i++){
+			
+			//remove GPUs from our set until we have given up the correct number
+			schedule.get_task(task_index)->pop_back_gpu();
+
+		}
+
+	}
+
+	//granted resources
+	auto cpus = schedule.get_task(task_index)->get_cpus_granted_from_other_tasks();
+	auto gpus = schedule.get_task(task_index)->get_gpus_granted_from_other_tasks();
+
 	//gaining cpus
-	if (cpu_change < 0){
+	if (cpus.size() != 0){
 
 		//collect our CPUs
-		auto cpus = schedule.get_task(task_index)->get_cpus_granted_from_other_tasks();
 		std::vector<int> core_indices;
 
 		for (size_t i = 0; i < cpus.size(); i++)
@@ -262,24 +278,10 @@ void reschedule(){
 		
 	}
 
-	//giving gpus
-	if (gpu_change > 0){
-
-		//give up resources immediately and mark our transition
-		for (int i = 0; i < gpu_change; i++){
-			
-			//remove GPUs from our set until we have given up the correct number
-			schedule.get_task(task_index)->pop_back_gpu();
-
-		}
-
-	}
-
 	//gaining gpus
-	if (gpu_change < 0){
+	if (gpus.size() != 0){
 
 		//collect our GPUs
-		auto gpus = schedule.get_task(task_index)->get_gpus_granted_from_other_tasks();
 		std::vector<int> tpc_indices;
 
 		for (size_t i = 0; i < gpus.size(); i++)
@@ -671,7 +673,7 @@ int main(int argc, char *argv[])
 			//Check other tasks to see if this task can transition yet. It can if it is giving up a CPU, or is gaining a CPU that has been given up.
 			auto cpus = schedule.get_task(task_index)->get_cpus_granted_from_other_tasks();
 			auto gpus = schedule.get_task(task_index)->get_gpus_granted_from_other_tasks();
-
+ 
 			//loop over cpus and gpus respectively and check the taskData that is int in the pair to see if 
 			//it has already transitioned and therefore the resources are available
 			for (size_t i = 0; i < cpus.size(); i++)

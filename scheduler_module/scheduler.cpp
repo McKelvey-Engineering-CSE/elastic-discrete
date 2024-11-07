@@ -154,7 +154,7 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
                 
 				provider.edges.push_back(new_edge);
 
-                if (has_cycle(nodes, provider_id))
+                if (has_cycle(nodes, provider_id) && !barrier)
                     provider.edges.pop_back();
 				
 				else {
@@ -680,7 +680,9 @@ void Scheduler::do_schedule(size_t maxCPU){
 						
 						}
 
-						transitioned = true;
+						auto change_amount = (schedule.get_task(id))->get_CPUs_change();
+						(schedule.get_task(id))->set_CPUs_change(change_amount + (previous_mode.cores - current_mode.cores));
+						(schedule.get_task(id))->set_mode_transition(false);
 
 					}
 
@@ -693,15 +695,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 						
 						}
 
-						transitioned = true;
-
-					}
-
-					//let the task know what it should give up when it can change modes
-					if (transitioned){
-
-						(schedule.get_task(id))->set_CPUs_change(CPUs_given_up);
-						(schedule.get_task(id))->set_GPUs_change(GPUs_given_up);
+						auto change_amount = (schedule.get_task(id))->get_GPUs_change();
+						(schedule.get_task(id))->set_GPUs_change(change_amount + (previous_mode.sms - current_mode.sms));
 						(schedule.get_task(id))->set_mode_transition(false);
 
 					}
@@ -761,8 +756,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 								(schedule.get_task(task_being_given_to))->set_cpus_granted_from_other_tasks({id, cpus_being_given});
 
 							//update other task's cpu change
-							auto change_amount = (schedule.get_task(task_being_given_to))->get_CPUs_change();
-							(schedule.get_task(task_being_given_to))->set_CPUs_change(change_amount - edge.x_amount);
+							//auto change_amount = (schedule.get_task(task_being_given_to))->get_CPUs_change();
+							//(schedule.get_task(task_being_given_to))->set_CPUs_change(change_amount - edge.x_amount);
 
 							//update our own
 							CPUs_given_up += edge.x_amount;
@@ -815,8 +810,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 							
 
 							//update other task's gpu change
-							auto change_amount = (schedule.get_task(task_being_given_to))->get_GPUs_change();
-							(schedule.get_task(task_being_given_to))->set_GPUs_change(change_amount - edge.y_amount);
+							//auto change_amount = (schedule.get_task(task_being_given_to))->get_GPUs_change();
+							//(schedule.get_task(task_being_given_to))->set_GPUs_change(change_amount - edge.y_amount);
 
 							//update our own
 							GPUs_given_up += edge.y_amount;
