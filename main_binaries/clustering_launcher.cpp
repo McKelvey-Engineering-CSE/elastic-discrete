@@ -373,7 +373,16 @@ int main(int argc, char *argv[])
 
 	//create the scheduling object
 	//(retain CPU 0 for the scheduler)
-	scheduler = new Scheduler(parsed_tasks.size(),(int) std::thread::hardware_concurrency()-1, explicit_sync);
+	scheduler = new Scheduler(parsed_tasks.size(),(int) NUMCPUS, explicit_sync);
+
+	//warn if set higher than real cpu amount
+	if (NUMCPUS > std::thread::hardware_concurrency() - 1){
+	
+		print_module::print(std::cerr, "\n\nMORE CPUS ARE BEING USED THAN ACTUALLY EXIST. WHILE THIS IS ALLOWED FOR TESTING PURPOSES, IT IS NOT RECOMMENDED. YOUR EXECUTION WILL BE HALTED FOR 2 SECONDS TO MAKE SURE YOU SEE THIS!!!\n\n");
+	
+		sleep(3);
+
+	}
 
 	//if explicit sync is enabled, we need to create a barrier to synchronize the tasks after creation
 	if (explicit_sync)
