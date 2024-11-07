@@ -477,7 +477,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 	auto result = solutions[{N, maxCPU, maxSMS}];
 
 	//check to see that we got a solution that renders this system schedulable
-	if (result.size() == 0 && previous_modes.empty()){
+	if (result.size() == 0 && first_time){
 
 		print_module::print(std::cerr, "Error: System is not schedulable in any configuration. Exiting.\n");
 		killpg(process_group, SIGINT);
@@ -669,8 +669,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 					//check that they are not just giving up resources
 					//to the free pool
-					bool transitioned = false;
-
 					if ((previous_mode.cores - current_mode.cores) > 0){
 
 						for (int i = 0; i < (previous_mode.cores - current_mode.cores); i++){
