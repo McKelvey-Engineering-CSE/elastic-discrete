@@ -376,7 +376,7 @@ int main(int argc, char *argv[])
 	scheduler = new Scheduler(parsed_tasks.size(),(int) NUMCPUS, explicit_sync);
 
 	//warn if set higher than real cpu amount
-	if (NUMCPUS > std::thread::hardware_concurrency() - 1){
+	if (NUMCPUS > std::thread::hardware_concurrency()){
 	
 		print_module::print(std::cerr, "\n\nMORE CPUS ARE BEING USED THAN ACTUALLY EXIST. WHILE THIS IS ALLOWED FOR TESTING PURPOSES, IT IS NOT RECOMMENDED. YOUR EXECUTION WILL BE HALTED FOR 2 SECONDS TO MAKE SURE YOU SEE THIS!!!\n\n");
 	
