@@ -408,7 +408,7 @@ int main(int argc, char *argv[])
 	//enough time to finish their init() stages.
 	get_time(&current_time);
 	run_time={sec_to_run, nsec_to_run};
-	start_time.tv_sec = current_time.tv_sec + 5;
+	start_time.tv_sec = current_time.tv_sec + 8;
 	start_time.tv_nsec = current_time.tv_nsec;
 	end_time = start_time + run_time;
 

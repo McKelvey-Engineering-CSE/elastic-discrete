@@ -180,6 +180,10 @@ public:
         global_override_mask = mask;
     }
 
+    __uint128_t get_override_mask() {
+        return global_override_mask;
+    }
+
     ~ThreadPool() {
         stop = true;
         
