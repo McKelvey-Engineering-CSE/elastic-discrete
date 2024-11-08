@@ -39,9 +39,6 @@ Class : shared_mem
 
 #endif
 
-#define DEFAULT_MAX_CPU 16
-#define DEFAULT_MAX_SMS 16
-
 class Scheduler{
 
 	enum resource_type {CORE_A, CORE_B};
@@ -90,8 +87,6 @@ class Scheduler{
 
 	size_t bound_GPU_device = 0;
 
-	size_t maxSMS = DEFAULT_MAX_SMS;
-
 	bool barrier = true;
 
 	//each entry is a task with each item in the vector representing a mode
@@ -120,7 +115,7 @@ public:
 		task_table.clear();
 
 		free_cores_A.reserve(num_CPUs);
-		free_cores_B.reserve(maxSMS);
+		free_cores_B.reserve(NUMGPUS);
 
  	}
 

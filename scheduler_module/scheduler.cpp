@@ -234,7 +234,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	//for each run we need to see what resources are left in the pool from the start
 	int starting_CPUs = NUMCPUS - 1;
-	int starting_GPUs = maxSMS;
+	int starting_GPUs = NUMGPUS;
 
 	if (!first_time){
 
@@ -257,7 +257,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	//dynamic programming table
 	int N = task_table.size();
-    std::vector<std::vector<std::vector<std::pair<double, std::pair<int, int>>>>> dp(N + 1, std::vector<std::vector<std::pair<double, std::pair<int, int>>>>(maxCPU + 1, std::vector<std::pair<double, std::pair<int, int>>>(maxSMS + 1, {100000, {starting_CPUs, starting_GPUs}})));
+    std::vector<std::vector<std::vector<std::pair<double, std::pair<int, int>>>>> dp(N + 1, std::vector<std::vector<std::pair<double, std::pair<int, int>>>>(maxCPU + 1, std::vector<std::pair<double, std::pair<int, int>>>(NUMGPUS + 1, {100000, {starting_CPUs, starting_GPUs}})));
     std::map<std::tuple<int,int,int>, std::vector<int>> solutions;
 
 	//First time through Make sure we have enough CPUs and GPUs
@@ -291,8 +291,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 				(schedule.get_task(i))->set_practical_max_CPUs((schedule.get_task(i))->get_max_CPUs());
 
 			//GPU
-			if (((int)(maxSMS) - min_required_gpu + (schedule.get_task(i))->get_min_GPUs()) < (schedule.get_task(i))->get_max_GPUs())
-				(schedule.get_task(i))->set_practical_max_GPUs( maxSMS - min_required_gpu + (schedule.get_task(i))->get_min_GPUs());
+			if (((int)(NUMGPUS) - min_required_gpu + (schedule.get_task(i))->get_min_GPUs()) < (schedule.get_task(i))->get_max_GPUs())
+				(schedule.get_task(i))->set_practical_max_GPUs( NUMGPUS - min_required_gpu + (schedule.get_task(i))->get_min_GPUs());
 
 			else
 				(schedule.get_task(i))->set_practical_max_GPUs((schedule.get_task(i))->get_max_GPUs());
@@ -305,7 +305,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
         for (size_t w = 0; w <= maxCPU; w++) {
 
-            for (size_t v = 0; v <= maxSMS; v++) {
+            for (size_t v = 0; v <= NUMGPUS; v++) {
 
 				bool pessemism = false;
 
@@ -494,7 +494,7 @@ void Scheduler::do_schedule(size_t maxCPU){
  	}
 
     //return optimal solution
-	auto result = solutions[{N, maxCPU, maxSMS}];
+	auto result = solutions[{N, maxCPU, NUMGPUS}];
 
 	//check to see that we got a solution that renders this system schedulable
 	if (result.size() == 0 && first_time){
@@ -524,7 +524,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 	print_module::buffered_print(mode_strings, "\n========================= \n", "New Schedule Layout:\n");
 	for (size_t i = 0; i < result.size(); i++)
 		print_module::buffered_print(mode_strings, "Task ", i, " is now in mode: ", result.at(i), "\n");
-	print_module::buffered_print(mode_strings, "Total Loss from Mode Change: ", 100000 - dp[N][maxCPU][maxSMS].first, "\n=========================\n\n");
+	print_module::buffered_print(mode_strings, "Total Loss from Mode Change: ", 100000 - dp[N][maxCPU][NUMGPUS].first, "\n=========================\n\n");
 
 	//print resources now held by each task
 	print_module::buffered_print(mode_strings, "\n========================= \n", "New Resource Layout:\n");
@@ -597,9 +597,9 @@ void Scheduler::do_schedule(size_t maxCPU){
 				for (int j = 0; j < (schedule.get_task(i))->get_current_GPUs(); j++)
 					(schedule.get_task(i))->push_back_gpu(next_TPC ++);
 
-				if (next_TPC > (int)(maxSMS) + 1){
+				if (next_TPC > (int)(NUMGPUS) + 1){
 
-					print_module::print(std::cerr, "Error in task ", i, ": too many GPUs have been allocated.", next_TPC, " ", maxSMS, " \n");
+					print_module::print(std::cerr, "Error in task ", i, ": too many GPUs have been allocated.", next_TPC, " ", NUMGPUS, " \n");
 					killpg(process_group, SIGKILL);
 					return;
 
@@ -609,7 +609,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 		}
 
 		//assign all the unassigned gpus to the scheduler to hold
-		for (int i = next_TPC; i < (int)(maxSMS); i++)
+		for (int i = next_TPC; i < (int)(NUMGPUS); i++)
 			free_cores_B.push_back(i);
 
 	}
