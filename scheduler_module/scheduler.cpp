@@ -307,6 +307,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 
             for (size_t v = 0; v <= maxSMS; v++) {
 
+				bool pessemism = false;
+
                 //invalid state
                 dp[i][w][v] = {-1.0, {0, 0}};  
                 
@@ -348,11 +350,19 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 									//we have to change our resource demands to make
 									//the system safe again
-									if (returned_cpus < 0)
+									if (returned_cpus < 0){
+
+										pessemism = true;
 										current_item_cores = std::max(item.cores, previous_modes.at(i - 1).cores);
 
-									if (returned_gpus < 0)
+									}
+
+									if (returned_gpus < 0){
+
+										pessemism = true;
 										current_item_sms = std::max(item.sms, previous_modes.at(i - 1).sms);
+
+									}
 
 								}
 							}
@@ -380,7 +390,11 @@ void Scheduler::do_schedule(size_t maxCPU){
 										dp[i][w][v] = {newCPULoss, current_resource_pool};
 
 										solutions[{i, w, v}] = solutions[{i - 1, w - current_item_cores, v - current_item_sms}];
-										solutions[{i, w, v}].push_back((schedule.get_task(i - 1))->get_current_mode());
+
+										if (pessemism)
+											solutions[{i, w, v}].push_back((schedule.get_task(i - 1))->get_current_mode() * -1);
+										else
+											solutions[{i, w, v}].push_back((schedule.get_task(i - 1))->get_current_mode());
 									
 								}
 							}
@@ -426,12 +440,14 @@ void Scheduler::do_schedule(size_t maxCPU){
 									//the system safe again
 									if (returned_cpus < 0){
 
+										pessemism = true;
 										current_item_cores = std::max(item.cores, previous_modes.at(i - 1).cores);
 
 									}
 
 									if (returned_gpus < 0){
 										
+										pessemism = true;
 										current_item_sms = std::max(item.sms, previous_modes.at(i - 1).sms);
 									
 									}
@@ -462,7 +478,11 @@ void Scheduler::do_schedule(size_t maxCPU){
 									dp[i][w][v] = {newCPULoss, current_resource_pool};
 
 									solutions[{i, w, v}] = solutions[{i - 1, w - current_item_cores, v - current_item_sms}];
-									solutions[{i, w, v}].push_back(j);
+
+									if (pessemism)
+										solutions[{i, w, v}].push_back(j * -1);
+									else
+										solutions[{i, w, v}].push_back(j);
 
 								}
 							}
@@ -491,6 +511,13 @@ void Scheduler::do_schedule(size_t maxCPU){
 		return;
 
 	}
+
+	//deal with pessemism negatives
+	auto backup = result;
+
+	for (int i = 0; i < result.size(); i++)
+		if (result.at(i) < 0)
+			result.at(i) *= -1;
 
 	//update the tasks
 	std::ostringstream mode_strings;
@@ -601,7 +628,18 @@ void Scheduler::do_schedule(size_t maxCPU){
 		std::unordered_map<int, Node> static_nodes;
 		std::vector<std::pair<int, int>> dependencies;
 
+		result = backup;
+
 		for (size_t i = 0; i < result.size(); i++){
+
+			//if value is negative, then we had to be pessimistic
+			bool pessemism = false;
+			if (result.at(i) < 0){
+
+				pessemism = true;
+				result.at(i) *= -1;
+
+			}
 
 			//fetch the current mode
 			auto current_mode = task_table.at(i).at(result.at(i));
@@ -610,7 +648,19 @@ void Scheduler::do_schedule(size_t maxCPU){
 			auto previous_mode = previous_modes.at(i);
 
 			//add the new node
-			dependencies.push_back({previous_mode.cores - current_mode.cores, previous_mode.sms - current_mode.sms});
+			if (pessemism){
+
+				if ((previous_mode.cores - current_mode.cores) > 0)
+					dependencies.push_back({0, previous_mode.sms - current_mode.sms});
+
+				else 
+					dependencies.push_back({previous_mode.cores - current_mode.cores, 0});
+
+			}
+
+			else 
+				dependencies.push_back({previous_mode.cores - current_mode.cores, previous_mode.sms - current_mode.sms});
+			
 
 		}
 
