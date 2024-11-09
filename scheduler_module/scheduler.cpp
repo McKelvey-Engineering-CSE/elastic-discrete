@@ -132,6 +132,62 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 
 	print_module::print(std::cerr, "Provider size: ", provider_order.size(), " Consumer size: ", consumer_order.size(), " Transfer size: ", transfer_order.size(), "\n");
     
+	//if system has barrier, just do it lazily
+	if (barrier){
+
+		for (int consumer_id = 0; consumer_id < nodes.size(); consumer_id++){
+
+			Node& consumer = nodes[consumer_id];
+			int needed_x = -consumer.x;
+			int needed_y = -consumer.y;
+			
+			for (int provider_id = 0; provider_id < nodes.size(); provider_id++) {
+
+				if (provider_id == consumer_id) continue;
+				
+				Node& provider = nodes[provider_id];
+				Edge new_edge{consumer_id, 0, 0};
+				bool edge_needed = false;
+				
+				//Try to satisfy x resource need
+				if (needed_x > 0 && provider.x > 0) {
+
+					int transfer = std::min(needed_x, provider.x);
+					new_edge.x_amount = transfer;
+					needed_x -= transfer;
+					edge_needed = true;
+
+				}
+				
+				//Try to satisfy y resource need
+				if (needed_y > 0 && provider.y > 0) {
+
+					int transfer = std::min(needed_y, provider.y);
+					new_edge.y_amount = transfer;
+					needed_y -= transfer;
+					edge_needed = true;
+
+				}
+				
+				//If this edge would transfer resources, add it and check for cycles
+				if (edge_needed) {
+					
+					provider.edges.push_back(new_edge);
+
+					//Update provider's available resources
+					provider.x -= new_edge.x_amount;
+					provider.y -= new_edge.y_amount;
+				
+
+				}
+
+			}
+
+		}
+
+		return true;
+	}
+
     //Try to satisfy each transformer's needs first
 	//(given that we are pessemmistic in the worst case, this is guaranteed to be possible)
     for (int consumer_id : transfer_order) {
