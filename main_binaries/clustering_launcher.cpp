@@ -31,6 +31,8 @@ struct itimerspec disarming_its, virtual_dl_timer_its;
 struct sigevent sev;
 int ret;
 
+bool FPTAS = false;
+
 // Define the name of the barrier used for synchronizing tasks after creation
 const std::string barrier_name = "BAR";
 const std::string barrier_name2 = "BAR_2";
@@ -221,6 +223,9 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 	if (config["explicit_sync"]){
 		explicit_sync = config["explicit_sync"].as<bool>();
 	}
+	if (config["FPTAS"]){
+		FPTAS = config["FPTAS"].as<bool>();
+	}
 	if (config["schedulable"].as<bool>()) {
 		*schedulable = 1;
 	} else {
@@ -373,7 +378,7 @@ int main(int argc, char *argv[])
 
 	//create the scheduling object
 	//(retain CPU 0 for the scheduler)
-	scheduler = new Scheduler(parsed_tasks.size(),(int) NUMCPUS, explicit_sync);
+	scheduler = new Scheduler(parsed_tasks.size(),(int) NUMCPUS, explicit_sync, FPTAS);
 
 	//warn if set higher than real cpu amount
 	if (NUMCPUS > std::thread::hardware_concurrency()){

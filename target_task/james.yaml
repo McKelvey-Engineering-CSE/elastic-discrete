@@ -1,6 +1,7 @@
 ---
 schedulable: true
 explicit_sync: false
+FPTAS: false
 maxRuntime: {sec: 5, nsec: 0}
 tasks:
   - program:

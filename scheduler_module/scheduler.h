@@ -89,6 +89,8 @@ class Scheduler{
 
 	bool barrier = true;
 
+	bool FPTAS = true;
+
 	//each entry is a task with each item in the vector representing a mode
 	static std::vector<std::vector<task_mode>> task_table;
 
@@ -105,7 +107,7 @@ class Scheduler{
 public:
 
 	//reserve the necessary space for the class (task) table
-	Scheduler(int num_tasks_, int num_CPUs_, bool explicit_sync) : process_group(getpgrp()), schedule("EFSschedule"), num_tasks(num_tasks_), num_CPUs(num_CPUs_), first_time(true), barrier(explicit_sync) {
+	Scheduler(int num_tasks_, int num_CPUs_, bool explicit_sync, bool FPTAS_) : process_group(getpgrp()), schedule("EFSschedule"), num_tasks(num_tasks_), num_CPUs(num_CPUs_), first_time(true), barrier(explicit_sync), FPTAS(FPTAS_) {
 
 		previous_modes.reserve(100);
 
@@ -128,6 +130,8 @@ public:
 	void setTermination();
 
 	class Schedule * get_schedule();
+
+	void set_FPTAS();
 
 	bool has_cycle(const std::unordered_map<int, Node>& nodes, int start);
 
