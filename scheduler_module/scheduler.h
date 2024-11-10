@@ -133,6 +133,8 @@ public:
 
 	void set_FPTAS();
 
+	int get_num_tasks();
+
 	bool has_cycle(const std::unordered_map<int, Node>& nodes, int start);
 
 	bool build_resource_graph(std::vector<std::pair<int, int>> resource_pairs, 

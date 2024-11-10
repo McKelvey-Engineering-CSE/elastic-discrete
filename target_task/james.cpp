@@ -24,88 +24,106 @@ extern int task_index;
 
 #ifdef __NVCC__
 
-    #include "libsmctrl.h"
-    #include <cuda.h>
-	#include <cuda_runtime.h>
+   #include "libsmctrl.h"
+   #include <cuda.h>
+   #include <cuda_runtime.h>
 
-    cudaStream_t stream;
+   cudaStream_t stream;
 
 #endif
 
 void update_core_B(__uint128_t mask) {
 
-    std::ostringstream buffer;
+   std::ostringstream buffer;
 
-    print_module::buffered_print(buffer, "Core B Mask: ");
+   print_module::buffered_print(buffer, task_index, " -> Core B Mask: ");
 
-    //print the mask
-    for (int i = 0; i < 128; i++) {
-        print_module::buffered_print(buffer, (unsigned long long)((mask & ((__uint128_t)1 << (__uint128_t(i)))) >> (__uint128_t(i))));
-    }
+   //print the mask
+   for (int i = 0; i < 128; i++) {
+       print_module::buffered_print(buffer, (unsigned long long)((mask & ((__uint128_t)1 << (__uint128_t(i)))) >> (__uint128_t(i))));
+   }
 
-    print_module::buffered_print(buffer, "\n");
-    print_module::flush(std::cerr, buffer);
+   print_module::buffered_print(buffer, "\n");
+   print_module::flush(std::cerr, buffer);
 
-     //example of how to use core B masks
-    #ifdef __NVCC__
+    //example of how to use core B masks
+   #ifdef __NVCC__
 
-        libsmctrl_set_stream_mask(stream, mask);
+       libsmctrl_set_stream_mask(stream, mask);
 
-    #endif
+   #endif
 
 }
 
 int init(int argc, char *argv[])
 {
 
-    #ifdef __NVCC__
+   #ifdef __NVCC__
 
-        cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+       cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
 
-    #endif
+   #endif
 
-    if (argc < 2) {
-        std::cerr << "synthetic_test_task: not enough arguments" << std::endl;
-        return -1;
-    }
+   if (argc < 2) {
+       std::cerr << "synthetic_test_task: not enough arguments" << std::endl;
+       return -1;
+   }
 
-    spin_tv.tv_sec = 0;
+   spin_tv.tv_sec = 0;
 
-    //TODO all args are passed in as a single string - should change clustering_launcher to fix this
-    if (sscanf(argv[1], "%d %ld %d %d", &logging_index, &spin_tv.tv_nsec, &mode_count, &mode_change_interval) < 3) {
-        std::cerr << "synthetic_test_task: failed to parse args" << std::endl;
-        return -2;
-    }
+   //TODO all args are passed in as a single string - should change clustering_launcher to fix this
+   if (sscanf(argv[1], "%d %ld %d %d", &logging_index, &spin_tv.tv_nsec, &mode_count, &mode_change_interval) < 3) {
+       std::cerr << "synthetic_test_task: failed to parse args" << std::endl;
+       return -2;
+   }
 
-	return 0;       
+   return 0;       
 }
 
 int run(int argc, char *argv[]){
 
-    std::atomic<int> count = 0;
-    omp( pragma_omp_parallel
-    {
-		count++;
+   std::atomic<int> count = 0;
+   /*omp( pragma_omp_parallel
+   {
+       count++;
 
-		busy_work(spin_tv);
-        
-    });
+       busy_work(spin_tv);
+       
+   });*/
 
-    std::cout << "TEST: [" << task_index << "," << iterations_complete << "] core count: " << count << std::endl;
+   //std::cout << current_cpu_mask << std::endl;
 
-    iterations_complete++;
+   busy_work(spin_tv);
 
-    if (task_index == 1 && mode_count > 1 && mode_change_interval > 0 && iterations_complete > 0 && (iterations_complete % mode_change_interval == 0)) {
-        synth_current_mode = (synth_current_mode + 1) % mode_count;
-        modify_self(synth_current_mode);
-    }
+   auto current_mask = omp.get_override_mask();
 
-	return 0;
+   std::bitset<128> thread_mask(current_mask);
+
+   // Wake up the correct threads
+   for (size_t i = 1; i < 128; ++i)
+       if (thread_mask[i])
+           count ++;
+
+   std::cout << "TEST: [" << task_index << "," << iterations_complete << "] core count: " << count << std::endl;
+
+   iterations_complete++;
+
+   if (task_index > 13 && iterations_complete % 5 == 0 && iterations_complete % 2 == 1) {
+       synth_current_mode = (synth_current_mode + 1) % mode_count;
+       modify_self(1);
+   }
+
+   if (task_index > 13 && iterations_complete % 5 == 0 && iterations_complete % 2 == 0) {
+       synth_current_mode = (synth_current_mode + 1) % mode_count;
+       modify_self(3);
+   }
+
+   return 0;
 }
 
 int finalize(int argc, char *argv[])
 {
-    return 0;
+   return 0;
 }
 
 task_t task = { init, run, finalize, update_core_B };

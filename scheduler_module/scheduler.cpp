@@ -16,6 +16,10 @@ class Schedule * Scheduler::get_schedule(){
 	return &schedule;
 }
 
+int Scheduler::get_num_tasks(){
+	return task_table.size();
+}
+
 TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_){
 	
 	//add the task to the legacy schedule object, but also add to vector
@@ -753,8 +757,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 			}
 		}
 
-		//print out the scaled task table
-
+		/*//print out the scaled task table
 		std::ostringstream mode_strings;
 		for (size_t i = 0; i < num_tasks; i++) {
 
@@ -765,7 +768,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 			}
 			print_module::buffered_print(mode_strings, "\n");
 		}
-		print_module::flush(std::cerr, mode_strings);
+		print_module::flush(std::cerr, mode_strings);*/
 		
 		// Maximum scaled value possible
 		int V_max = static_cast<int>(max_value / K) * num_tasks + 1;
@@ -1100,7 +1103,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 						auto change_amount = (schedule.get_task(id))->get_CPUs_change();
 						(schedule.get_task(id))->set_CPUs_change(change_amount + (previous_mode.cores - current_mode.cores));
-						(schedule.get_task(id))->set_mode_transition(false);
+						
 
 					}
 
@@ -1232,29 +1235,51 @@ void Scheduler::do_schedule(size_t maxCPU){
 				}
 
 				//check if we gave up resource AND we are giving resources to the free pool
-				if ((previous_mode.cores - current_mode.cores) != CPUs_given_up){
+				if (id != ((int) nodes.size() - 1)){ 
 
-					for (int i = CPUs_given_up; i < (previous_mode.cores - current_mode.cores); i++){
+					if ((previous_mode.cores - current_mode.cores) > CPUs_given_up){
 
-						free_cores_A.push_back(task_owned_cpus.at(task_owned_cpus.size() - 1));
-						task_owned_cpus.pop_back();
+					
+						if (((previous_mode.cores - current_mode.cores) - CPUs_given_up) > task_owned_cpus.size()){
 
-						CPUs_given_up++;
-						
+							print_module::print(std::cerr, "Error: not enough CPUs to give to free pool from task ", id, ". size gotten: ", task_owned_cpus.size(), " expected: ", ((previous_mode.cores - current_mode.cores) - CPUs_given_up), ". Exiting.\n");
+							killpg(process_group, SIGINT);
+							return;
+
+						}
+
+						for (int i = CPUs_given_up; i < (previous_mode.cores - current_mode.cores); i++){
+
+							free_cores_A.push_back(task_owned_cpus.at(task_owned_cpus.size() - 1));
+							task_owned_cpus.pop_back();
+
+							CPUs_given_up++;
+							
+						}
+
 					}
 
-				}
+					if ((previous_mode.sms - current_mode.sms) > GPUs_given_up){
 
-				if ((previous_mode.sms - current_mode.sms) != GPUs_given_up){
+					
+						if (((previous_mode.sms - current_mode.sms) - GPUs_given_up) > task_owned_gpus.size()){
 
-					for (int i = GPUs_given_up; i < (previous_mode.sms - current_mode.sms); i++){
+							print_module::print(std::cerr, "Error: not enough GPUs to give to free pool from task ", id, ". size gotten: ", task_owned_gpus.size(), " expected: ", ((previous_mode.sms - current_mode.sms) - GPUs_given_up), ". Exiting.\n");
+							killpg(process_group, SIGINT);
+							return;
 
-						free_cores_B.push_back(task_owned_gpus.at(task_owned_gpus.size() - 1));
+						}
 
-						task_owned_gpus.pop_back();
+						for (int i = GPUs_given_up; i < (previous_mode.sms - current_mode.sms); i++){
 
-						GPUs_given_up++;
-						
+							free_cores_B.push_back(task_owned_gpus.at(task_owned_gpus.size() - 1));
+
+							task_owned_gpus.pop_back();
+
+							GPUs_given_up++;
+							
+						}
+
 					}
 
 				}
@@ -1262,7 +1287,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 				//let the task know what it should give up when it can change modes
 				(schedule.get_task(id))->set_CPUs_change(CPUs_given_up);
 				(schedule.get_task(id))->set_GPUs_change(GPUs_given_up);
-				(schedule.get_task(id))->set_mode_transition(false);
 
 				//add the task to list of tasks that had to transition
 				transitioned_tasks.push_back(id);
@@ -1287,6 +1311,9 @@ void Scheduler::do_schedule(size_t maxCPU){
 	for (size_t i = 0; i < result.size(); i++){
 
 		previous_modes.at(i) = task_table.at(i).at(result.at(i));
+
+		//notify all tasks that they should now transition
+		(schedule.get_task(i))->set_mode_transition(false);
 
 	}
 

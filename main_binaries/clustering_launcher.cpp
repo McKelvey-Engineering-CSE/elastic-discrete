@@ -85,15 +85,35 @@ void scheduler_task()
 	//Constantly see if we need to reschedule until time is up.
 	//If we need to reschedule tasks, do it and then let them know. 
 	get_time(&cur_time);
+	
 	while(cur_time < end_time){
+
 		if(needs_scheduling)
 		{
 			scheduler->do_schedule();
 			needs_scheduling = false;
 			killpg(process_group, SIGRTMIN+1);
+
+			//wait for all tasks to actually finish rescheduling
+			for (int i = 0; i < scheduler->get_num_tasks(); i++){
+
+				while(scheduler->get_schedule()->get_task(i)->check_mode_transition() == false){
+
+					get_time(&cur_time);
+					
+					if (cur_time > end_time)
+						break;
+
+				}
+		
+			}
+		
 		}
+
 		get_time(&cur_time);
+
 	}
+
 }
 
 void force_cleanup() {

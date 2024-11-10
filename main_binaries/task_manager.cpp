@@ -298,9 +298,6 @@ void reschedule(){
 
 	}
 
-	//mark that we transitioned
-	schedule.get_task(task_index)->set_mode_transition(true);
-
 	//clear our allocation amounts
 	schedule.get_task(task_index)->clear_cpus_granted_from_other_tasks();
 	schedule.get_task(task_index)->clear_gpus_granted_from_other_tasks();
@@ -513,7 +510,8 @@ int main(int argc, char *argv[])
 		
 			cpu_set_t local_cpuset;
 			CPU_ZERO(&local_cpuset);
-			CPU_SET(j, &local_cpuset);
+			//CPU_SET(j, &local_cpuset);
+			CPU_SET(task_index + 1, &local_cpuset);
 
 			//pin the main thread to this core
 			pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &local_cpuset);
@@ -703,6 +701,10 @@ int main(int argc, char *argv[])
 				#endif
 
 				schedule.get_task(task_index)->set_num_adaptations(schedule.get_task(task_index)->get_num_adaptations() + 1);
+				
+				//mark that we transitioned
+				schedule.get_task(task_index)->set_mode_transition(true);
+				
 				needs_reschedule = false;
 			}
 
