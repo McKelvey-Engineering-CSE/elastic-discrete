@@ -94,6 +94,8 @@ private:
 	int current_mode;
 	timespec max_work;
 
+	bool cooperative_bool = true;
+
 	//TPC mask
 	__uint128_t TPC_mask = 0;
 
@@ -242,6 +244,10 @@ public:
 
 	//function to get and set combinationally elastic
 	bool is_combinatorially_elastic();
+
+	void set_cooperative(bool state);
+
+	bool cooperative();
 
 };
 

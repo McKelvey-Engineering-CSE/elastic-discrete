@@ -459,7 +459,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 					//if the class we are considering is not allowed to switch modes
 					//just treat it as though we did check it normally, and only allow
 					//looking at the current mode.
-					if (!(schedule.get_task(i - 1))->get_changeable()){
+					if (!(schedule.get_task(i - 1))->get_changeable() || !(schedule.get_task(i - 1))->cooperative()){
 
 							//fetch item definition
 							auto item = task_table.at(i - 1).at((schedule.get_task(i - 1))->get_current_mode());

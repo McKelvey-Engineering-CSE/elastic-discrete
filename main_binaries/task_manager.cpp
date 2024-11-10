@@ -162,6 +162,12 @@ void modify_self(int new_mode){
 
 }
 
+void set_cooperative(bool value){
+
+	schedule.get_task(task_index)->set_cooperative(value);
+
+}
+
 void allow_change(){
 
 	schedule.get_task(task_index)->reset_changeable();

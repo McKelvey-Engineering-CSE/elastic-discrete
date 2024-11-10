@@ -47,6 +47,8 @@ extern double percentile;
 
 extern void modify_self(timespec new_value);
 
+extern void set_cooperative(bool value);
+
 // Used to determine current task and its features.
 extern bool missed_dl;
 

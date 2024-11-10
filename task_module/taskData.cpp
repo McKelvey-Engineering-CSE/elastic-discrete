@@ -603,3 +603,15 @@ __uint128_t TaskData::get_gpu_mask() {
 bool TaskData::is_combinatorially_elastic(){
 	return combinatorially_elastic;
 }
+
+void TaskData::set_cooperative(bool state){
+
+	cooperative_bool = state;
+
+}
+
+bool TaskData::cooperative(){
+	
+	return cooperative_bool;
+
+}
