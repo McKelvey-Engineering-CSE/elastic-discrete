@@ -10,7 +10,7 @@
 #include <float.h>
 #include <map>
 #include <tuple>
-
+#include <cstring>
 
 class Schedule * Scheduler::get_schedule(){
 	return &schedule;
@@ -382,6 +382,10 @@ void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes, std::uno
 //Implement scheduling algorithm
 void Scheduler::do_schedule(size_t maxCPU){
 
+	//get current time
+	timespec start_time;
+	clock_gettime(CLOCK_MONOTONIC, &start_time);
+
 	//vector for transitioned tasks
 	std::vector<int> transitioned_tasks;
 
@@ -399,9 +403,26 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	//dynamic programming table
 	int N = task_table.size();
-    std::vector<std::vector<std::vector<std::pair<double, std::pair<int, int>>>>> dp(N + 1, std::vector<std::vector<std::pair<double, std::pair<int, int>>>>(maxCPU + 1, std::vector<std::pair<double, std::pair<int, int>>>(NUMGPUS + 1, {100000, {starting_CPUs, starting_GPUs}})));
-    std::map<std::tuple<int,int,int>, std::vector<int>> solutions;
 	std::vector<int> best_solution;
+
+	double dp_two[N + 1][maxCPU + 1][NUMGPUS + 1][3];
+	int solutions[num_tasks + 1][maxCPU + 1][NUMGPUS + 1][num_tasks];
+
+	for(int i = 0; i <= N; i++) {
+
+		for(int j = 0; j <= maxCPU; j++) {
+
+			for(int k = 0; k <= NUMGPUS; k++) {
+
+				dp_two[i][j][k][0] = 100000;
+				dp_two[i][j][k][1] = starting_CPUs;
+				dp_two[i][j][k][2] = starting_GPUs;
+
+			}
+
+		}
+
+	}
 
 	//First time through Make sure we have enough CPUs and GPUs
 	//in the system and determine practical max for each task.	
@@ -454,7 +475,9 @@ void Scheduler::do_schedule(size_t maxCPU){
 				for (size_t v = 0; v <= NUMGPUS; v++) {
 
 					//invalid state
-					dp[i][w][v] = {-1.0, {0, 0}};  
+					dp_two[i][w][v][0] = -1.0;
+					dp_two[i][w][v][1] = 0;
+					dp_two[i][w][v][2] = 0;
 					
 					//if the class we are considering is not allowed to switch modes
 					//just treat it as though we did check it normally, and only allow
@@ -472,18 +495,18 @@ void Scheduler::do_schedule(size_t maxCPU){
 							bool refresh_pool = false;
 
 							//if this item is feasible at all 
-							if ((w >= current_item_cores) && (v >= current_item_sms) && (dp[i - 1][w - current_item_cores][v - current_item_sms].first != -1)){
+							if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)){
 
 								//fetch the current resource pool
-								auto current_resource_pool = dp[i - 1][w - current_item_cores][v - current_item_sms].second;
+								double current_resource_pool_two[2] = {dp_two[i - 1][w - current_item_cores][v - current_item_sms][1], dp_two[i - 1][w - current_item_cores][v - current_item_sms][2]};
 
 								//if we have no explicit sync,
 								//then we have to do safety checks
 								if (!barrier && !first_time){
 
 									//fetch the guaranteed resources
-									int returned_cpus = current_resource_pool.first;
-									int returned_gpus = current_resource_pool.second;
+									int returned_cpus_two = current_resource_pool_two[0];
+									int returned_gpus_two = current_resource_pool_two[1];
 									
 									//negative means we are returning resources
 									int cpu_change = item.cores - previous_modes.at(i - 1).cores;
@@ -492,11 +515,11 @@ void Scheduler::do_schedule(size_t maxCPU){
 									//check if this mode could cause a cycle
 									if ((cpu_change < 0 && sm_change > 0) || (sm_change < 0 && cpu_change > 0)){
 										
-										returned_cpus -= cpu_change;
-										returned_gpus -= sm_change;
+										returned_cpus_two -= cpu_change;
+										returned_gpus_two -= sm_change;
 
 										//if transformer, check if it can be safely returned
-										if (returned_cpus < 0 || returned_gpus < 0){
+										if (returned_cpus_two < 0 || returned_gpus_two < 0){
 
 											pessemism = true;
 											refresh_pool = true;
@@ -511,13 +534,13 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 											if (cpu_change < 0){
 
-												current_resource_pool.first += cpu_change;
+												current_resource_pool_two[0] += cpu_change;
 
 											}
 
 											if (sm_change < 0){
 
-												current_resource_pool.second += sm_change;
+												current_resource_pool_two[1] += sm_change;
 
 											}
 
@@ -526,34 +549,39 @@ void Scheduler::do_schedule(size_t maxCPU){
 									}
 
 									//if a root node
-									else if (returned_cpus <= 0 && returned_gpus <= 0){
+									else if (returned_cpus_two <= 0 && returned_gpus_two <= 0){
 
-										current_resource_pool.first -= cpu_change;
-										current_resource_pool.second -= sm_change;
+										current_resource_pool_two[0] -= cpu_change;
+										current_resource_pool_two[1] -= sm_change;
 
 									}
 								}
 
 								//if item fits in both sacks
-								if ((w >= current_item_cores) && (v >= current_item_sms) && (dp[i - 1][w - current_item_cores][v - current_item_sms].first != -1)) {
+								if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)) {
 							
 									//update the current resource pool
-									if (refresh_pool)
-										current_resource_pool = dp[i - 1][w - current_item_cores][v - current_item_sms].second;
+									if (refresh_pool){
 
-									double newCPULoss = dp[i - 1][w - current_item_cores][v - current_item_sms].first - item.cpuLoss;
+										current_resource_pool_two[0] = dp_two[i - 1][w - current_item_cores][v - current_item_sms][1];
+										current_resource_pool_two[1] = dp_two[i - 1][w - current_item_cores][v - current_item_sms][2];
+									}
+
+									double newCPULoss_two = dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] - item.cpuLoss;
 									
 									//if found solution is better, update
-									if ((newCPULoss) > (dp[i][w][v].first)) {
+									if ((newCPULoss_two) > (dp_two[i][w][v][0])) {
 
-											dp[i][w][v] = {newCPULoss, current_resource_pool};
+											dp_two[i][w][v][0] = newCPULoss_two;
+											dp_two[i][w][v][1] = current_resource_pool_two[0];
+											dp_two[i][w][v][2] = current_resource_pool_two[1];
 
-											solutions[{i, w, v}] = solutions[{i - 1, w - current_item_cores, v - current_item_sms}];
+											std::memcpy(solutions[i][w][v], solutions[i - 1][w - current_item_cores][v - current_item_sms], num_tasks * sizeof(int));
 
 											if (pessemism)
-												solutions[{i, w, v}].push_back((schedule.get_task(i - 1))->get_current_mode() * -1);
+												solutions[i][w][v][i - 1] = (schedule.get_task(i - 1))->get_current_mode() * -1;
 											else
-												solutions[{i, w, v}].push_back((schedule.get_task(i - 1))->get_current_mode());
+												solutions[i][w][v][i - 1] = (schedule.get_task(i - 1))->get_current_mode();
 										
 									}
 								}
@@ -575,18 +603,18 @@ void Scheduler::do_schedule(size_t maxCPU){
 							bool refresh_pool = false;
 
 							//if this item is feasible at all 
-							if ((w >= current_item_cores) && (v >= current_item_sms) && (dp[i - 1][w - current_item_cores][v - current_item_sms].first != -1)){
+							if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)){
 
 								//fetch the current resource pool
-								auto current_resource_pool = dp[i - 1][w - current_item_cores][v - current_item_sms].second;
+								double current_resource_pool_two[2] = {dp_two[i - 1][w - current_item_cores][v - current_item_sms][1], dp_two[i - 1][w - current_item_cores][v - current_item_sms][2]};
 
 								//if we have no explicit sync,
 								//then we have to do safety checks
 								if (!barrier && !first_time){
 
 									//fetch the guaranteed resources
-									int returned_cpus = current_resource_pool.first;
-									int returned_gpus = current_resource_pool.second;
+									int returned_cpus_two = current_resource_pool_two[0];
+									int returned_gpus_two = current_resource_pool_two[1];
 									
 									//negative means we are returning resources
 									int cpu_change = item.cores - previous_modes.at(i - 1).cores;
@@ -595,12 +623,12 @@ void Scheduler::do_schedule(size_t maxCPU){
 									//check if this mode could cause a cycle
 									if ((cpu_change < 0 && sm_change > 0) || (sm_change < 0 && cpu_change > 0)){
 
-										returned_cpus -= cpu_change;
-										returned_gpus -= sm_change;
+										returned_cpus_two -= cpu_change;
+										returned_gpus_two -= sm_change;
 
 										//we have to change our resource demands to make
 										//the system safe again
-										if (returned_cpus < 0 || returned_gpus < 0){
+										if (returned_cpus_two < 0 || returned_gpus_two < 0){
 
 											pessemism = true;
 											refresh_pool = true;
@@ -614,13 +642,13 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 											if (cpu_change < 0){
 
-												current_resource_pool.first += cpu_change;
+												current_resource_pool_two[0] += cpu_change;
 
 											}
 
 											if (sm_change < 0){
 
-												current_resource_pool.second += sm_change;
+												current_resource_pool_two[1] += sm_change;
 
 											}
 
@@ -629,43 +657,48 @@ void Scheduler::do_schedule(size_t maxCPU){
 									}
 
 									//if a root node
-									else if (returned_cpus <= 0 && returned_gpus <= 0){
+									else if (returned_cpus_two <= 0 && returned_gpus_two <= 0){
 
-										current_resource_pool.first -= cpu_change;
-										current_resource_pool.second -= sm_change;
+										current_resource_pool_two[0] -= cpu_change;
+										current_resource_pool_two[1] -= sm_change;
 
 									}
 								}
 
 								//if item fits in both sacks
-								if ((w >= current_item_cores) && (v >= current_item_sms) && (dp[i - 1][w - current_item_cores][v - current_item_sms].first != -1)) {
+								if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)) {
 			
 									//update the current resource pool
-									if (refresh_pool)
-										current_resource_pool = dp[i - 1][w - current_item_cores][v - current_item_sms].second;
+									if (refresh_pool){
 
-									double newCPULoss = dp[i - 1][w - current_item_cores][v - current_item_sms].first - item.cpuLoss;
+										current_resource_pool_two[0] = dp_two[i - 1][w - current_item_cores][v - current_item_sms][1];
+
+									}
+
+									double newCPULoss_two = dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] - item.cpuLoss;
 
 									//update the pool at this stage
 									//only update with root nodes
 									if ((item.cores - previous_modes.at(i - 1).cores) < 0 && (item.sms - previous_modes.at(i - 1).sms) > 0){
 
-										current_resource_pool.first -= (current_item_cores - previous_modes.at(i - 1).cores);
-										current_resource_pool.second -= (current_item_sms - previous_modes.at(i - 1).sms);
+										current_resource_pool_two[0] -= (current_item_cores - previous_modes.at(i - 1).cores);
+										current_resource_pool_two[1] -= (current_item_sms - previous_modes.at(i - 1).sms);
 
 									}
 									
 									//if found solution is better, update
-									if ((newCPULoss) > (dp[i][w][v].first)) {
+									if ((newCPULoss_two) > (dp_two[i][w][v][0])) {
 
-										dp[i][w][v] = {newCPULoss, current_resource_pool};
+										dp_two[i][w][v][0] = newCPULoss_two;
+										dp_two[i][w][v][1] = current_resource_pool_two[0];
+										dp_two[i][w][v][2] = current_resource_pool_two[1];
 
-										solutions[{i, w, v}] = solutions[{i - 1, w - current_item_cores, v - current_item_sms}];
+										std::memcpy(solutions[i][w][v], solutions[i - 1][w - current_item_cores][v - current_item_sms], num_tasks * sizeof(int));
 
 										if (pessemism)
-											solutions[{i, w, v}].push_back(j * -1);
+											solutions[i][w][v][i - 1] = j * -1;
 										else
-											solutions[{i, w, v}].push_back(j);
+											solutions[i][w][v][i - 1] = j;
 
 									}
 								}
@@ -684,7 +717,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 		double epsilon = 0.001;
 
 		//convert to int
-		int max_value = 10000;
+		int max_value = 1000;
 
 		// Calculate scaling factor
 		double K = (epsilon * max_value) / num_tasks;
@@ -698,7 +731,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 			for (size_t j = 0; j < task_table.at(i).size(); j++) {
 
-				if (!(schedule.get_task(i))->get_changeable()){
+				if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative()){
 
 					if (j != (schedule.get_task(i))->get_current_mode()){
 
@@ -724,7 +757,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 						task_mode scaled_item;
 
-						int integer_value = 10000 - static_cast<int>(current_mode.cpuLoss * 1000);
+						int integer_value = 1000 - static_cast<int>(current_mode.cpuLoss * 1000);
 						scaled_item.cpuLoss = static_cast<int>(std::ceil(integer_value / K));
 
 						scaled_item.cores = current_mode.cores;
@@ -743,7 +776,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 					task_mode scaled_item;
 
-					int integer_value = 10000 - static_cast<int>(current_mode.cpuLoss * 1000);
+					int integer_value = 1000 - static_cast<int>(current_mode.cpuLoss * 1000);
 					scaled_item.cpuLoss = static_cast<int>(std::ceil(integer_value / K));
 
 					scaled_item.cores = current_mode.cores;
@@ -755,20 +788,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 				}
 
 			}
+		
 		}
-
-		/*//print out the scaled task table
-		std::ostringstream mode_strings;
-		for (size_t i = 0; i < num_tasks; i++) {
-
-			for (size_t j = 0; j < scaled_task_table.at(i).size(); j++) {
-				
-				print_module::buffered_print(mode_strings, "Task ", i, " Mode ", j, " Loss: ", scaled_task_table.at(i).at(j).cpuLoss, " Cores: ", scaled_task_table.at(i).at(j).cores, " SMS: ", scaled_task_table.at(i).at(j).sms, "\n");
-
-			}
-			print_module::buffered_print(mode_strings, "\n");
-		}
-		print_module::flush(std::cerr, mode_strings);*/
 		
 		// Maximum scaled value possible
 		int V_max = static_cast<int>(max_value / K) * num_tasks + 1;
@@ -849,13 +870,26 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	}
 
+	timespec end_time;
+	clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+	//determine ellapsed time in nanoseconds
+	double elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1e9;
+	elapsed_time += (end_time.tv_nsec - start_time.tv_nsec);
+
+	//print out the time taken
+	print_module::print(std::cerr, "Time taken to reschedule: ", elapsed_time / 1000000, " milliseconds.\n");
+
+	//exit(0);
+
     //return optimal solution
 	std::vector<int> result;
 	double loss = 0;
 
 	if (!FPTAS){
-		result = solutions[{N, maxCPU, NUMGPUS}];
-		loss = 100000 - dp[N][maxCPU][NUMGPUS].first;
+
+		for (int i = 0; i < num_tasks; i++) result.push_back(solutions[N][maxCPU][NUMGPUS][i]);
+		loss = 100000 - dp_two[N][maxCPU][NUMGPUS][0];
 	}
 
 	else{
@@ -1317,12 +1351,17 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	}
 
-	//we prevent the scheduler from doing another reschedule until the tasks have
-	//actually transitioned
-	//for (int id : transitioned_tasks)
-	//	while ((schedule.get_task(id))->check_mode_transition() == false);
-
 	first_time = false;
+
+	/*timespec end_time;
+	clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+	//determine ellapsed time in nanoseconds
+	double elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1e9;
+	elapsed_time += (end_time.tv_nsec - start_time.tv_nsec);
+
+	//print out the time taken
+	print_module::print(std::cerr, "Time taken to reschedule: ", elapsed_time / 1000000, " milliseconds.\n");*/
 }
 
 void Scheduler::setTermination(){

@@ -119,6 +119,8 @@ public:
 		free_cores_A.reserve(num_CPUs);
 		free_cores_B.reserve(NUMGPUS);
 
+		//reserve the backtrack table
+
  	}
 
 	~Scheduler(){}
