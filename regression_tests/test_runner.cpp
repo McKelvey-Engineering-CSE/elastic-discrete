@@ -59,9 +59,6 @@ struct clusteringRunResult runClustering(const std::string test_name) {
   int result2 = subprocess_join(&subprocess, &process_return);
 
   result.exit_code = process_return;
-  if (process_return != 0) {
-    return result;
-  }
 
   std::string proc_stdout = "";
   std::string proc_stderr = "";
@@ -100,6 +97,18 @@ void assert_same_core_assignments(const core_map & actual, const core_map & expe
   }
 }
 
+std::vector<std::string> get_all_test_names() {
+  std::vector<std::string> tests;
+  for (const auto & entry : std::filesystem::directory_iterator(testcase_dir)) {
+    std::string path = entry.path();
+    if (path.ends_with(".yaml")) {
+      std::string name = path.substr(path.find_last_of("/") + 1, path.find_last_of(".") - path.find_last_of("/") - 1);
+      tests.push_back(name);
+    }
+  }
+  return tests;
+}
+
 int main(int argc, char *argv[]) {
   if (argc < 3) {
     printf("too few arguments\n");
@@ -118,8 +127,13 @@ int main(int argc, char *argv[]) {
 
 /* Begin tests */
 
-TEST(Scheduler, BasicAssignment) {
-    clusteringRunResult result = runClustering("basic");
-    ASSERT_EQ(result.exit_code, 0);
-    assert_same_core_assignments(parse_core_assignments(result.stdout), parse_core_assignments(get_expected_output("basic")));
+class CoreAssignmentTest : public testing::TestWithParam<std::string> {
+};
+
+TEST_P(CoreAssignmentTest, CoreAssignments) {
+    clusteringRunResult result = runClustering(GetParam());
+    ASSERT_EQ(result.exit_code, 0) << result.stderr;
+    assert_same_core_assignments(parse_core_assignments(result.stdout), parse_core_assignments(get_expected_output(GetParam())));
 }
+
+INSTANTIATE_TEST_SUITE_P(FoundFiles, CoreAssignmentTest, testing::ValuesIn(get_all_test_names()));
