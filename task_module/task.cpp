@@ -24,7 +24,7 @@ void mode_change_setup() {
   fflush( fd );
    #endif
 
-		if(!(active[omp_get_thread_num()]))
+		if(!(active_threads[omp_get_thread_num()]))
 		{
 	
 			#ifdef TRACING

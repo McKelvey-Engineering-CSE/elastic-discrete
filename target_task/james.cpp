@@ -1,102 +1,132 @@
+/*
+Configurable task to use in unit tests. Features:
+* Takes a mode count as an argument, cycles bewteen the modes at a configurable interval
+* Does a configurable amount of work in the meantime
+* Prints the number of cores on which it is running at each iteration
+*/
+
 #include "task.h"
+#include <cstring>
+#include <omp.h>
+#include "timespec_functions.h"
 
-#if defined(__x86_64__) || defined(_M_X64)
-    #include <immintrin.h>
-#elif defined(__aarch64__) || defined(_M_ARM64)
-    #include <arm_neon.h>
+int logging_index = -1;
+
+timespec spin_tv;
+int mode_count = 0;
+int mode_change_interval = -1;
+
+int synth_current_mode = 0;
+int iterations_complete = 0;
+
+extern int task_index;
+
+
+#ifdef __NVCC__
+
+   #include "libsmctrl.h"
+   #include <cuda.h>
+   #include <cuda_runtime.h>
+
+   cudaStream_t stream;
+
 #endif
 
-#define N 100
+void update_core_B(__uint128_t mask) {
 
-#if defined(__x86_64__) || defined(_M_X64)
-	int mat1[N][N];
-	int mat2[N][N];
-	int result[N][N];
+   std::ostringstream buffer;
 
-#elif defined(__aarch64__) || defined(_M_ARM64)
-	uint8_t mat1[N][N];
-	uint8_t mat2[N][N];
-	uint8_t result[N][N];
+   print_module::buffered_print(buffer, task_index, " -> Core B Mask: ");
 
-#endif
+   //print the mask
+   for (int i = 0; i < 128; i++) {
+       print_module::buffered_print(buffer, (unsigned long long)((mask & ((__uint128_t)1 << (__uint128_t(i)))) >> (__uint128_t(i))));
+   }
+
+   print_module::buffered_print(buffer, "\n");
+   print_module::flush(std::cerr, buffer);
+
+    //example of how to use core B masks
+   #ifdef __NVCC__
+
+       libsmctrl_set_stream_mask(stream, mask);
+
+   #endif
+
+}
 
 int init(int argc, char *argv[])
 {
 
-	std::cout << "Initializing Arrays" << std::endl;
+   #ifdef __NVCC__
 
-	//give some random values
-	for (int x = 0; x < N; x++){
-		for (int y = 0; y < N; y++){
-			mat1[x][y] = x+y;
-			mat2[x][y] = int(x/2)+int(y/4);
-			result[x][y] = 0;
-		}
-	}
+       cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
 
-	return 0;       
+   #endif
+
+   if (argc < 2) {
+       std::cerr << "synthetic_test_task: not enough arguments" << std::endl;
+       return -1;
+   }
+
+   spin_tv.tv_sec = 0;
+
+   //TODO all args are passed in as a single string - should change clustering_launcher to fix this
+   if (sscanf(argv[1], "%d %ld %d %d", &logging_index, &spin_tv.tv_nsec, &mode_count, &mode_change_interval) < 3) {
+       std::cerr << "synthetic_test_task: failed to parse args" << std::endl;
+       return -2;
+   }
+
+    if (task_index > 14)
+        set_cooperative(false);
+
+   return 0;       
 }
 
 int run(int argc, char *argv[]){
-	//*(int * ) 0 = 0;
 
-	//std::cout << "Executing Matrix Manipulations" << std::endl;
+   std::atomic<int> count = 0;
+   /*omp( pragma_omp_parallel
+   {
+       count++;
 
-	#if defined(__x86_64__) || defined(_M_X64)
-		//Example Vector workload
-		__m256i vec_multi_res = _mm256_setzero_si256();
-		__m256i vec_mat1 = _mm256_setzero_si256();
-		__m256i vec_mat2 = _mm256_setzero_si256();
+       busy_work(spin_tv);
+       
+   });*/
 
-		int i, j, k;
-		for (i = 0; i < N; i++){
-			for (j = 0; j < N; ++j){
-				//Stores one element in mat1 and use it in all computations needed before proceeding
-				//Stores as vector to increase computations per cycle
-				vec_mat1 = _mm256_set1_epi32(mat1[i][j]);
+   //std::cout << current_cpu_mask << std::endl;
 
-				for (k = 0; k < N; k += 8){
-					vec_mat2 = _mm256_loadu_si256((__m256i*)&mat2[j][k]);
-					vec_multi_res = _mm256_loadu_si256((__m256i*)&result[i][k]);
-					vec_multi_res = _mm256_add_epi32(vec_multi_res ,_mm256_mullo_epi32(vec_mat1, vec_mat2));
-				}
-			}
-		}
+   busy_work(spin_tv);
 
-	#elif defined(__aarch64__) || defined(_M_ARM64)
+   auto current_mask = omp.get_override_mask();
 
-		//can only do 128 bit vectors..... I think....?
-		//make 3 128 bit vectors
-		uint8x16x3_t vec_multi_res;
-		
-		int i, j, k;
-		for (i = 0; i < N; i++){
-			for (j = 0; j < N; ++j){
-				//Stores one element in mat1 and use it in all computations needed before proceeding
-				//Stores as vector to increase computations per cycle
-				vec_multi_res.val[1] = vld1q_u8(mat1[i]);
+   std::bitset<128> thread_mask(current_mask);
 
-				for (k = 0; k < N; k += 8){
-					vec_multi_res.val[2] = vld1q_u8(mat2[j]);
-					vec_multi_res.val[0] = vld1q_u8(result[i]);
+   // Wake up the correct threads
+   for (size_t i = 1; i < 128; ++i)
+       if (thread_mask[i])
+           count ++;
 
-					//mult -> add -> store
-					vec_multi_res.val[0] = (vec_multi_res.val[1] + vec_multi_res.val[2]) * vec_multi_res.val[0];
-					vst1q_u8(result[i], vec_multi_res.val[0]);
-				}
-			}
-		}
+   std::cout << "TEST: [" << task_index << "," << iterations_complete << "] core count: " << count << std::endl;
 
-	#endif
+   iterations_complete++;
 
+   if (task_index > 14 && iterations_complete % 5 == 0 && iterations_complete % 2 == 1) {
+       synth_current_mode = (synth_current_mode + 1) % mode_count;
+       modify_self(1);
+   }
 
+   if (task_index > 14 && iterations_complete % 5 == 0 && iterations_complete % 2 == 0) {
+       synth_current_mode = (synth_current_mode + 1) % mode_count;
+       modify_self(3);
+   }
 
-	return 0;
+   return 0;
 }
 
 int finalize(int argc, char *argv[])
 {
-    return 0;
+   return 0;
 }
 
-task_t task = { init, run, finalize };
+task_t task = { init, run, finalize, update_core_B };

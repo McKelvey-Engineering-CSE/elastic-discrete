@@ -23,6 +23,7 @@ Struct : task_t
 #include "thread_barrier.h"
 #include <sched.h>
 #include "include.h"
+#include "omp_replacement.hpp"
 
 //#define TRACING
 
@@ -36,14 +37,17 @@ typedef struct
 	int (*init)(int argc, char *argv[]);
 	int (*run)(int argc, char *argv[]);
 	int (*finalize)(int argc, char *argv[]);
+	void (*update_core_B)(__uint128_t mask);
 }
 task_t;
 
-extern bool active[64];
+extern bool active_threads[64];
 extern int current_mode;
 extern double percentile;
 
 extern void modify_self(timespec new_value);
+
+extern void set_cooperative(bool value);
 
 // Used to determine current task and its features.
 extern bool missed_dl;
@@ -53,6 +57,8 @@ extern task_t task;
 
 extern const int NUMCPUS;
 extern const int MAXTASKS;
+
+extern ThreadPool<> omp;
 
 extern timespec current_period;
 extern timespec current_work;

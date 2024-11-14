@@ -8,460 +8,1360 @@
 #include <algorithm>
 #include <cerrno>
 #include <float.h>
-
-#ifdef SCHED_PAIR_HEAP
-
-	/*October 23 2023 - moved class to be nested inside in-case it actually is needed
-	in the future. I doubt this, and am leaving it non-compiling for the meantime.
-	If it turns out the inner class "sched_pair" is needed, these functions should be
-	moved back out of the class so that we can use references.
-
-	(Also, make them idiomatic in the future if we actually need them)
-	*/
-	bool Scheduler::sched_pair::operator>(const Scheduler::sched_pair& rhs){
-	
-	return(this->weight > rhs.weight);
-
-	}
-
-	bool Scheduler::sched_pair::operator<(const Scheduler::sched_pair& rhs){
-	
-	return(this->weight < rhs.weight);
-
-	}
-
-	bool Scheduler::sched_pair::operator==(const Scheduler::sched_pair& rhs){
-	
-	return(this->weight == rhs.weight);
-
-	}
-
-	bool Scheduler::sched_pair::operator<=(const Scheduler::sched_pair& rhs){
-	
-	return (this->weight < rhs.weight) || (this->weight == rhs.weight);
-
-	}
-
-	bool Scheduler::sched_pair::operator>=(const Scheduler::sched_pair& rhs){
-	
-	return (this->weight > rhs.weight) || (this->weight == rhs.weight);
-
-	}
-
-	bool Scheduler::sched_pair::operator!=(const Scheduler::sched_pair& rhs){
-	
-	return(!(this->weight == rhs.weight));
-
-	}
-
-#endif
+#include <map>
+#include <tuple>
+#include <cstring>
 
 class Schedule * Scheduler::get_schedule(){
 	return &schedule;
 }
 
-TaskData * Scheduler::add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_){
+int Scheduler::get_num_tasks(){
+	return task_table.size();
+}
+
+TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_){
 	
-	return schedule.add_task(elasticity_, num_modes_, work_, span_, period_);
+	//add the task to the legacy schedule object, but also add to vector
+	//to make the scheduler much easier to read and work with.
+	auto taskData_object = schedule.add_task(elasticity_, num_modes_, work_, span_, period_, gpu_work_, gpu_span_, gpu_period_);
+
+	task_table.push_back(std::vector<task_mode>());
+
+	std::cout << "Task Losses:" << std::endl; 
+
+	for (int j = 0; j < num_modes_; j++){
+
+		task_mode item;
+
+		//the loss function is different if the 
+		//task is a pure cpu task or hybrid task
+		if (taskData_object->pure_cpu_task())
+			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - (taskData_object->get_work(j) / taskData_object->get_period(j)), 2)));
+		
+		else 
+			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - ((taskData_object->get_work(j) / taskData_object->get_period(j)) + (taskData_object->get_GPU_work(j) / taskData_object->get_period(j))), 2)));
+
+
+		std::cout << "Mode "<< j << " Loss: " << item.cpuLoss << std::endl;
+
+		item.gpuLoss = 0;
+		item.cores = taskData_object->get_CPUs(j);
+		item.sms = taskData_object->get_GPUs(j);
+
+		task_table.at(task_table.size() - 1).push_back(item);
+		
+	}
+
+	return taskData_object;
+}
+
+//static vector sizes
+std::vector<std::vector<Scheduler::task_mode>> Scheduler::task_table(100, std::vector<task_mode>(100));
+
+//helper function for checking for cycles in RAG
+bool Scheduler::has_cycle(const std::unordered_map<int, Node>& nodes, int start) {
+
+    std::unordered_set<int> visited;
+    std::unordered_set<int> recursion_stack;
+    
+    std::function<bool(int)> dfs = [&](int node_id) -> bool {
+
+        visited.insert(node_id);
+        recursion_stack.insert(node_id);
+        
+        for (const Edge& edge : nodes.at(node_id).edges) {
+
+            if (!visited.count(edge.to_node)){
+                if (dfs(edge.to_node)) 
+					return true;
+			}
+            
+            else if (recursion_stack.count(edge.to_node))
+                return true;
+
+        }
+        
+        recursion_stack.erase(node_id);
+        return false;
+
+    };
+    
+    return dfs(start);
+}
+
+void Scheduler::set_FPTAS(){
+
+	FPTAS = true;
+
+}
+
+//Returns true if graph was successfully built, false if impossible due to cycles
+bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_pairs, 
+                        std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node>& static_nodes) {
+    nodes.clear();
+    
+    //create all nodes
+    for (size_t i = 0; i < resource_pairs.size(); i++) {
+
+		auto [x, y] = resource_pairs[i];
+		nodes[i] = Node{(int)i, x, y, {}};
+		static_nodes[i] = nodes[i];
+    
+	}
+    
+    //Sort nodes by resource availability (safe first)
+    std::vector<int> provider_order;
+    std::vector<int> consumer_order;
+	std::vector<int> transfer_order;
+
+	std::ostringstream mode_strings;
+
+	print_module::buffered_print(mode_strings, "\n========================= \n", "Nodes Passed to RAG Builder:\n");
+    
+    for (const auto& [id, node] : nodes) {
+
+		print_module::buffered_print(mode_strings, "Node ", id, " <", node.x, ",", node.y, ">\n");
+
+		if (node.x == 0 && node.y == 0)
+			continue;
+    
+	    if (node.x >= 0 && node.y >= 0)
+            provider_order.push_back(id);
+    
+	    if (node.x <= 0 && node.y <= 0)
+            consumer_order.push_back(id);
+
+		if ((node.x < 0 && node.y > 0) || (node.x > 0 && node.y < 0))
+			transfer_order.push_back(id);
+
+    }
+
+	print_module::buffered_print(mode_strings, "=========================\n\n");
+	print_module::flush(std::cerr, mode_strings);
+
+	print_module::print(std::cerr, "Provider size: ", provider_order.size(), " Consumer size: ", consumer_order.size(), " Transfer size: ", transfer_order.size(), "\n");
+    
+	//if system has barrier, just do it lazily
+	if (barrier){
+
+		for (int consumer_id = 0; consumer_id < nodes.size(); consumer_id++){
+
+			Node& consumer = nodes[consumer_id];
+			int needed_x = -consumer.x;
+			int needed_y = -consumer.y;
+			
+			for (int provider_id = 0; provider_id < nodes.size(); provider_id++) {
+
+				if (provider_id == consumer_id) continue;
+				
+				Node& provider = nodes[provider_id];
+				Edge new_edge{consumer_id, 0, 0};
+				bool edge_needed = false;
+				
+				//Try to satisfy x resource need
+				if (needed_x > 0 && provider.x > 0) {
+
+					int transfer = std::min(needed_x, provider.x);
+					new_edge.x_amount = transfer;
+					needed_x -= transfer;
+					edge_needed = true;
+
+				}
+				
+				//Try to satisfy y resource need
+				if (needed_y > 0 && provider.y > 0) {
+
+					int transfer = std::min(needed_y, provider.y);
+					new_edge.y_amount = transfer;
+					needed_y -= transfer;
+					edge_needed = true;
+
+				}
+				
+				//If this edge would transfer resources, add it and check for cycles
+				if (edge_needed) {
+					
+					provider.edges.push_back(new_edge);
+
+					//Update provider's available resources
+					provider.x -= new_edge.x_amount;
+					provider.y -= new_edge.y_amount;
+				
+
+				}
+
+			}
+
+		}
+
+		return true;
+	}
+
+    //Try to satisfy each transformer's needs first
+	//(given that we are pessemmistic in the worst case, this is guaranteed to be possible)
+    for (int consumer_id : transfer_order) {
+
+        Node& consumer = nodes[consumer_id];
+        int needed_x = -consumer.x;
+        int needed_y = -consumer.y;
+        
+        for (int provider_id : provider_order) {
+
+            if (provider_id == consumer_id) continue;
+            
+            Node& provider = nodes[provider_id];
+            Edge new_edge{consumer_id, 0, 0};
+            bool edge_needed = false;
+            
+            //Try to satisfy x resource need
+            if (needed_x > 0 && provider.x > 0) {
+
+                int transfer = std::min(needed_x, provider.x);
+                new_edge.x_amount = transfer;
+                needed_x -= transfer;
+                edge_needed = true;
+
+            }
+            
+            //Try to satisfy y resource need
+            if (needed_y > 0 && provider.y > 0) {
+
+                int transfer = std::min(needed_y, provider.y);
+                new_edge.y_amount = transfer;
+                needed_y -= transfer;
+                edge_needed = true;
+
+            }
+            
+            //If this edge would transfer resources, add it and check for cycles
+            if (edge_needed) {
+                
+				provider.edges.push_back(new_edge);
+
+                if (has_cycle(nodes, provider_id) && !barrier)
+                    provider.edges.pop_back();
+				
+				else {
+
+                    //Update provider's available resources
+                    provider.x -= new_edge.x_amount;
+                    provider.y -= new_edge.y_amount;
+                
+				}
+
+            }
+
+        }
+        
+        //Check if all needs were satisfied
+        if (needed_x > 0 || needed_y > 0)
+            return false;
+    }
+
+	//merge the transformer and provider nodes
+	auto pooled_providers = provider_order;
+	for (auto transformer: transfer_order)
+		pooled_providers.push_back(transformer);
+
+    for (int consumer_id : consumer_order) {
+
+        Node& consumer = nodes[consumer_id];
+        int needed_x = -consumer.x;
+        int needed_y = -consumer.y;
+        
+        for (int provider_id : pooled_providers) {
+
+            if (provider_id == consumer_id) continue;
+            
+            Node& provider = nodes[provider_id];
+            Edge new_edge{consumer_id, 0, 0};
+            bool edge_needed = false;
+            
+            //Try to satisfy x resource need
+            if (needed_x > 0 && provider.x > 0) {
+
+                int transfer = std::min(needed_x, provider.x);
+                new_edge.x_amount = transfer;
+                needed_x -= transfer;
+                edge_needed = true;
+
+            }
+            
+            //Try to satisfy y resource need
+            if (needed_y > 0 && provider.y > 0) {
+
+                int transfer = std::min(needed_y, provider.y);
+                new_edge.y_amount = transfer;
+                needed_y -= transfer;
+                edge_needed = true;
+
+            }
+            
+            //If this edge would transfer resources, add it and check for cycles
+            if (edge_needed) {
+                
+				provider.edges.push_back(new_edge);
+
+                if (has_cycle(nodes, provider_id) && !barrier){
+                    provider.edges.pop_back();
+				}
+				
+				else {
+
+                    //Update provider's available resources
+                    provider.x -= new_edge.x_amount;
+                    provider.y -= new_edge.y_amount;
+                
+				}
+
+            }
+
+        }
+        
+        //Check if all needs were satisfied
+        if (needed_x > 0 || needed_y > 0)
+            return false;
+    }
+	
+    
+	//killpg(process_group, SIGINT);
+
+    return true;
+
+}
+
+//convert the print_graph function to use buffered print
+void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes) {
+
+	std::ostringstream mode_strings;
+
+	print_module::buffered_print(mode_strings, "\nNodes and resource transfers:\n");
+	
+	for (const auto& [id, node] : nodes) {
+
+		if (id != ((int) nodes.size() - 1))
+			print_module::buffered_print(mode_strings, "Node ", id, " <", static_nodes[id].x, ",", static_nodes[id].y, "> → ");
+		else
+			print_module::buffered_print(mode_strings, "Free Resources", " <", static_nodes[id].x, ",", static_nodes[id].y, "> → ");
+
+		if (node.edges.empty())
+			print_module::buffered_print(mode_strings, "no edges");
+
+		else {
+			
+			for (const Edge& edge : node.edges) {
+
+				print_module::buffered_print(mode_strings, edge.to_node, "(");
+				bool first = true;
+
+				if (edge.x_amount > 0) {
+				
+				    print_module::buffered_print(mode_strings, "x:", edge.x_amount);
+					first = false;
+				
+				}
+
+				if (edge.y_amount > 0) {
+				
+				    if (!first) print_module::buffered_print(mode_strings, ",");
+					print_module::buffered_print(mode_strings, "y:", edge.y_amount);
+				
+				}
+				
+				print_module::buffered_print(mode_strings, ") ");
+			}
+		}
+		print_module::buffered_print(mode_strings, "\n");
+	}
+	print_module::buffered_print(mode_strings, "\n");
+
+	print_module::flush(std::cerr, mode_strings);
 }
 
 //Implement scheduling algorithm
-void Scheduler::do_schedule(){
+void Scheduler::do_schedule(size_t maxCPU){
 
-	//First time through Make sure we have enough CPUs in the system and determine practical max for each task.	
-	if(first_time)
-	{
-		int min_required = 0;
+	//get current time
+	timespec start_time;
+	clock_gettime(CLOCK_MONOTONIC, &start_time);
+
+	//vector for transitioned tasks
+	std::vector<int> transitioned_tasks;
+
+	//for each run we need to see what resources are left in the pool from the start
+	int starting_CPUs = free_cores_A.size();
+	int starting_GPUs = free_cores_B.size();
+
+	if (first_time) {
+
+		//add an entry for each task into previous modes
+		for (int i = 0; i < schedule.count(); i++)
+			previous_modes.push_back(task_mode());
+
+	}
+
+	//dynamic programming table
+	int N = task_table.size();
+	std::vector<int> best_solution;
+
+	double dp_two[N + 1][maxCPU + 1][NUMGPUS + 1][3];
+	int solutions[num_tasks + 1][maxCPU + 1][NUMGPUS + 1][num_tasks];
+
+	for(int i = 0; i <= N; i++) {
+
+		for(int j = 0; j <= maxCPU; j++) {
+
+			for(int k = 0; k <= NUMGPUS; k++) {
+
+				dp_two[i][j][k][0] = 100000;
+				dp_two[i][j][k][1] = starting_CPUs;
+				dp_two[i][j][k][2] = starting_GPUs;
+
+			}
+
+		}
+
+	}
+
+	//First time through Make sure we have enough CPUs and GPUs
+	//in the system and determine practical max for each task.	
+	if (first_time) {
+
+		int min_required_cpu = 0;
+		int min_required_gpu = 0;
 
 		//Determine minimum required processors
-		for(int i=0; i<schedule.count(); i++)
-		{
-			min_required += (schedule.get_task(i))->get_min_CPUs();
+		for (int i = 0; i < schedule.count(); i++){
+			
+			//CPU first
+			min_required_cpu += (schedule.get_task(i))->get_min_CPUs();
 			(schedule.get_task(i))->set_CPUs_gained(0);
+
+			//GPU next
+			min_required_gpu += (schedule.get_task(i))->get_min_GPUs();
+			(schedule.get_task(i))->set_GPUs_gained(0);
+
 		}
 
 		//Determine the practical maximum. This is how many are left after each task has been given its minimum.
-		for(int i=0; i<schedule.count(); i++)
-		{
-			if((NUMCPUS - min_required + (schedule.get_task(i))->get_min_CPUs()) < (schedule.get_task(i))->get_max_CPUs())
-			{
-				(schedule.get_task(i))->set_practical_max_CPUs( NUMCPUS - min_required + (schedule.get_task(i))->get_min_CPUs());
-			}
+		for (int i = 0; i < schedule.count(); i++){
+
+			//CPU
+			if ((NUMCPUS - min_required_cpu + (schedule.get_task(i))->get_min_CPUs()) < (schedule.get_task(i))->get_max_CPUs())
+				(schedule.get_task(i))->set_practical_max_CPUs( NUMCPUS - min_required_cpu + (schedule.get_task(i))->get_min_CPUs());
+
 			else
-			{
 				(schedule.get_task(i))->set_practical_max_CPUs((schedule.get_task(i))->get_max_CPUs());
-			}
-		}
-	}
 
-	//James Start 10/4/18
-	
-	//Assign initial  score of infinity.
-	for(int l=0; l<=(schedule.count()); l++)
-	{
-		for(int d=0; d<=NUMCPUS; d++)
-		{
-			DP[d][l].first=std::numeric_limits<double>::max();
-		}
-	}
-	
-	//Consider scheduling on d processors.
-	for(int d=1; d<=NUMCPUS; d++)
-	{
-		//Consider scheduling first l tasks.
-		for(int l=1; l<=schedule.count(); l++)
-		{
+			//GPU
+			if (((int)(NUMGPUS) - min_required_gpu + (schedule.get_task(i))->get_min_GPUs()) < (schedule.get_task(i))->get_max_GPUs())
+				(schedule.get_task(i))->set_practical_max_GPUs( NUMGPUS - min_required_gpu + (schedule.get_task(i))->get_min_GPUs());
 
-			//TODO: FIGURE OUT WHAT TO DO IN ORDER TO SKIP A TASK!!
-			if(!(schedule.get_task(l-1))->get_changeable())
-			{
-				if(l==1)
-				{
-
-					DP[d][l].second.clear();
-					DP[d][l].second.push_back((schedule.get_task(l-1))->get_current_mode());
-
-					DP[d][l].first = std::numeric_limits<double>::max();
-				}
-				else
-				{
-					DP[d][l].second.clear();
-					DP[d][l].second.assign(DP[d-(schedule.get_task(l-1)->get_CPUs((schedule.get_task(l-1))->get_current_mode()))][l-1].second.begin(), DP[d-(schedule.get_task(l-1)->get_CPUs((schedule.get_task(l-1))->get_current_mode()))][l-1].second.end());
-					DP[d][l].second.push_back((schedule.get_task(l-1))->get_current_mode());
-
-                	DP[d][l].first = DP[d-(schedule.get_task(l-1)->get_CPUs((schedule.get_task(l-1))->get_current_mode()))][l-1].first;
-				}
-			}
 			else
-			{
-				//Assign the minimum to be infinity.
-				double MIN=std::numeric_limits<double>::max();
-				int selection=-1;
+				(schedule.get_task(i))->set_practical_max_GPUs((schedule.get_task(i))->get_max_GPUs());
 
-				//Consider mode j
-				for(int j=0; j<(schedule.get_task(l-1))->get_num_modes(); j++)
-				{
-					//Make sure there are enough remaining processors for the mode we're considering.
-					if(d-(schedule.get_task(l-1)->get_CPUs(j)) >= 0)
-					{
-						//Special case for the first task. Assign MIN score of just this task.
-						//We chose mode j.
-						if(l==1 && (1.0/(schedule.get_task(l-1))->get_elasticity()*(std::pow((schedule.get_task(l-1))->get_max_utilization()-((schedule.get_task(l-1)->get_work(j))/(schedule.get_task(l-1)->get_period(j))),2))) < MIN)
-						{
-							MIN= (1.0/(schedule.get_task(l-1))->get_elasticity()*(std::pow((schedule.get_task(l-1))->get_max_utilization()-((schedule.get_task(l-1)->get_work(j))/(schedule.get_task(l-1)->get_period(j))),2)));
-							selection=j;
-						}
-						//Otherwise must consider score from first prior tasks when finding the minimum.
-						//We chose mode j.
-						else if(DP[(d-(schedule.get_task(l-1)->get_CPUs(j)))][l-1].first + (1.0/(schedule.get_task(l-1))->get_elasticity()*(std::pow((schedule.get_task(l-1))->get_max_utilization()-((schedule.get_task(l-1)->get_work(j))/(schedule.get_task(l-1)->get_period(j))),2))) < MIN)
-						{
-							MIN = DP[(d-(schedule.get_task(l-1)->get_CPUs(j)))][l-1].first + (1.0/(schedule.get_task(l-1))->get_elasticity()*(std::pow((schedule.get_task(l-1))->get_max_utilization()-((schedule.get_task(l-1)->get_work(j))/(schedule.get_task(l-1)->get_period(j))),2)));
-							selection=j;
-						}//endif
-					}//endif	
-				}//endfor j
+		}
+	}
 
-				//Update DP.				
-				if(d-(schedule.get_task(l-1)->get_CPUs(selection)) >= 0)
-				{
-					DP[d][l].second.clear();
-					DP[d][l].second.assign(DP[d-(schedule.get_task(l-1)->get_CPUs(selection))][l-1].second.begin(), DP[d-(schedule.get_task(l-1)->get_CPUs(selection))][l-1].second.end());
-					DP[d][l].second.push_back(selection);
+	//Execute FPTAS solution or not
+	if (!FPTAS){
+
+		//Execute exact solution
+		for (size_t i = 1; i <= num_tasks; i++) {
+
+			for (size_t w = 0; w <= maxCPU; w++) {
+
+				for (size_t v = 0; v <= NUMGPUS; v++) {
+
+					//invalid state
+					dp_two[i][w][v][0] = -1.0;
+					dp_two[i][w][v][1] = 0;
+					dp_two[i][w][v][2] = 0;
 					
-					DP[d][l].first = std::min(MIN, DP[d-1][l].first);
+					//if the class we are considering is not allowed to switch modes
+					//just treat it as though we did check it normally, and only allow
+					//looking at the current mode.
+					if (!(schedule.get_task(i - 1))->get_changeable() || !(schedule.get_task(i - 1))->cooperative()){
+
+							//fetch item definition
+							auto item = task_table.at(i - 1).at((schedule.get_task(i - 1))->get_current_mode());
+
+							//fetch initial suspected resource values
+							size_t current_item_sms = item.sms;
+							size_t current_item_cores = item.cores;
+
+							bool pessemism = false;
+							bool refresh_pool = false;
+
+							//if this item is feasible at all 
+							if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)){
+
+								//fetch the current resource pool
+								double current_resource_pool_two[2] = {dp_two[i - 1][w - current_item_cores][v - current_item_sms][1], dp_two[i - 1][w - current_item_cores][v - current_item_sms][2]};
+
+								//if we have no explicit sync,
+								//then we have to do safety checks
+								if (!barrier && !first_time){
+
+									//fetch the guaranteed resources
+									int returned_cpus_two = current_resource_pool_two[0];
+									int returned_gpus_two = current_resource_pool_two[1];
+									
+									//negative means we are returning resources
+									int cpu_change = item.cores - previous_modes.at(i - 1).cores;
+									int sm_change = item.sms - previous_modes.at(i - 1).sms;
+
+									//check if this mode could cause a cycle
+									if ((cpu_change < 0 && sm_change > 0) || (sm_change < 0 && cpu_change > 0)){
+										
+										returned_cpus_two -= cpu_change;
+										returned_gpus_two -= sm_change;
+
+										//if transformer, check if it can be safely returned
+										if (returned_cpus_two < 0 || returned_gpus_two < 0){
+
+											pessemism = true;
+											refresh_pool = true;
+
+											current_item_cores = std::max(item.cores, previous_modes.at(i - 1).cores);
+											current_item_sms = std::max(item.sms, previous_modes.at(i - 1).sms);
+											
+										}
+
+										//if we could cover it, remove the resources from the pool
+										else{
+
+											if (cpu_change < 0){
+
+												current_resource_pool_two[0] += cpu_change;
+
+											}
+
+											if (sm_change < 0){
+
+												current_resource_pool_two[1] += sm_change;
+
+											}
+
+										}
+
+									}
+
+									//if a root node
+									else if (returned_cpus_two <= 0 && returned_gpus_two <= 0){
+
+										current_resource_pool_two[0] -= cpu_change;
+										current_resource_pool_two[1] -= sm_change;
+
+									}
+								}
+
+								//if item fits in both sacks
+								if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)) {
+							
+									//update the current resource pool
+									if (refresh_pool){
+
+										current_resource_pool_two[0] = dp_two[i - 1][w - current_item_cores][v - current_item_sms][1];
+										current_resource_pool_two[1] = dp_two[i - 1][w - current_item_cores][v - current_item_sms][2];
+									}
+
+									double newCPULoss_two = dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] - item.cpuLoss;
+									
+									//if found solution is better, update
+									if ((newCPULoss_two) > (dp_two[i][w][v][0])) {
+
+											dp_two[i][w][v][0] = newCPULoss_two;
+											dp_two[i][w][v][1] = current_resource_pool_two[0];
+											dp_two[i][w][v][2] = current_resource_pool_two[1];
+
+											std::memcpy(solutions[i][w][v], solutions[i - 1][w - current_item_cores][v - current_item_sms], num_tasks * sizeof(int));
+
+											if (pessemism)
+												solutions[i][w][v][i - 1] = (schedule.get_task(i - 1))->get_current_mode() * -1;
+											else
+												solutions[i][w][v][i - 1] = (schedule.get_task(i - 1))->get_current_mode();
+										
+									}
+								}
+							}
+						}
+
+					else {
+
+						//for each item in class
+						for (size_t j = 0; j < task_table.at(i - 1).size(); j++) {
+
+							auto item = task_table.at(i - 1).at(j);
+
+							//fetch initial suspected resource values
+							size_t current_item_sms = item.sms;
+							size_t current_item_cores = item.cores;
+
+							bool pessemism = false;
+							bool refresh_pool = false;
+
+							//if this item is feasible at all 
+							if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)){
+
+								//fetch the current resource pool
+								double current_resource_pool_two[2] = {dp_two[i - 1][w - current_item_cores][v - current_item_sms][1], dp_two[i - 1][w - current_item_cores][v - current_item_sms][2]};
+
+								//if we have no explicit sync,
+								//then we have to do safety checks
+								if (!barrier && !first_time){
+
+									//fetch the guaranteed resources
+									int returned_cpus_two = current_resource_pool_two[0];
+									int returned_gpus_two = current_resource_pool_two[1];
+									
+									//negative means we are returning resources
+									int cpu_change = item.cores - previous_modes.at(i - 1).cores;
+									int sm_change = item.sms - previous_modes.at(i - 1).sms;
+
+									//check if this mode could cause a cycle
+									if ((cpu_change < 0 && sm_change > 0) || (sm_change < 0 && cpu_change > 0)){
+
+										returned_cpus_two -= cpu_change;
+										returned_gpus_two -= sm_change;
+
+										//we have to change our resource demands to make
+										//the system safe again
+										if (returned_cpus_two < 0 || returned_gpus_two < 0){
+
+											pessemism = true;
+											refresh_pool = true;
+
+											current_item_cores = std::max(item.cores, previous_modes.at(i - 1).cores);
+											current_item_sms = std::max(item.sms, previous_modes.at(i - 1).sms);
+											
+										}
+
+										else{
+
+											if (cpu_change < 0){
+
+												current_resource_pool_two[0] += cpu_change;
+
+											}
+
+											if (sm_change < 0){
+
+												current_resource_pool_two[1] += sm_change;
+
+											}
+
+										}
+
+									}
+
+									//if a root node
+									else if (returned_cpus_two <= 0 && returned_gpus_two <= 0){
+
+										current_resource_pool_two[0] -= cpu_change;
+										current_resource_pool_two[1] -= sm_change;
+
+									}
+								}
+
+								//if item fits in both sacks
+								if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)) {
+			
+									//update the current resource pool
+									if (refresh_pool){
+
+										current_resource_pool_two[0] = dp_two[i - 1][w - current_item_cores][v - current_item_sms][1];
+
+									}
+
+									double newCPULoss_two = dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] - item.cpuLoss;
+
+									//update the pool at this stage
+									//only update with root nodes
+									if ((item.cores - previous_modes.at(i - 1).cores) < 0 && (item.sms - previous_modes.at(i - 1).sms) > 0){
+
+										current_resource_pool_two[0] -= (current_item_cores - previous_modes.at(i - 1).cores);
+										current_resource_pool_two[1] -= (current_item_sms - previous_modes.at(i - 1).sms);
+
+									}
+									
+									//if found solution is better, update
+									if ((newCPULoss_two) > (dp_two[i][w][v][0])) {
+
+										dp_two[i][w][v][0] = newCPULoss_two;
+										dp_two[i][w][v][1] = current_resource_pool_two[0];
+										dp_two[i][w][v][2] = current_resource_pool_two[1];
+
+										std::memcpy(solutions[i][w][v], solutions[i - 1][w - current_item_cores][v - current_item_sms], num_tasks * sizeof(int));
+
+										if (pessemism)
+											solutions[i][w][v][i - 1] = j * -1;
+										else
+											solutions[i][w][v][i - 1] = j;
+
+									}
+								}
+							}
+						}
+					}
 				}
 			}
-		}//endfor l
-	}//endfor d
+		}
 
-
-	//James Stop 10/4/18
-
-	print_module::print(std::cout, "Got this allocation: ", DP[NUMCPUS][schedule.count()].first, " ");
-	for(unsigned int i=0; i<DP[NUMCPUS][schedule.count()].second.size(); i++)
-	{
-		print_module::print(std::cout, DP[NUMCPUS][schedule.count()].second[i], " ");
-	}
-	print_module::print(std::cout, "\n");
-
-	for(int i=0; i<schedule.count(); i++)
-	{
-		(schedule.get_task(i))->set_current_mode(DP[NUMCPUS][schedule.count()].second[i],false);
 	}
 
-	//give_cpus:
-	//First allocate from CPU1 and go up from there.
-	if(first_time)
-	{
-		int next_CPU=1;
+	else {
+
+		//make not static
+		double epsilon = 0.001;
+
+		//convert to int
+		int max_value = 1000;
+
+		// Calculate scaling factor
+		double K = (epsilon * max_value) / num_tasks;
+		
+		// Scale and round values
+		std::vector<std::vector<task_mode>> scaled_task_table(num_tasks);
+
+		for (size_t i = 0; i < num_tasks; i++) {
+
+			scaled_task_table.push_back(std::vector<task_mode>());
+
+			for (size_t j = 0; j < task_table.at(i).size(); j++) {
+
+				if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative()){
+
+					if (j != (schedule.get_task(i))->get_current_mode()){
+
+						task_mode scaled_item;
+
+						//no value
+						int integer_value = 0;
+						scaled_item.cpuLoss = static_cast<int>(std::ceil(integer_value / K));
+
+						//all cores
+						scaled_item.cores = 1000;
+
+						//all sms
+						scaled_item.sms = 1000;
+
+						scaled_task_table.at(i).push_back(scaled_item);
+
+					}
+
+					else {
+
+						auto current_mode = task_table.at(i).at((schedule.get_task(i))->get_current_mode());
+
+						task_mode scaled_item;
+
+						int integer_value = 1000 - static_cast<int>(current_mode.cpuLoss * 1000);
+						scaled_item.cpuLoss = static_cast<int>(std::ceil(integer_value / K));
+
+						scaled_item.cores = current_mode.cores;
+
+						scaled_item.sms = current_mode.sms;
+
+						scaled_task_table.at(i).push_back(scaled_item);
+
+					}
+
+				}
+
+				else {
+
+					auto current_mode = task_table.at(i).at(j);
+
+					task_mode scaled_item;
+
+					int integer_value = 1000 - static_cast<int>(current_mode.cpuLoss * 1000);
+					scaled_item.cpuLoss = static_cast<int>(std::ceil(integer_value / K));
+
+					scaled_item.cores = current_mode.cores;
+
+					scaled_item.sms = current_mode.sms;
+
+					scaled_task_table.at(i).push_back(scaled_item);
+
+				}
+
+			}
+		
+		}
+		
+		// Maximum scaled value possible
+		int V_max = static_cast<int>(max_value / K) * num_tasks + 1;
+
+		struct Dimensions {
+			int dim1;
+			int dim2;
+			
+			bool operator<(const Dimensions& other) const {
+				return dim1 < other.dim1 || (dim1 == other.dim1 && dim2 < other.dim2);
+			}
+		};
+
+		struct State {
+			Dimensions dims;
+			std::vector<int> chosen_items;
+			bool valid;
+		};
+
+		//dp table
+		std::vector<std::vector<State>> dp(num_tasks + 1, std::vector<State>(V_max));
+
+		// Base case
+    	dp[0][0].valid = true;
+
+		// Fill DP table
+		for (int g = 0; g < num_tasks; g++) {
+
+			for (int v = 0; v < V_max; v++) {
+
+				if (!dp.at(g).at(v).valid) continue;
+				
+				for (int current_mode = 0; current_mode < scaled_task_table.at(g).size(); current_mode++) {
+
+					auto mode = scaled_task_table.at(g).at(current_mode);
+
+					int new_val = v + mode.cpuLoss;
+					
+					// Skip if value exceeds table size
+					if (new_val >= V_max) continue;  
+					
+					const auto& curr_dims = dp.at(g).at(v).dims;
+
+					Dimensions new_dims = {
+						curr_dims.dim1 + mode.cores,
+						curr_dims.dim2 + mode.sms
+					};
+					
+					if (new_dims.dim1 <= maxCPU && new_dims.dim2 <= NUMGPUS) {
+
+						if (!dp.at(g + 1).at(new_val).valid || new_dims < dp.at(g + 1).at(new_val).dims) {
+
+							dp.at(g + 1).at(new_val).dims = new_dims;
+							dp.at(g + 1).at(new_val).chosen_items = dp.at(g).at(v).chosen_items;
+							dp.at(g + 1).at(new_val).chosen_items.push_back(current_mode);
+							dp.at(g + 1).at(new_val).valid = true;
+
+						}
+					}
+				}
+			}
+		}
+		
+		// Find maximum achievable scaled value within capacity
+		int max_scaled_value = 0;
+		
+		for (int v = V_max - 1; v >= 0 ; v--) {
+
+			if (dp.at(num_tasks).at(v).valid) {
+
+				max_scaled_value = v;
+				best_solution = dp.at(num_tasks).at(v).chosen_items;
+				break;
+				
+			}
+
+		}
+
+	}
+
+	timespec end_time;
+	clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+	//determine ellapsed time in nanoseconds
+	double elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1e9;
+	elapsed_time += (end_time.tv_nsec - start_time.tv_nsec);
+
+	//print out the time taken
+	print_module::print(std::cerr, "Time taken to reschedule: ", elapsed_time / 1000000, " milliseconds.\n");
+
+	//exit(0);
+
+    //return optimal solution
+	std::vector<int> result;
+	double loss = 0;
+
+	if (!FPTAS){
+
+		for (int i = 0; i < num_tasks; i++) result.push_back(solutions[N][maxCPU][NUMGPUS][i]);
+		loss = 100000 - dp_two[N][maxCPU][NUMGPUS][0];
+	}
+
+	else{
+		result = best_solution;
+		
+		for (int i = 0; i < result.size(); i++)
+			loss += task_table.at(i).at(result.at(i)).cpuLoss;
+	}
+
+	//check to see that we got a solution that renders this system schedulable
+	if (result.size() == 0 && first_time){
+
+		print_module::print(std::cerr, "Error: System is not schedulable in any configuration. Exiting.\n");
+		killpg(process_group, SIGINT);
+		return;
+
+	}
+	
+	else if (result.size() == 0){
+
+		print_module::print(std::cerr, "Error: System is not schedulable in any configuration with specified constraints. Not updating modes.\n");
+		return;
+
+	}
+
+	//deal with pessemism negatives
+	auto backup = result;
+
+	for (int i = 0; i < result.size(); i++)
+		if (result.at(i) < 0)
+			result.at(i) *= -1;
+
+	//update the tasks
+	std::ostringstream mode_strings;
+	print_module::buffered_print(mode_strings, "\n========================= \n", "New Schedule Layout:\n");
+	for (size_t i = 0; i < result.size(); i++)
+		print_module::buffered_print(mode_strings, "Task ", i, " is now in mode: ", result.at(i), "\n");
+	print_module::buffered_print(mode_strings, "Total Loss from Mode Change: ", loss, "\n=========================\n\n");
+
+	//print resources now held by each task
+	print_module::buffered_print(mode_strings, "\n========================= \n", "New Resource Layout:\n");
+	for (size_t i = 0; i < result.size(); i++)
+		print_module::buffered_print(mode_strings, "Task ", i, " now has: ", task_table.at(i).at(result.at(i)).cores, " Core A | ", task_table.at(i).at(result.at(i)).sms, " Core B\n");
+	print_module::buffered_print(mode_strings, "=========================\n\n");
+	print_module::flush(std::cerr, mode_strings);
+
+	//this changes the number of CPUs each task needs for a given mode
+	//(utilization)
+	for (int i = 0; i < schedule.count(); i++)
+		(schedule.get_task(i))->set_current_mode(result.at(i), false);
+
+	//greedily give cpus on first run
+	if (first_time) {
+
+		//update the previous modes to the first ever selected modes
+		for (size_t i = 0; i < result.size(); i++)
+			previous_modes.at(i) = (task_table.at(i).at(result.at(i)));
+
+		int next_CPU = 1;
+
 		//Actually assign CPUs to tasks. Start with 1.
-		for(int i=0; i<schedule.count(); i++)
-		{
-			if((schedule.get_task(i))->get_current_lowest_CPU() > 0)
-			{
-				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest CPU cleared.\n");
+		for (int i = 0; i < schedule.count(); i++){
+
+			if ((schedule.get_task(i))->get_current_lowest_CPU() > 0){
+
+				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest CPU cleared. (this likely means memory was not cleaned up)\n");
 				killpg(process_group, SIGKILL);
                 return;
+
 			}
 
 			(schedule.get_task(i))->set_current_lowest_CPU(next_CPU);
 			next_CPU += (schedule.get_task(i))->get_current_CPUs();
 
-			if(next_CPU > num_CPUs+1)
-			{
+			if (next_CPU > num_CPUs + 1){
+
 				print_module::print(std::cerr, "Error in task ", i, ": too many CPUs have been allocated.", next_CPU, " ", num_CPUs, " \n");
 				killpg(process_group, SIGKILL);
 				return;
+
 			}		
-		}
-	}
-	//Transfer as efficiently as possible.
-	else
-	{
-		for(int i=0; i<schedule.count(); i++)
-		{
-		
-			int gained = (schedule.get_task(i))->get_current_CPUs() - (schedule.get_task(i))->get_previous_CPUs(); 
-			(schedule.get_task(i))->set_CPUs_gained(gained);
+
 		}
 
-		//First determine how many CPUs each task gets from each other task.
-		for(int i=0; i<schedule.count(); i++)
-		{
-			for(int j=i+1; j<schedule.count(); j++)
-			{
-				if((schedule.get_task(i))->get_CPUs_gained() > 0 && (schedule.get_task(j))->get_CPUs_gained() < 0) 	
-				{
-					int difference = abs((schedule.get_task(i))->get_CPUs_gained()) - abs((schedule.get_task(j))->get_CPUs_gained());
-					
-					if(difference >= 0)
-					{
-						int amount = abs((schedule.get_task(j))->get_CPUs_gained());
-						(schedule.get_task(i))->set_CPUs_gained((schedule.get_task(i))->get_CPUs_gained() - amount);
-						(schedule.get_task(j))->set_CPUs_gained((schedule.get_task(j))->get_CPUs_gained() + amount);
-						(schedule.get_task(i))->update_give(j,-1*amount);
-						(schedule.get_task(j))->update_give(i,amount);
-					}
-					else
-					{
-						int amount = abs((schedule.get_task(i))->get_CPUs_gained());
-						(schedule.get_task(i))->set_CPUs_gained((schedule.get_task(i))->get_CPUs_gained() - amount);
-						(schedule.get_task(j))->set_CPUs_gained((schedule.get_task(j))->get_CPUs_gained() + amount);
-						(schedule.get_task(i))->update_give(j,-1*amount);
-						(schedule.get_task(j))->update_give(i,amount);
+		//assign all the unassigned cpus to the scheduler to hold
+		for (int i = next_CPU; i < num_CPUs; i++){
 
-					}
+			print_module::print(std::cerr, "CPU ", i, " is free.\n");
+			free_cores_A.push_back(i);
+
+		}
+		//Now assign TPC units to tasks, same method as before
+		//(don't worry about holding TPC 1) 
+		int next_TPC = 0;
+
+		for (int i = 0; i < schedule.count(); i++){
+
+			if ((schedule.get_task(i))->get_current_lowest_GPU() > 0){
+
+				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest GPU cleared. (this likely means memory was not cleaned up)\n");
+				killpg(process_group, SIGKILL);
+				return;
+
+			}
+
+			//if this task actually has any TPCs assigned
+			if (!(schedule.get_task(i))->pure_cpu_task()){
+
+				(schedule.get_task(i))->set_current_lowest_GPU(next_TPC);
+
+				for (int j = 0; j < (schedule.get_task(i))->get_current_GPUs(); j++)
+					(schedule.get_task(i))->push_back_gpu(next_TPC ++);
+
+				if (next_TPC > (int)(NUMGPUS) + 1){
+
+					print_module::print(std::cerr, "Error in task ", i, ": too many GPUs have been allocated.", next_TPC, " ", NUMGPUS, " \n");
+					killpg(process_group, SIGKILL);
+					return;
+
 				}
-				else if((schedule.get_task(j))->get_CPUs_gained() > 0 && (schedule.get_task(i))->get_CPUs_gained() < 0)
-				{
-					int difference = abs((schedule.get_task(j))->get_CPUs_gained()) - abs((schedule.get_task(i))->get_CPUs_gained());
-					
-					if(difference >= 0){
-						int amount = abs((schedule.get_task(i))->get_CPUs_gained());
-						(schedule.get_task(j))->set_CPUs_gained((schedule.get_task(j))->get_CPUs_gained() - amount);
-						(schedule.get_task(i))->set_CPUs_gained((schedule.get_task(i))->get_CPUs_gained() + amount);
-						(schedule.get_task(j))->update_give(i,-1*amount);
-						(schedule.get_task(i))->update_give(j,amount);
-					}
-					else{
-						int amount = abs((schedule.get_task(j))->get_CPUs_gained());
-						(schedule.get_task(j))->set_CPUs_gained((schedule.get_task(j))->get_CPUs_gained() - amount);
-						(schedule.get_task(i))->set_CPUs_gained((schedule.get_task(i))->get_CPUs_gained() + amount);
-						(schedule.get_task(j))->update_give(i,-1*amount);
-						(schedule.get_task(i))->update_give(j,amount);
-					}
-				}
+
 			}
 		}
-		//Now determine which CPUs are transfered.
-		for(int i=0; i<schedule.count(); i++)
-        {
-			for(int j=i+1; j<schedule.count(); j++)
-            {		
-				cpu_set_t overlap;
-				if((schedule.get_task(i))->gives(j) > 0)
-				{
-					int amount_gives = (schedule.get_task(i))->gives(j);
-				
-					for(int t=1; t<=NUMCPUS; t++)
-					{
-						if(schedule.get_task(i)->get_active(t) && schedule.get_task(j)->get_passive(t))
-						{
-							CPU_SET(t,&overlap);
-						}
-					}
-	
-					int amount_overlap = CPU_COUNT(&overlap);
-					if(amount_overlap > 0)
-					{
-						for(int k=1; k<=NUMCPUS; k++)
-						{
-							if(CPU_ISSET(k,&overlap))
-							{
-								bool used = false;
-								for(int l=0; l<schedule.count(); l++)
-								{
-										if(schedule.get_task(i)->transfers(l,k))
-										{
-												used=true;
-										}
-								}
 
-								if(!used && k!=(schedule.get_task(i))->get_permanent_CPU() && !(schedule.get_task(i))->transfers(j,k) )
-								{
-									print_module::print(std::cerr, "Task ", i, " should be sending CPU ", k, " to task ", j, ".\n");
-									
-									(schedule.get_task(i))->set_transfer(j,k,true);
+		//assign all the unassigned gpus to the scheduler to hold
+		for (int i = next_TPC; i < (int)(NUMGPUS); i++)
+			free_cores_B.push_back(i);
 
-									(schedule.get_task(j))->set_receive(i,k,true);
-									
-									amount_gives--;
-
-									if(amount_gives == 0)
-									{
-										break;
-									}
-								}
-							}
-						}
-					}
-					if(amount_gives > 0)
-					{
-						for(int k=NUMCPUS; k >=1; k--)
-						{
-							if(schedule.get_task(i)->get_active(k))
-							{
-								bool used = false;
-								for(int l=0; l<schedule.count(); l++)
-								{
-										if(schedule.get_task(i)->transfers(l,k))
-										{
-											used=true;
-										}
-								}   
-	
-								if(!used && k!=(schedule.get_task(i))->get_permanent_CPU() && !(schedule.get_task(i))->transfers(j,k))
-								{
-									print_module::print(std::cerr, "Task ", i, " should be sending CPU ", k, " to task ", j, ".\n");
-
-									(schedule.get_task(i))->set_transfer(j,k,true);
-									
-									(schedule.get_task(j))->set_receive(i,k,true);
-
-									amount_gives--;
-									if(amount_gives == 0)
-									{
-										break;
-									}
-                                }
-
-							}
-						}
-					}
-				}
-				else if((schedule.get_task(i))->gives(j) < 0)
-				{	
-					int amount_gives = (schedule.get_task(j))->gives(i);
-						
-					cpu_set_t first;
-					cpu_set_t second;			
-					CPU_ZERO(&first);
-					CPU_ZERO(&second);
-					CPU_ZERO(&overlap);
-
-					for(int t=1; t<=NUMCPUS; t++)
-					{
-						if(schedule.get_task(j)->get_active(t))
-						{
-							CPU_SET(t, &first);
-
-						}
-
-						if(schedule.get_task(i)->get_passive(t))
-						{
-							CPU_SET(t, &second);
-				
-						}
-                    }
-	
-					CPU_AND(&overlap, &first, &second);
-
-					int amount_overlap = CPU_COUNT(&overlap);
-
-					if(amount_overlap > 0)
-					{
-						for(int k=1; k<=NUMCPUS; k++)
-						{
-							if(CPU_ISSET(k,&overlap))
-							{
-								bool used = false;
-								for(int l=0; l<schedule.count(); l++)
-								{
-									if(schedule.get_task(j)->transfers(l,k))
-									{
-										used=true;	
-									}
-								}
-
-								if(!used &&  k!=(schedule.get_task(j))->get_permanent_CPU() && !(schedule.get_task(j))->transfers(i,k))
-								{
-									
-									(schedule.get_task(j))->set_transfer(i,k,true);
-									
-									(schedule.get_task(i))->set_receive(j,k,true);
-									
-									print_module::print(std::cerr, "Task ", j, "  should be sending CPU ", k, " to task ", i, ".\n");
-
-									amount_gives--;
-
-									if(amount_gives == 0)
-									{
-										break;
-									}
-								}
-							}
-						}
-					}
-
-					if(amount_gives > 0)
-					{
-						for(int k=NUMCPUS; k >=1; k--)
-						{
-							if( schedule.get_task(j)->get_active(k))
-							{
-								bool used = false;
-
-								for(int l=0; l<schedule.count(); l++)
-								{
-									if(schedule.get_task(j)->transfers(l,k))
-									{
-											used=true;
-									}	
-								}
-								if(!used && k!=(schedule.get_task(j))->get_permanent_CPU() && !(schedule.get_task(j))->transfers(i,k))
-								{
-									(schedule.get_task(j))->set_transfer(i,k,true);
-									
-									(schedule.get_task(i))->set_receive(j,k,true);
-									
-									print_module::print(std::cerr, "Task ", j, "  should be sending CPU ", k, " to task ", i, ".\n");
-
-									amount_gives--;
-
-									if(amount_gives == 0)
-									{
-										break;
-									}
-                                }
-							}
-						}
-					}
-				}
-			}			
-		}
-		
 	}
+
+	//Transfer as efficiently as possible.
+	//This portion of code is supposed to allocate
+	//CPUs from tasks that are not active to ones that
+	//should be rescheduling right now... because of this,
+	//it should also be a good candidate algorithm for
+	//passing off the GPU SMs.
+	else {
+
+		//for each mode in result, subtract the new mode from the old mode to determine how many resources are being given up or taken
+		//from each task. This will be used to build the RAG.
+		std::unordered_map<int, Node> nodes;
+		std::unordered_map<int, Node> static_nodes;
+		std::vector<std::pair<int, int>> dependencies;
+
+		result = backup;
+
+		for (size_t i = 0; i < result.size(); i++){
+
+			//if value is negative, then we had to be pessimistic
+			bool pessemism = false;
+			if (result.at(i) < 0){
+
+				pessemism = true;
+				print_module::print(std::cerr, "Task ", i, " is in a pessimistic mode.\n");
+				result.at(i) *= -1;
+
+			}
+
+			//fetch the current mode
+			auto current_mode = task_table.at(i).at(result.at(i));
+
+			//fetch the previous mode
+			auto previous_mode = previous_modes.at(i);
+
+			//add the new node
+			if (pessemism){
+
+				if ((previous_mode.cores - current_mode.cores) > 0)
+					dependencies.push_back({0, previous_mode.sms - current_mode.sms});
+
+				else 
+					dependencies.push_back({previous_mode.cores - current_mode.cores, 0});
+
+			}
+
+			else 
+				dependencies.push_back({previous_mode.cores - current_mode.cores, previous_mode.sms - current_mode.sms});
+			
+
+		}
+
+		//for all the free cores of both types, add them to the RAG
+		//via adding a node that gives up that many resources
+		dependencies.push_back({free_cores_A.size(), free_cores_B.size()});
+
+		//if this returns false, then we have a cycle and only a barrier
+		//can allow the handoff
+		if (build_resource_graph(dependencies, nodes, static_nodes)){
+
+			//show the resource graph (debugging)
+			print_module::print(std::cerr, "\n========================= \n", "New Schedule RAG:\n");
+	        print_graph(nodes, static_nodes);
+			print_module::print(std::cerr, "========================= \n\n");
+
+			//by this point the RAG has either the previous solution inside of it, or it has
+			//the current solution. Either way, we need to update the previous modes to reflect
+			//the current modes.
+			for (size_t i = 0; i < result.size(); i++){
+
+				(schedule.get_task(i))->clear_cpus_granted_from_other_tasks();
+				(schedule.get_task(i))->clear_gpus_granted_from_other_tasks();
+
+			}
+
+			//now walk the RAG and see what resources need to be passed
+			//from which tasks to which tasks
+			for (const auto& [id, node] : nodes) {
+
+				int CPUs_given_up = 0;
+				int GPUs_given_up = 0;
+
+				std::vector<int> task_owned_gpus;
+				std::vector<int> task_owned_cpus;
+
+				//fetch the current mode
+				Scheduler::task_mode current_mode;
+
+				//fetch the previous mode
+				Scheduler::task_mode previous_mode;
+
+				//check if the resources are coming from the free pool
+				if (id != ((int) nodes.size() - 1)){
+
+					task_owned_gpus = (schedule.get_task(id))->get_gpu_owned_by_process();
+					task_owned_cpus = (schedule.get_task(id))->get_cpu_owned_by_process();
+
+					current_mode = task_table.at(id).at(result.at(id));
+					previous_mode = previous_modes.at(id);
+
+				}
+				
+				//if only receiving resources, just skip
+				if (node.edges.empty() && id != ((int) nodes.size() - 1)){
+
+					//check that they are not just giving up resources
+					//to the free pool
+					if ((previous_mode.cores - current_mode.cores) > 0){
+
+						for (int i = 0; i < (previous_mode.cores - current_mode.cores); i++){
+
+							free_cores_A.push_back(task_owned_cpus.at(task_owned_cpus.size() - 1));
+							task_owned_cpus.pop_back();
+						
+						}
+
+						auto change_amount = (schedule.get_task(id))->get_CPUs_change();
+						(schedule.get_task(id))->set_CPUs_change(change_amount + (previous_mode.cores - current_mode.cores));
+						
+
+					}
+
+					if ((previous_mode.sms - current_mode.sms) > 0){
+
+						for (int i = 0; i < (previous_mode.sms - current_mode.sms); i++){
+
+							free_cores_B.push_back(task_owned_gpus.at(task_owned_gpus.size() - 1));
+							task_owned_gpus.pop_back();
+						
+						}
+
+						auto change_amount = (schedule.get_task(id))->get_GPUs_change();
+						(schedule.get_task(id))->set_GPUs_change(change_amount + (previous_mode.sms - current_mode.sms));
+						(schedule.get_task(id))->set_mode_transition(false);
+
+					}
+
+					continue;
+
+				}
+				
+				else {
+
+					for (const Edge& edge : node.edges) {
+
+						int task_being_given_to = edge.to_node;
+
+						//if resource type A
+						if (edge.x_amount > 0) {
+
+							std::vector<int> cpus_being_given;
+
+							if (id != ((int) nodes.size() - 1) && (int) task_owned_cpus.size() < edge.x_amount){
+
+								print_module::print(std::cerr, "Error: not enough CPUs to give to task ", task_being_given_to, " from task ", id, " size gotten: ", task_owned_cpus.size(), " expected: ", edge.x_amount, ". Exiting.\n");
+								killpg(process_group, SIGINT);
+								return;
+
+							}
+
+							else if (id == ((int) nodes.size() - 1) && (int) free_cores_A.size() < edge.x_amount){
+
+								print_module::print(std::cerr, "Error: not enough CPUs to give to task ", task_being_given_to, " from free pool. size gotten: ", free_cores_A.size(), " expected: ", edge.x_amount, ". Exiting.\n");
+								killpg(process_group, SIGINT);
+								return;
+
+							}
+
+							for (int z = 0; z < edge.x_amount; z++){
+
+								if (id != ((int) nodes.size() - 1)){
+
+									cpus_being_given.push_back(task_owned_cpus.at(task_owned_cpus.size() - 1));
+									task_owned_cpus.pop_back();
+								
+								}
+
+								else{
+
+									cpus_being_given.push_back(free_cores_A.at(free_cores_A.size() - 1));
+									free_cores_A.pop_back();
+
+								}
+
+							}
+
+							if (id == ((int) nodes.size() - 1))
+								(schedule.get_task(task_being_given_to))->set_cpus_granted_from_other_tasks({MAXTASKS, cpus_being_given});
+							else
+								(schedule.get_task(task_being_given_to))->set_cpus_granted_from_other_tasks({id, cpus_being_given});
+
+							//update our own
+							CPUs_given_up += edge.x_amount;
+
+						}
+
+						//if resource type B
+						if (edge.y_amount > 0) {
+
+							std::vector<int> gpus_being_given;
+
+							if (id != ((int) nodes.size() - 1) && (int) task_owned_gpus.size() < edge.y_amount){
+
+								print_module::print(std::cerr, "Error: not enough GPUs to give to task ", task_being_given_to, " from task ", id, " size gotten: ", task_owned_gpus.size(), " expected: ", edge.y_amount, ". Exiting.\n");
+								killpg(process_group, SIGINT);
+								return;
+
+							}
+
+							else if (id == ((int) nodes.size() - 1) && (int) free_cores_B.size() < edge.y_amount){
+
+								print_module::print(std::cerr, "Error: not enough GPUs to give to task ", task_being_given_to, " from free pool. size gotten: ", free_cores_B.size(), " expected: ", edge.y_amount, ". Exiting.\n");
+								killpg(process_group, SIGINT);
+								return;
+
+							}
+
+							for (int z = 0; z < edge.y_amount; z++){
+
+								if (id != ((int) nodes.size() - 1)){
+
+									gpus_being_given.push_back(task_owned_gpus.at(task_owned_gpus.size() - 1));
+									task_owned_gpus.pop_back();
+
+								}
+
+								else{
+
+									gpus_being_given.push_back(free_cores_B.at(free_cores_B.size() - 1));
+									free_cores_B.pop_back();
+
+								}
+
+							}
+							
+							if (id == ((int) nodes.size() - 1))
+								(schedule.get_task(task_being_given_to))->set_gpus_granted_from_other_tasks({MAXTASKS, gpus_being_given});
+							else
+								(schedule.get_task(task_being_given_to))->set_gpus_granted_from_other_tasks({id, gpus_being_given});
+
+							//update our own
+							GPUs_given_up += edge.y_amount;
+
+						}
+
+					}
+
+				}
+
+				//check if we gave up resource AND we are giving resources to the free pool
+				if (id != ((int) nodes.size() - 1)){ 
+
+					if ((previous_mode.cores - current_mode.cores) > CPUs_given_up){
+
+					
+						if (((previous_mode.cores - current_mode.cores) - CPUs_given_up) > task_owned_cpus.size()){
+
+							print_module::print(std::cerr, "Error: not enough CPUs to give to free pool from task ", id, ". size gotten: ", task_owned_cpus.size(), " expected: ", ((previous_mode.cores - current_mode.cores) - CPUs_given_up), ". Exiting.\n");
+							killpg(process_group, SIGINT);
+							return;
+
+						}
+
+						for (int i = CPUs_given_up; i < (previous_mode.cores - current_mode.cores); i++){
+
+							free_cores_A.push_back(task_owned_cpus.at(task_owned_cpus.size() - 1));
+							task_owned_cpus.pop_back();
+
+							CPUs_given_up++;
+							
+						}
+
+					}
+
+					if ((previous_mode.sms - current_mode.sms) > GPUs_given_up){
+
+					
+						if (((previous_mode.sms - current_mode.sms) - GPUs_given_up) > task_owned_gpus.size()){
+
+							print_module::print(std::cerr, "Error: not enough GPUs to give to free pool from task ", id, ". size gotten: ", task_owned_gpus.size(), " expected: ", ((previous_mode.sms - current_mode.sms) - GPUs_given_up), ". Exiting.\n");
+							killpg(process_group, SIGINT);
+							return;
+
+						}
+
+						for (int i = GPUs_given_up; i < (previous_mode.sms - current_mode.sms); i++){
+
+							free_cores_B.push_back(task_owned_gpus.at(task_owned_gpus.size() - 1));
+
+							task_owned_gpus.pop_back();
+
+							GPUs_given_up++;
+							
+						}
+
+					}
+
+				}
+				
+				//let the task know what it should give up when it can change modes
+				(schedule.get_task(id))->set_CPUs_change(CPUs_given_up);
+				(schedule.get_task(id))->set_GPUs_change(GPUs_given_up);
+
+				//add the task to list of tasks that had to transition
+				transitioned_tasks.push_back(id);
+
+			}
+		}	
+
+		else{
+
+			if (!barrier){
+
+				print_module::print(std::cerr, "Error: System was passed a RAG to build a DAG with, but a cycle was detected, and no barrier is enabled. Not updating states.\n");
+				return;
+
+			}
+		
+		}
+ 
+	}
+
+	//update the previous modes to the current modes
+	for (size_t i = 0; i < result.size(); i++){
+
+		previous_modes.at(i) = task_table.at(i).at(result.at(i));
+
+		//notify all tasks that they should now transition
+		(schedule.get_task(i))->set_mode_transition(false);
+
+	}
+
 	first_time = false;
+
+	/*timespec end_time;
+	clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+	//determine ellapsed time in nanoseconds
+	double elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1e9;
+	elapsed_time += (end_time.tv_nsec - start_time.tv_nsec);
+
+	//print out the time taken
+	print_module::print(std::cerr, "Time taken to reschedule: ", elapsed_time / 1000000, " milliseconds.\n");*/
 }
 
 void Scheduler::setTermination(){

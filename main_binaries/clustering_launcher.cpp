@@ -31,6 +31,8 @@ struct itimerspec disarming_its, virtual_dl_timer_its;
 struct sigevent sev;
 int ret;
 
+bool FPTAS = false;
+
 // Define the name of the barrier used for synchronizing tasks after creation
 const std::string barrier_name = "BAR";
 const std::string barrier_name2 = "BAR_2";
@@ -42,6 +44,9 @@ pid_t process_group;
 //BOOLEAN VALUE FOR WHETHER WE INITIALLY INCLUDE LAST TASK IN THE SCHEDULE
 bool add_last_task = true;
 TaskData * last_task;
+
+//bool which controls whether or not we are running with explicit syncronization
+bool explicit_sync = false;
 
 /************************************************************************************
 Objects
@@ -80,21 +85,46 @@ void scheduler_task()
 	//Constantly see if we need to reschedule until time is up.
 	//If we need to reschedule tasks, do it and then let them know. 
 	get_time(&cur_time);
+	
 	while(cur_time < end_time){
+
 		if(needs_scheduling)
 		{
 			scheduler->do_schedule();
 			needs_scheduling = false;
 			killpg(process_group, SIGRTMIN+1);
+
+			//wait for all tasks to actually finish rescheduling
+			for (int i = 0; i < scheduler->get_num_tasks(); i++){
+
+				while(scheduler->get_schedule()->get_task(i)->check_mode_transition() == false){
+
+					get_time(&cur_time);
+					
+					if (cur_time > end_time)
+						break;
+
+				}
+		
+			}
+		
 		}
+
 		get_time(&cur_time);
+
 	}
+
 }
 
 void force_cleanup() {
 	scheduler->setTermination();
 	process_barrier::destroy_barrier(barrier_name);
 	process_barrier::destroy_barrier(barrier_name2);
+
+	if (explicit_sync) {
+		process_barrier::destroy_barrier("EX_SYNC");
+	}
+
 	kill(0, SIGKILL);
 	delete scheduler;
 }
@@ -160,12 +190,26 @@ int get_scheduling_file(std::string name, std::ifstream &ifs){
 }
 
 struct parsed_task_mode_info {
+
+	//mode type
+	std::string mode_type = "";
+
+	//CPU stuff
 	int work_sec = -1;
 	int work_nsec = -1;
 	int span_sec = -1;
 	int span_nsec = -1;
 	int period_sec = -1;
 	int period_nsec = -1;
+
+	//GPU stuff
+	int gpu_work_sec = 0;
+	int gpu_work_nsec = 0;
+	int gpu_span_sec = 0;
+	int gpu_span_nsec = 0;
+	int gpu_period_sec = 0;
+	int gpu_period_nsec = 0;
+
 };
 
 struct parsed_task_info {
@@ -195,6 +239,12 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 	
 	if (!config["schedulable"]) {
 		return -1;
+	}
+	if (config["explicit_sync"]){
+		explicit_sync = config["explicit_sync"].as<bool>();
+	}
+	if (config["FPTAS"]){
+		FPTAS = config["FPTAS"].as<bool>();
 	}
 	if (config["schedulable"].as<bool>()) {
 		*schedulable = 1;
@@ -227,6 +277,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 			task_info.program_args = "";
 		}
 
+
 		if (task["elasticity"]) {
 			task_info.elasticity = task["elasticity"].as<int>();
 		}
@@ -234,6 +285,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 		if (task["priority"]) {
 			task_info.sched_priority = task["priority"].as<int>();
 		}
+
 
 		if (task["maxIterations"]) {
 			task_info.max_iterations = task["maxIterations"].as<int>();
@@ -249,15 +301,48 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 			if (!yaml_is_time(mode["work"]) || !yaml_is_time(mode["span"]) || !yaml_is_time(mode["period"])) {
 				return -6;
 			}
+
 			struct parsed_task_mode_info mode_info;
+
+			if (mode["type"])
+				mode_info.mode_type = mode["type"].as<std::string>();
+			else
+				mode_info.mode_type = "heavy";
+
 			mode_info.work_sec = mode["work"]["sec"].as<int>();
 			mode_info.work_nsec = mode["work"]["nsec"].as<int>();
 			mode_info.span_sec = mode["span"]["sec"].as<int>();
 			mode_info.span_nsec = mode["span"]["nsec"].as<int>();
 			mode_info.period_sec = mode["period"]["sec"].as<int>();
 			mode_info.period_nsec = mode["period"]["nsec"].as<int>();
+
+			//check for GPU params
+			if (yaml_is_time(mode["gpu_work"]) && yaml_is_time(mode["gpu_span"])){
+
+				mode_info.gpu_work_sec = mode["gpu_work"]["sec"].as<int>();
+				mode_info.gpu_work_nsec = mode["gpu_work"]["nsec"].as<int>();
+				mode_info.gpu_span_sec = mode["gpu_span"]["sec"].as<int>();
+				mode_info.gpu_span_nsec = mode["gpu_span"]["nsec"].as<int>();
+
+				//if an arbitrary period has been set for modifying the GPU assignemnt
+				if (yaml_is_time(mode["gpu_period"])){
+
+					mode_info.gpu_period_sec = mode["gpu_period"]["sec"].as<int>();
+					mode_info.gpu_period_nsec = mode["gpu_period"]["nsec"].as<int>();
+
+				}
+
+				else{
+
+					mode_info.gpu_period_sec = mode_info.period_sec;
+					mode_info.gpu_period_nsec = mode_info.period_nsec;
+				}
+
+			}
+
 			task_info.modes.push_back(mode_info);
 		}
+
 
 		parsed_tasks->push_back(task_info);
 	}
@@ -324,7 +409,27 @@ int main(int argc, char *argv[])
 
 	//create the scheduling object
 	//(retain CPU 0 for the scheduler)
-	scheduler = new Scheduler(parsed_tasks.size(),(int) std::thread::hardware_concurrency()-1);
+	scheduler = new Scheduler(parsed_tasks.size(),(int) NUMCPUS, explicit_sync, FPTAS);
+
+	//warn if set higher than real cpu amount
+	if (NUMCPUS > std::thread::hardware_concurrency()){
+	
+		print_module::print(std::cerr, "\n\nMORE CPUS ARE BEING USED THAN ACTUALLY EXIST. WHILE THIS IS ALLOWED FOR TESTING PURPOSES, IT IS NOT RECOMMENDED. YOUR EXECUTION WILL BE HALTED FOR 2 SECONDS TO MAKE SURE YOU SEE THIS!!!\n\n");
+	
+		sleep(3);
+
+	}
+
+	//if explicit sync is enabled, we need to create a barrier to synchronize the tasks after creation
+	if (explicit_sync)
+	{
+		if (process_barrier::create_process_barrier("EX_SYNC", parsed_tasks.size()) == nullptr)
+		{
+			print_module::print(std::cerr, "ERROR: Failed to initialize barrier.\n");
+			return RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR;
+		}
+	}
+
 
 	//Initialize two barriers to synchronize the tasks after creation
 	if (process_barrier::create_process_barrier(barrier_name, parsed_tasks.size() + 1) == nullptr || 
@@ -339,9 +444,11 @@ int main(int argc, char *argv[])
 	//enough time to finish their init() stages.
 	get_time(&current_time);
 	run_time={sec_to_run, nsec_to_run};
-	start_time.tv_sec = current_time.tv_sec + 5;
+	start_time.tv_sec = current_time.tv_sec + 8;
 	start_time.tv_nsec = current_time.tv_nsec;
 	end_time = start_time + run_time;
+
+	print_module::print(std::cerr, "Explicit Sync: ", explicit_sync, "\n");
 
 	// Iterate over the tasks, gather their arguments, timing parameters, and name 
 	// and then fork and execv each one
@@ -378,20 +485,31 @@ int main(int argc, char *argv[])
 		std::vector <timespec> work;
 		std::vector <timespec> span;
 		std::vector <timespec> period;
+		std::vector <timespec> gpu_span;
+		std::vector <timespec> gpu_work;
+		std::vector <timespec> gpu_period;
 
 		for (struct parsed_task_mode_info info : task_info.modes) {
 			work.push_back({info.work_sec, info.work_nsec});
 			span.push_back({info.span_sec, info.span_nsec});
 			period.push_back({info.period_sec, info.period_nsec});
+			gpu_work.push_back({info.gpu_work_sec, info.gpu_work_nsec});
+			gpu_span.push_back({info.gpu_span_sec, info.gpu_span_nsec});
+			gpu_period.push_back({info.gpu_period_sec, info.gpu_period_nsec});
 		}
 
 		//Insert the task data into shared memory
 		TaskData * td;
-		td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data());
+    
+    //FIXME: GPU INFO JUST USES THE CPU PORTION OF THE INFO. REPLACE WITH REAL INFORMATION
+		td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), gpu_work.data(), gpu_span.data(), gpu_period.data());
 		task_manager_argvector.push_back(std::to_string(td->get_index()));
 		
 		// Add the barrier name to the argument vector
 		task_manager_argvector.push_back(barrier_name);
+
+		// Add whether or not the system has explicit sync enabled
+		task_manager_argvector.push_back(std::to_string(explicit_sync));
 		
 		// Add the task arguments to the argument vector
 		task_manager_argvector.push_back(task_info.program_name);
@@ -453,6 +571,10 @@ int main(int argc, char *argv[])
 	t.join();
 
 	print_module::print(std::cerr, "All tasks finished.\n");
+
+	if (explicit_sync) {
+		process_barrier::destroy_barrier("EX_SYNC");
+	}
 	
 	delete scheduler;
 	

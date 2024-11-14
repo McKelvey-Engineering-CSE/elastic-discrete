@@ -39,17 +39,17 @@ int init(int argc, char *argv[])
 }
 
 int run(int argc, char *argv[]){
-    int count = 0;
-    #pragma omp parallel shared(count)
-     {
-        if (active[omp_get_thread_num()]) {
-            #pragma omp atomic
-            count++;
+    auto current_mask = omp.get_override_mask();
 
-            busy_work(spin_tv);
+   std::bitset<128> thread_mask(current_mask);
+    int resource_a_count = 0;
+    for (size_t i = 1; i < 128; i++) {
+        if (thread_mask[i]) {
+            resource_a_count++;
         }
     }
-    std::cout << "TEST: [" << logging_index << "," << iterations_complete << "] core count: " << count << std::endl;
+
+    std::cout << "TEST: [" << logging_index << "," << iterations_complete << "] core count: " << resource_a_count << std::endl;
 
     iterations_complete++;
 
