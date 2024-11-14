@@ -4,3 +4,6 @@
 [submodule "subprocess.h"]
 	path = subprocess.h
 	url = https://github.com/sheredom/subprocess.h.git
+[submodule "libsmctrl"]
+	path = libsmctrl
+	url = http://rtsrv.cs.unc.edu/cgit/cgit.cgi/libsmctrl.git
