@@ -19,6 +19,19 @@ int mode_change_interval = -1;
 int synth_current_mode = 0;
 int iterations_complete = 0;
 
+int core_b_count = 0;
+
+void update_core_B(__uint128_t mask) {
+    int count = 0;
+    std::bitset<128> thread_mask(mask);
+    for (int i = 0; i < 128; i++) {
+        if (thread_mask[i]) {
+            count++;
+        }
+    }
+    core_b_count = count;
+}
+
 int init(int argc, char *argv[])
 {
 
@@ -49,7 +62,7 @@ int run(int argc, char *argv[]){
         }
     }
 
-    std::cout << "TEST: [" << logging_index << "," << iterations_complete << "] core count: " << resource_a_count << std::endl;
+    std::cout << "TEST: [" << logging_index << "," << iterations_complete << "] core count: A: " << resource_a_count << ", B: " << core_b_count << std::endl;
 
     iterations_complete++;
 
@@ -66,4 +79,4 @@ int finalize(int argc, char *argv[])
     return 0;
 }
 
-task_t task = { init, run, finalize };
+task_t task = { init, run, finalize, update_core_B };

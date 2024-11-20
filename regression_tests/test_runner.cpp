@@ -16,7 +16,12 @@ Args:
 
 /* test utilities */
 
-typedef std::unordered_map<std::string, int> core_map;
+struct core_assignment {
+  int A;
+  int B;
+};
+
+typedef std::unordered_map<std::string, struct core_assignment> core_map;
 
 std::filesystem::path clustering_launcher_path;
 std::filesystem::path testcase_dir;
@@ -35,9 +40,13 @@ core_map parse_core_assignments (const std::string & stdout) {
   while (getline(stream, line)) {
     int taskidx;
     int taskiter;
-    int core_count;
-    if (sscanf(line.c_str(), "TEST: [%d,%d] core count: %d", &taskidx, &taskiter, &core_count) == 3) {
-      assignments.insert({std::to_string(taskidx) + "," + std::to_string(taskiter), core_count});
+    int core_a_count;
+    int core_b_count;
+    if (sscanf(line.c_str(), "TEST: [%d,%d] core count: A: %d, B: %d", &taskidx, &taskiter, &core_a_count, & core_b_count) == 4) {
+      struct core_assignment assignment;
+      assignment.A = core_a_count;
+      assignment.B = core_b_count;
+      assignments.insert({std::to_string(taskidx) + "," + std::to_string(taskiter), assignment});
     }
   }
 
@@ -93,7 +102,8 @@ void assert_same_core_assignments(const core_map & actual, const core_map & expe
   for (auto & assignment : actual) {
     auto expected_val = expected.find(assignment.first);
     ASSERT_EQ(expected_val == expected.end(), false); // not found
-    ASSERT_EQ(assignment.second, expected_val->second);
+    ASSERT_EQ(assignment.second.A, expected_val->second.A);
+    ASSERT_EQ(assignment.second.B, expected_val->second.B);
   }
 }
 
