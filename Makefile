@@ -28,7 +28,7 @@ ifeq ($(HAS_NVCC),true)
 else
     CC := g++
     FLAGS := $(COMMON_FLAGS) $(HEADERS) -Wall -gdwarf-3
-    LIBS := $(COMMON_LIBS) -fopenmp
+    LIBS := $(COMMON_LIBS) -fopenmp -L./omp_module -Wl,-rpath,./omp_module
     ifneq (,$(X86_64_ARCH))
         FLAGS += $(ARCH_FLAGS)
     endif
