@@ -212,15 +212,6 @@ void set_active_threads(std::vector<int> thread_ids){
     //add the thread indices we want to see run
     for (int i = 0; i < thread_ids.size(); i++) 
         shared_array[i + 1] = thread_ids.at(i);
-
-
-	//make a string of all the values in shared_array
-	std::string thread_string = "";
-	for (int i = 1; i < thread_ids.size(); i++)
-		thread_string += std::to_string(thread_ids.at(i)) + ", ";
-
-	//print the string
-	print_module::print(std::cerr, "Process: ", task_index, " Thread IDs: ", thread_string, "\n");
 }
 
 //function of pure vanity courtesy of claude
