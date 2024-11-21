@@ -22,6 +22,7 @@ ifeq ($(HAS_NVCC),true)
     CC := nvcc
     FLAGS := $(COMMON_FLAGS) -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -lcuda -lcudart
     LIBS := $(COMMON_LIBS) -Xcompiler -fopenmp -L./omp_module -Xlinker -rpath,./omp_module
+	NVCC_OVERRIDE := --x=cu
     ifneq (,$(X86_64_ARCH))
         FLAGS += -Xcompiler $(ARCH_FLAGS)
     endif
@@ -75,7 +76,7 @@ endif
 
 ##### Common Object Files ######################################################
 timespec_functions.o: ./timespec_module/timespec_functions.cpp
-	$(CC) $(FLAGS) -c $<
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
 # Barrier module components
 process_primitives.o: ./barrier_module/process_primitives.cpp
@@ -133,5 +134,8 @@ print_buffer.o: ./printing_module/print_buffer.cpp timespec_functions.o
 clustering_launcher: ./main_binaries/clustering_launcher.cpp ./libyaml-cpp/build/libyaml-cpp.a
 	$(CC) $(FLAGS) $(HEADERS_WITH_YAML) timespec_functions.o taskData.o schedule.o scheduler.o shared_mem.o $(BARRIER_OBJECTS) ./main_binaries/clustering_launcher.cpp -o clustering_launcher $(LIBS)
 
-james: ./target_task/james.cpp task_manager.o
-	$(CC) $(FLAGS) ./target_task/james.cpp timespec_functions.o shared_mem.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o $(BARRIER_OBJECTS) -o james $(LIBS)
+james-bin: ./target_task/james.cpp
+	$(CC) $(FLAGS) $(NVCC_OVERRIDE) ./target_task/james.cpp -c $< $(LIBS)
+
+james: james-bin task_manager.o
+	$(CC) $(FLAGS) james.o timespec_functions.o shared_mem.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o $(BARRIER_OBJECTS) -o james $(LIBS)

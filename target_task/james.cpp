@@ -28,7 +28,11 @@ extern int task_index;
    #include <cuda.h>
    #include <cuda_runtime.h>
 
+   #include "sm_mapper.cuh"
+
    cudaStream_t stream;
+
+   bool display_sms = true;
 
 #endif
 
@@ -49,7 +53,15 @@ void update_core_B(__uint128_t mask) {
     //example of how to use core B masks
    #ifdef __NVCC__
 
-       libsmctrl_set_stream_mask(stream, mask);
+       libsmctrl_set_stream_mask(stream, ~mask);
+
+       //if first time, print sms
+        if (display_sms) {
+
+            visualize_sm_partitions_interprocess(stream, 3, "JAMESSM");
+            display_sms = false;
+            
+        }
 
    #endif
 
