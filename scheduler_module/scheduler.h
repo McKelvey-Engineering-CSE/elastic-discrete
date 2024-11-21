@@ -107,7 +107,7 @@ class Scheduler{
 public:
 
 	//reserve the necessary space for the class (task) table
-	Scheduler(int num_tasks_, int num_CPUs_, bool explicit_sync, bool FPTAS_) : process_group(getpgrp()), schedule("EFSschedule"), num_tasks(num_tasks_), num_CPUs(num_CPUs_), first_time(true), barrier(explicit_sync), FPTAS(FPTAS_) {
+	Scheduler(int num_tasks_, int num_CPUs_, bool explicit_sync, bool FPTAS_) : process_group(getpgrp()), schedule(std::string("EFSschedule" + std::to_string(static_cast<long>(getpid()))).c_str()), num_tasks(num_tasks_), num_CPUs(num_CPUs_), first_time(true), barrier(explicit_sync), FPTAS(FPTAS_) {
 
 		previous_modes.reserve(100);
 

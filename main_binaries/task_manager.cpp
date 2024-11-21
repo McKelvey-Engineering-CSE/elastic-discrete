@@ -84,7 +84,7 @@ int current_threads_active = 0;
 int ret_val;
 
 //if we set this then we will need a barrier for explicit sync
-bool explicit_sync = false;
+bool explicit_sync = true;
 
 //The process group ID is used to notify other tasks in this taskset that
 //it is time to switch to high criticality mode
@@ -425,7 +425,6 @@ int main(int argc, char *argv[])
 	end_time = {end_sec, end_nsec};
 	
 	char *barrier_name = argv[8];
-	explicit_sync = std::stoi(std::string(argv[9])) == 1;
 	int task_argc = argc - 10;                                             
 	char **task_argv = &argv[10];
 
@@ -618,7 +617,12 @@ int main(int argc, char *argv[])
 			num_iters++;
 
 		// Sleep until the start of the period
-		sleep_until_ts(correct_period_start);
+
+		//sleep for only 5 milliseconds
+		timespec sleep_time = { 0, 5000000 };
+		timespec adj_time = current_time + sleep_time;
+		sleep_until_ts(adj_time);
+		//sleep_until_ts(correct_period_start);
 
         #ifdef TRACING
 			fprintf( fd, "thread %ld: starting iteration %d\n", gettid() ,num_iters);
@@ -633,6 +637,14 @@ int main(int argc, char *argv[])
 
 		if (schedule.get_task(task_index))
 			ret_val = task.run(task_argc, task_argv);
+
+		if (process_barrier::await_and_rearm_barrier("EX_SYNC") != 0){
+
+			print_module::print(std::cerr, "ERROR: Barrier error for task ", 1, "\n");
+			kill(0, SIGTERM);
+			exit(-1);
+
+		}
 
 		//Get the finishing time of the current period
 		get_time(&period_finish);

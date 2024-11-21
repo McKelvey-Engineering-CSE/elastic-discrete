@@ -41,6 +41,11 @@ void generic_barrier::arrive_and_wait(bool rearm)
         generation += 1;
 
         r_mutex.notify_all();
+        r_mutex.notify_all();
+        r_mutex.notify_all();
+        r_mutex.notify_all();
+        r_mutex.notify_all();
+        r_mutex.notify_all();
         r_mutex.unlock();
     } 
     
@@ -53,7 +58,11 @@ void generic_barrier::arrive_and_wait(bool rearm)
                 print_module::print(std::cout, getpid(), " | Checking before wait...\n");
             #endif
 
-            r_mutex.wait();
+            int my_gen = generation;
+            r_mutex.unlock();
+            while (my_gen == generation);
+
+            //r_mutex.wait();
 
             #ifdef LOG_STATES 
                 print_module::print(std::cout, getpid(), " | got notified..\n");

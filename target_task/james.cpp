@@ -21,6 +21,8 @@ int iterations_complete = 0;
 
 extern int task_index;
 
+const int total_tasks = 13;
+
 
 #ifdef __NVCC__
 
@@ -77,7 +79,7 @@ int init(int argc, char *argv[])
        return -2;
    }
 
-    if (task_index > 14)
+    if (task_index < 3)
         set_cooperative(false);
 
    return 0;       
@@ -86,17 +88,9 @@ int init(int argc, char *argv[])
 int run(int argc, char *argv[]){
 
    std::atomic<int> count = 0;
-   /*omp( pragma_omp_parallel
-   {
-       count++;
 
-       busy_work(spin_tv);
-       
-   });*/
-
-   //std::cout << current_cpu_mask << std::endl;
-
-   busy_work(spin_tv);
+    std::vector<int> intervals = {3, 5, 7};
+   //busy_work(spin_tv);
 
    auto current_mask = omp.get_override_mask();
 
@@ -111,15 +105,16 @@ int run(int argc, char *argv[]){
 
    iterations_complete++;
 
-   if (task_index > 14 && iterations_complete % 5 == 0 && iterations_complete % 2 == 1) {
-       synth_current_mode = (synth_current_mode + 1) % mode_count;
-       modify_self(1);
-   }
+   if (task_index < 3)
+        if (iterations_complete % intervals.at(task_index) == 0 && iterations_complete % 2 == 1)
+            modify_self(1);
 
-   if (task_index > 14 && iterations_complete % 5 == 0 && iterations_complete % 2 == 0) {
-       synth_current_mode = (synth_current_mode + 1) % mode_count;
-       modify_self(3);
-   }
+   if (task_index < 3)
+        if (iterations_complete % intervals.at(task_index) == 0 && iterations_complete % 2 == 0)
+            modify_self(3);
+
+    if (iterations_complete == 1000)
+        exit(0);
 
    return 0;
 }

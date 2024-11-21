@@ -14,6 +14,7 @@
 #include "timespec_functions.h"
 #include "scheduler.h"
 #include "print_module.h"
+#include <bitset>
 
 #include "libyaml-cpp/include/yaml-cpp/yaml.h"
 
@@ -30,6 +31,8 @@ int get_val=0;
 struct itimerspec disarming_its, virtual_dl_timer_its;
 struct sigevent sev;
 int ret;
+
+int task_amount;
 
 bool FPTAS = false;
 
@@ -67,46 +70,287 @@ enum rt_gomp_clustering_launcher_error_codes
 Functions
 *************************************************************************************/
 
+
+std::string convertToRanges(const std::string& input) {
+    std::vector<int> numbers;
+    std::istringstream iss(input);
+    std::string token;
+    
+    // Parse input string into vector of integers
+    while (std::getline(iss, token, ',')) {
+        // Trim leading and trailing whitespace
+        token.erase(0, token.find_first_not_of(" \t"));
+        token.erase(token.find_last_not_of(" \t") + 1);
+        
+        // Skip empty tokens (handles multiple commas)
+        if (!token.empty()) {
+            numbers.push_back(std::stoi(token));
+        }
+    }
+    
+    if (numbers.empty()) return "";
+
+    // Sort the numbers in ascending order
+    std::sort(numbers.begin(), numbers.end());
+
+    std::ostringstream result;
+    int start = numbers[0], prev = numbers[0];
+    
+    for (size_t i = 1; i <= numbers.size(); ++i) {
+        if (i == numbers.size() || numbers[i] != prev + 1) {
+            if (start == prev) {
+                result << start;
+            } else {
+                result << start << "-" << prev;
+            }
+            
+            if (i < numbers.size()) {
+                result << ",";
+                start = numbers[i];
+            }
+        }
+        if (i < numbers.size()) prev = numbers[i];
+    }
+    
+    return result.str();
+}
+
+void modify_self(int new_mode, int task_index){
+
+	scheduler->get_schedule()->get_task(task_index)->set_current_mode(new_mode, true);
+	needs_scheduling = true;
+
+}
+
+
+void set_cooperative(bool value, int task_index){
+
+	scheduler->get_schedule()->get_task(task_index)->set_cooperative(value);
+
+}
+
 void scheduler_task()
 {
 	//stick this thread to CPU 0.	
-	cpu_set_t mask;
-	CPU_ZERO(&mask);
-	CPU_SET(0,&mask);
-	pthread_setaffinity_np(pthread_self(),sizeof(cpu_set_t),&mask);
-
-	//Make sure all tasks are ready. Wait at barrier.
-	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name)) != 0)
-	{
-		print_module::print(std::cerr, "ERROR: Barrier error for scheduling task.\n");
-		kill(0, SIGTERM);
-	}
 
 	//Constantly see if we need to reschedule until time is up.
 	//If we need to reschedule tasks, do it and then let them know. 
 	get_time(&cur_time);
+
+	//run first schedule
+	scheduler->do_schedule();
+
+	//run the collection code for each task
+	for (int task_index = 0; task_index < task_amount; task_index++){
+
+		//print task information
+		std::ostringstream task_info;
+		std::string task_header = "|  Task " + std::to_string(task_index) + " (PID: " + std::to_string(getpid()) + ") |\n";
+		size_t blank_size = task_header.size();
+
+		print_module::buffered_print(task_info, "\n", std::string(blank_size - 1, '='), "\n");
+		print_module::buffered_print(task_info, task_header);
+		print_module::buffered_print(task_info, std::string(blank_size - 1, '='), "\n\n");
+
+		//cpu info
+		print_module::buffered_print(task_info, "CPU Metrics: \n");
+		print_module::buffered_print(task_info, "	- Lowest CPU: ", scheduler->get_schedule()->get_task(task_index)->get_current_lowest_CPU(), "\n");
+		print_module::buffered_print(task_info, "	- Current CPUs: ", scheduler->get_schedule()->get_task(task_index)->get_current_CPUs(), "\n");
+		print_module::buffered_print(task_info, "	- Minimum CPUs: ", scheduler->get_schedule()->get_task(task_index)->get_min_CPUs(), "\n");
+		print_module::buffered_print(task_info, "	- Maximum CPUs: ", scheduler->get_schedule()->get_task(task_index)->get_max_CPUs(), "\n");
+		print_module::buffered_print(task_info, "	- Practical Max: ", scheduler->get_schedule()->get_task(task_index)->get_practical_max_CPUs(), "\n\n");
+
+		//gpu info
+		print_module::buffered_print(task_info, "GPU Metrics: \n");
+		print_module::buffered_print(task_info, "	- Lowest GPU: ", scheduler->get_schedule()->get_task(task_index)->get_current_lowest_GPU(), "\n");
+		print_module::buffered_print(task_info, "	- Current GPUs: ", scheduler->get_schedule()->get_task(task_index)->get_current_GPUs(), "\n");
+		print_module::buffered_print(task_info, "	- Minimum GPUs: ", scheduler->get_schedule()->get_task(task_index)->get_min_GPUs(), "\n");
+		print_module::buffered_print(task_info, "	- Maximum GPUs: ", scheduler->get_schedule()->get_task(task_index)->get_max_GPUs(), "\n");
+		print_module::buffered_print(task_info, "	- Practical Max: ", scheduler->get_schedule()->get_task(task_index)->get_practical_max_GPUs(), "\n\n");
+
+		//timing info
+		print_module::buffered_print(task_info, "Timing Metrics: \n");
+		print_module::buffered_print(task_info, "	- Period s: ", scheduler->get_schedule()->get_task(task_index)->get_current_period().tv_sec , " s\n");
+		print_module::buffered_print(task_info, "	- Period ns: ", scheduler->get_schedule()->get_task(task_index)->get_current_period().tv_nsec , " ns\n\n");
+
+		std::string active_cpu_string = "";
+		std::string passive_cpu_string = "";
+
+		//for CPUs that we MAY have at some point (practical max)
+		for (int j = 1; j < NUMCPUS; j++){
+
+			//Our first CPU is our permanent CPU 
+			if (j == scheduler->get_schedule()->get_task(task_index)->get_current_lowest_CPU()){
+			
+				cpu_set_t local_cpuset;
+				CPU_ZERO(&local_cpuset);
+				//CPU_SET(j, &local_cpuset);
+				CPU_SET(task_index + 1, &local_cpuset);
+
+				scheduler->get_schedule()->get_task(task_index)->set_permanent_CPU(j);
+
+			}
+			if (j >= scheduler->get_schedule()->get_task(task_index)->get_current_lowest_CPU() && j < scheduler->get_schedule()->get_task(task_index)->get_current_lowest_CPU() + scheduler->get_schedule()->get_task(task_index)->get_current_CPUs()){
+
+				active_cpu_string += std::to_string(j) + ", ";
+
+				scheduler->get_schedule()->get_task(task_index)->push_back_cpu(j);
+
+			}
+
+			else {
+
+				passive_cpu_string += std::to_string(j) + ", ";
+
+			}
 	
-	while(cur_time < end_time){
+		}
+
+		//print active vs passive CPUs
+		print_module::buffered_print(task_info, "CPU Core Configuration: \n");
+		print_module::buffered_print(task_info, "	- Active: ", convertToRanges(active_cpu_string), "\n");
+		print_module::buffered_print(task_info, "	- Passive: ", convertToRanges(passive_cpu_string), "\n\n");
+
+		//flush all task info to terminal
+		print_module::flush(std::cerr, task_info);
+
+	}
+
+	//vector to hold the iterations completed by each task
+	std::vector<int> iterations_complete(task_amount, 0);
+	
+	while(iterations_complete.at(0) < 1000){
+
+		//loop over all tasks in the schedule
+		//and if they have cores to gain or give,
+		//do so, since this is a simulation, no deadlocks
+		//can actually form
+		for (int task_index = 0; task_index < task_amount; task_index++){
+
+			//we check to see if we are just returning resources, returning and gaining, or just gaining
+			int cpu_change = scheduler->get_schedule()->get_task(task_index)->get_CPUs_change();
+			int gpu_change = scheduler->get_schedule()->get_task(task_index)->get_GPUs_change();
+
+			//giving cpus
+			if (cpu_change > 0){
+
+				//give up resources immediately and mark our transition
+				for (int i = 0; i < cpu_change; i++){
+					
+					//remove CPUs from our set until we have given up the correct number
+					scheduler->get_schedule()->get_task(task_index)->pop_back_cpu();
+
+				}
+
+			}
+
+			//giving gpus
+			if (gpu_change > 0){
+
+				//give up resources immediately and mark our transition
+				for (int i = 0; i < gpu_change; i++){
+					
+					//remove GPUs from our set until we have given up the correct number
+					scheduler->get_schedule()->get_task(task_index)->pop_back_gpu();
+
+				}
+
+			}
+
+			//granted resources
+			auto cpus = scheduler->get_schedule()->get_task(task_index)->get_cpus_granted_from_other_tasks();
+			auto gpus = scheduler->get_schedule()->get_task(task_index)->get_gpus_granted_from_other_tasks();
+
+			//gaining cpus
+			if (cpus.size() != 0){
+
+				//collect our CPUs
+				std::vector<int> core_indices;
+
+				for (size_t i = 0; i < cpus.size(); i++)
+					for (size_t j = 0; j < cpus.at(i).second.size(); j++)
+						core_indices.push_back(cpus.at(i).second.at(j));
+				
+				//wake up the corresponding cores
+				for (size_t i = 0; i < core_indices.size(); i++){
+
+					//add them to our set
+					scheduler->get_schedule()->get_task(task_index)->push_back_cpu(core_indices.at(i));
+
+				}
+				
+			}
+
+			//gaining gpus
+			if (gpus.size() != 0){
+
+				//collect our GPUs
+				std::vector<int> tpc_indices;
+
+				for (size_t i = 0; i < gpus.size(); i++)
+					for (size_t j = 0; j < gpus.at(i).second.size(); j++)
+						tpc_indices.push_back(gpus.at(i).second.at(j));
+				
+				//wake up the corresponding SMs
+				for (size_t i = 0; i < tpc_indices.size(); i++){
+
+					//add them to our set
+					scheduler->get_schedule()->get_task(task_index)->push_back_gpu(tpc_indices.at(i));
+
+				}
+
+			}
+
+			//clear our allocation amounts
+			scheduler->get_schedule()->get_task(task_index)->clear_cpus_granted_from_other_tasks();
+			scheduler->get_schedule()->get_task(task_index)->clear_gpus_granted_from_other_tasks();
+
+			//clear our change amount as well
+			scheduler->get_schedule()->get_task(task_index)->set_CPUs_change(0);
+			scheduler->get_schedule()->get_task(task_index)->set_GPUs_change(0);
+
+			//update our cpu mask
+			auto current_cpu_mask = scheduler->get_schedule()->get_task(task_index)->get_cpu_mask();
+
+			print_module::task_print(std::cerr, (unsigned long long) current_cpu_mask, "\n");
+
+		}
+
+		//for each task present, simulate their execution
+		for (int task_index = 0; task_index < scheduler->get_num_tasks(); task_index++){
+
+			if (task_index < 3)
+				set_cooperative(false, task_index);
+
+			std::vector<int> intervals = {3, 5, 7};
+
+			std::bitset<128> thread_mask(scheduler->get_schedule()->get_task(task_index)->get_cpu_mask());
+
+			int count = 0;
+
+			// Wake up the correct threads
+			for (size_t i = 1; i < 128; ++i)
+				if (thread_mask[i])
+					count ++;
+
+			std::cout << "TEST: [" << task_index << "," << iterations_complete.at(task_index) << "] core count: " << count << std::endl;
+
+			iterations_complete.at(task_index)++;
+
+			if (task_index < 3)
+					if (iterations_complete.at(task_index) % intervals.at(task_index) == 0 && iterations_complete.at(task_index) % 2 == 1)
+						modify_self(1, task_index);
+
+			if (task_index < 3)
+					if (iterations_complete.at(task_index) % intervals.at(task_index) == 0 && iterations_complete.at(task_index) % 2 == 0)
+						modify_self(3, task_index);
+		}
 
 		if(needs_scheduling)
 		{
+
 			scheduler->do_schedule();
 			needs_scheduling = false;
-			killpg(process_group, SIGRTMIN+1);
-
-			//wait for all tasks to actually finish rescheduling
-			for (int i = 0; i < scheduler->get_num_tasks(); i++){
-
-				while(scheduler->get_schedule()->get_task(i)->check_mode_transition() == false){
-
-					get_time(&cur_time);
-					
-					if (cur_time > end_time)
-						break;
-
-				}
-		
-			}
 		
 		}
 
@@ -121,9 +365,9 @@ void force_cleanup() {
 	process_barrier::destroy_barrier(barrier_name);
 	process_barrier::destroy_barrier(barrier_name2);
 
-	if (explicit_sync) {
+	//if (explicit_sync) {
 		process_barrier::destroy_barrier("EX_SYNC");
-	}
+	//}
 
 	kill(0, SIGKILL);
 	delete scheduler;
@@ -139,7 +383,7 @@ void exit_user_request(int sig) {
 void exit_from_child(int sig){
 	print_module::print(std::cerr, "Signal captured from child. Schedule cannot continue. Exiting.\n");
 	force_cleanup();
-	exit(-1);
+	exit(0);
 }
 
 void sigrt0_handler( int signum ){
@@ -400,47 +644,6 @@ int main(int argc, char *argv[])
 	//(retain CPU 0 for the scheduler)
 	scheduler = new Scheduler(parsed_tasks.size(),(int) NUMCPUS, explicit_sync, FPTAS);
 
-	//warn if set higher than real cpu amount
-	if (NUMCPUS > std::thread::hardware_concurrency()){
-	
-		print_module::print(std::cerr, "\n\nMORE CPUS ARE BEING USED THAN ACTUALLY EXIST. WHILE THIS IS ALLOWED FOR TESTING PURPOSES, IT IS NOT RECOMMENDED. YOUR EXECUTION WILL BE HALTED FOR 2 SECONDS TO MAKE SURE YOU SEE THIS!!!\n\n");
-	
-		sleep(3);
-
-	}
-
-	//if explicit sync is enabled, we need to create a barrier to synchronize the tasks after creation
-	if (explicit_sync)
-	{
-		if (process_barrier::create_process_barrier("EX_SYNC", parsed_tasks.size()) == nullptr)
-		{
-			print_module::print(std::cerr, "ERROR: Failed to initialize barrier.\n");
-			return RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR;
-		}
-	}
-
-
-	//Initialize two barriers to synchronize the tasks after creation
-	if (process_barrier::create_process_barrier(barrier_name, parsed_tasks.size() + 1) == nullptr || 
-		process_barrier::create_process_barrier(barrier_name2, parsed_tasks.size() + 1) == nullptr)
-	{
-		print_module::print(std::cerr, "ERROR: Failed to initialize barrier.\n");
-		return RT_GOMP_CLUSTERING_LAUNCHER_BARRIER_INITIALIZATION_ERROR;
-	}
-
-	//gather all time monitoring variables, and 
-	//add 5 seconds to start time so all tasks have 
-	//enough time to finish their init() stages.
-	get_time(&current_time);
-	run_time={sec_to_run, nsec_to_run};
-	start_time.tv_sec = current_time.tv_sec + 8;
-	start_time.tv_nsec = current_time.tv_nsec;
-	end_time = start_time + run_time;
-
-	print_module::print(std::cerr, "Explicit Sync: ", explicit_sync, "\n");
-
-	// Iterate over the tasks, gather their arguments, timing parameters, and name 
-	// and then fork and execv each one
 	for (unsigned t = 0; t < parsed_tasks.size(); ++t)
 	{
 		struct parsed_task_info task_info = parsed_tasks[t];
@@ -489,8 +692,8 @@ int main(int argc, char *argv[])
 
 		//Insert the task data into shared memory
 		TaskData * td;
-    
-    //FIXME: GPU INFO JUST USES THE CPU PORTION OF THE INFO. REPLACE WITH REAL INFORMATION
+	
+		//FIXME: GPU INFO JUST USES THE CPU PORTION OF THE INFO. REPLACE WITH REAL INFORMATION
 		td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), gpu_work.data(), gpu_span.data(), gpu_period.data());
 		task_manager_argvector.push_back(std::to_string(td->get_index()));
 		
@@ -512,40 +715,9 @@ int main(int argc, char *argv[])
 			task_manager_argv.push_back(i->c_str());
 		}
 		
-		//Null terminate the task manager arg vector as a sentinel
-		task_manager_argv.push_back(NULL);	
-		print_module::print(std::cerr, "Forking and execv-ing task " , task_info.program_name.c_str() , "\n");
-		
-		// Fork and execv the task program
-		pid_t pid = fork();
-		if (pid == 0)
-		{
-			// Const cast is necessary for type compatibility. Since the strings are
-			// not shared, there is no danger in removing the const modifier.
-			execv(task_info.program_name.c_str(), const_cast<char **>(&task_manager_argv[0]));
-			
-			// Error if execv returns
-			std::perror("Execv-ing a new task failed.\n");
-			kill(0, SIGTERM);
-			return RT_GOMP_CLUSTERING_LAUNCHER_FORK_EXECV_ERROR;
-		
-		}
-		else if (pid == -1)
-		{
-			std::perror("Forking a new process for task failed,\n");
-			kill(0, SIGTERM);
-			return RT_GOMP_CLUSTERING_LAUNCHER_FORK_EXECV_ERROR;
-		}	
 	}
 
-	//tell scheduler to calculate schedule for tasks
-	scheduler->do_schedule();
-	
-	if (process_barrier::await_and_destroy_barrier(barrier_name2.c_str()) != 0)
-	{
-		print_module::print(std::cerr, "ERROR: Barrier error for scheduling task \n");
-		kill(0, SIGTERM);
-	}
+	task_amount = parsed_tasks.size();
 
 	std::thread t(scheduler_task);
 	
@@ -561,10 +733,6 @@ int main(int argc, char *argv[])
 
 	print_module::print(std::cerr, "All tasks finished.\n");
 
-	if (explicit_sync) {
-		process_barrier::destroy_barrier("EX_SYNC");
-	}
-	
 	delete scheduler;
 	
 	return 0;
