@@ -21,7 +21,7 @@ endif
 ifeq ($(HAS_NVCC),true)
     CC := nvcc
     FLAGS := $(COMMON_FLAGS) -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -lcuda -lcudart
-    LIBS := $(COMMON_LIBS) -Xcompiler -fopenmp
+    LIBS := $(COMMON_LIBS) -Xcompiler -fopenmp -L./omp_module -Xlinker -rpath,./omp_module
     ifneq (,$(X86_64_ARCH))
         FLAGS += -Xcompiler $(ARCH_FLAGS)
     endif

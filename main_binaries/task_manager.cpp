@@ -608,7 +608,6 @@ int main(int argc, char *argv[])
 		
 	//update our gpu mask
 	current_gpu_mask = schedule.get_task(task_index)->get_gpu_mask();
-	task.update_core_B(current_gpu_mask);
 
 	// Initialize the task
 	if (schedule.get_task(task_index) && task.init != NULL){
@@ -622,6 +621,9 @@ int main(int argc, char *argv[])
 		}
 
 	}
+
+	//call the core B update
+	task.update_core_B(current_gpu_mask);
 	
 	// Wait at barrier for the other tasks
 	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name)) != 0){
