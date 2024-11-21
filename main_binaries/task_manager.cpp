@@ -210,7 +210,7 @@ void set_active_threads(std::vector<int> thread_ids){
     }
     
     //add the thread indices we want to see run
-    for (int i = 0; i < thread_ids.size(); i++) 
+    for (int i = 0; i < (int) thread_ids.size(); i++) 
         shared_array[i + 1] = thread_ids.at(i);
 }
 

@@ -114,13 +114,13 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 	//if system has barrier, just do it lazily
 	if (barrier){
 
-		for (int consumer_id = 0; consumer_id < nodes.size(); consumer_id++){
+		for (int consumer_id = 0; consumer_id < (int) nodes.size(); consumer_id++){
 
 			Node& consumer = nodes[consumer_id];
 			int needed_x = -consumer.x;
 			int needed_y = -consumer.y;
 			
-			for (int provider_id = 0; provider_id < nodes.size(); provider_id++) {
+			for (int provider_id = 0; provider_id < (int) nodes.size(); provider_id++) {
 
 				if (provider_id == consumer_id) continue;
 				
@@ -180,7 +180,7 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 	discovered_providers.push_back(nodes.size() - 1);
 
 	//loop and discover all nodes and fix transformers
-	for (int i = 0; i < nodes.size() - 1; i++){
+	for (int i = 0; i < (int) nodes.size() - 1; i++){
 
 		Node& node = nodes[i];
 
@@ -388,11 +388,11 @@ void Scheduler::do_schedule(size_t maxCPU){
 	double dp_two[N + 1][maxCPU + 1][NUMGPUS + 1][3];
 	int solutions[num_tasks + 1][maxCPU + 1][NUMGPUS + 1][num_tasks];
 
-	for(int i = 0; i <= num_tasks; i++) {
+	for(int i = 0; i <= (int) num_tasks; i++) {
 
-		for(int j = 0; j <= maxCPU; j++) {
+		for(int j = 0; j <= (int) maxCPU; j++) {
 
-			for(int k = 0; k <= NUMGPUS; k++) {
+			for(int k = 0; k <= (int) NUMGPUS; k++) {
 
 				dp_two[i][j][k][0] = 100000;
 				dp_two[i][j][k][1] = starting_CPUs;
@@ -448,11 +448,11 @@ void Scheduler::do_schedule(size_t maxCPU){
 	if (!FPTAS){
 
 		//Execute exact solution
-		for (size_t i = 1; i <= num_tasks; i++) {
+		for (int i = 1; i <= (int) num_tasks; i++) {
 
-			for (size_t w = 0; w <= maxCPU; w++) {
+			for (int w = 0; w <= (int) maxCPU; w++) {
 
-				for (size_t v = 0; v <= NUMGPUS; v++) {
+				for (int v = 0; v <= (int) NUMGPUS; v++) {
 
 					//invalid state
 					dp_two[i][w][v][0] = -1.0;
@@ -597,8 +597,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 							bool pessemism = false;
 							bool refresh_pool = false;
 
-							bool unsafe = false;
-
 							//if this item is feasible at all 
 							if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)){
 
@@ -620,8 +618,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 									//check if this mode could cause a cycle
 									if ((cpu_change < 0 && sm_change > 0) || (sm_change < 0 && cpu_change > 0)){
-
-										unsafe	= true;
 
 										returned_cpus_two -= cpu_change;
 										returned_gpus_two -= sm_change;
@@ -968,14 +964,15 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	if (!FPTAS){
 
-		for (int i = 0; i < num_tasks; i++) result.push_back(solutions[N][maxCPU][NUMGPUS][i]);
+		for (int i = 0; i < (int) num_tasks; i++) result.push_back(solutions[N][maxCPU][NUMGPUS][i]);
 		loss = 100000 - dp_two[N][maxCPU][NUMGPUS][0];
+
 	}
 
 	else{
 		result = best_solution;
 		
-		for (int i = 0; i < result.size(); i++)
+		for (int i = 0; i < (int) result.size(); i++)
 			loss += task_table.at(i).at(result.at(i)).cpuLoss;
 	}
 
@@ -999,7 +996,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 	//deal with pessemism negatives
 	auto backup = result;
 
-	for (int i = 0; i < result.size(); i++)
+	for (int i = 0; i < (int) result.size(); i++)
+
 		if (result.at(i) < 0){
 
 			if (result.at(i) == -100)
@@ -1379,7 +1377,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 					if ((previous_mode.cores - current_mode.cores) > CPUs_given_up){
 
 					
-						if (((previous_mode.cores - current_mode.cores) - CPUs_given_up) > task_owned_cpus.size()){
+						if (((previous_mode.cores - current_mode.cores) - CPUs_given_up) > (int) task_owned_cpus.size()){
 
 							print_module::print(std::cerr, "Error: not enough CPUs to give to free pool from task ", id, ". size gotten: ", task_owned_cpus.size(), " expected: ", ((previous_mode.cores - current_mode.cores) - CPUs_given_up), ". Exiting.\n");
 							killpg(process_group, SIGINT);
@@ -1401,7 +1399,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 					if ((previous_mode.sms - current_mode.sms) > GPUs_given_up){
 
 					
-						if (((previous_mode.sms - current_mode.sms) - GPUs_given_up) > task_owned_gpus.size()){
+						if (((previous_mode.sms - current_mode.sms) - GPUs_given_up) > (int) task_owned_gpus.size()){
 
 							print_module::print(std::cerr, "Error: not enough GPUs to give to free pool from task ", id, ". size gotten: ", task_owned_gpus.size(), " expected: ", ((previous_mode.sms - current_mode.sms) - GPUs_given_up), ". Exiting.\n");
 							killpg(process_group, SIGINT);

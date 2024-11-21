@@ -184,7 +184,7 @@ static std::string color(std::string combine, std::vector<int> sm_assignment, in
     if (last_color_used != nullptr)
         current_task_selection = (*last_color_used != -1) ? *last_color_used : 0;
 
-    for (int i = 0; i < combine.length(); i++){
+    for (int i = 0; i < (int) combine.length(); i++){
 
         //make the needed colors
         final_string += map_to_color(sm_assignment[current_task_selection] + 1) + combine[i] + "\x1b[0m";
@@ -732,7 +732,7 @@ void visualize_sm_partitions_interprocess(partition_unit programming_model_type,
     CUDA_NEW_SAFE_CALL(cudaMemcpy(device_sm_map, sm_map, streams.size() * deviceProp.multiProcessorCount * sizeof(int), cudaMemcpyHostToDevice));
 
     //now loop over each context stream set and launch the mapping kernel
-    for (int i = 0; i < streams.size(); i++){
+    for (int i = 0; i < (int) streams.size(); i++){
 
         //set context
         CUcontext old;
@@ -755,7 +755,7 @@ void visualize_sm_partitions_interprocess(partition_unit programming_model_type,
 
     //add our results
     for (int i = 0; i < deviceProp.multiProcessorCount; i++){
-      for (int j = 0; j < streams.size(); j++){
+      for (int j = 0; j < (int) streams.size(); j++){
         shared_array[(my_process_id * streams.size()) + (expected_processes * streams.size() * i) + j] = sm_map[(i * streams.size()) + j];
       }
     }

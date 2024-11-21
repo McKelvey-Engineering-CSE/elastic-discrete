@@ -89,7 +89,7 @@ int init(int argc, char *argv[])
        return -2;
    }
 
-    if (task_index == 1)
+    if (task_index == 2)
         set_cooperative(false);
 
    return 0;       
@@ -116,12 +116,12 @@ int run(int argc, char *argv[]){
 
     iterations_complete++;
 
-    if (task_index == 1 && iterations_complete % 5 == 0 && iterations_complete % 2 == 1) {
+    if (task_index == 2 && iterations_complete % 5 == 0 && iterations_complete % 2 == 1) {
         synth_current_mode = (synth_current_mode + 1) % mode_count;
         modify_self(1);
     }
 
-    if (task_index == 1 && iterations_complete % 5 == 0 && iterations_complete % 2 == 0) {
+    if (task_index == 2 && iterations_complete % 5 == 0 && iterations_complete % 2 == 0) {
         synth_current_mode = (synth_current_mode + 1) % mode_count;
         modify_self(3);
     }
