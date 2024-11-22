@@ -133,7 +133,7 @@ int* shared_array = NULL;
 int shm_fd = -1;
 
 std::mutex con_mut;
-Schedule schedule(std::string("EFSschedule"));
+Schedule schedule(std::string("EFS"), false);
 
 //has pthread_t at omp_thread index
 std::vector<pthread_t> threads;

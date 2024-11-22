@@ -91,10 +91,10 @@ process_barrier.o: ./barrier_module/process_barrier.cpp generic_barrier.o
 thread_barrier.o: ./barrier_module/thread_barrier.cpp generic_barrier.o process_barrier.o
 	$(CC) $(FLAGS) -c $<
 
-synthetic_task: ./task_module/synthetic_task.cpp shared_mem.o task.o task_manager.o print_library.o $(BARRIER_OBJECTS) schedule.o taskData.o timespec_functions.o
+synthetic_task: ./task_module/synthetic_task.cpp task.o task_manager.o print_library.o $(BARRIER_OBJECTS) schedule.o taskData.o timespec_functions.o
 	$(CC) $(FLAGS) $^ -o $@ $(LIBS)
 
-clustering_distribution: libclustering.a shared_mem.o schedule.o scheduler.o task.o taskData.o task_manager.o thread_barrier.o print_library.o clustering_launcher synthetic_task james
+clustering_distribution: libclustering.a schedule.o scheduler.o task.o taskData.o task_manager.o thread_barrier.o print_library.o clustering_launcher synthetic_task james
 
 libclustering.a: $(CLUSTERING_OBJECTS)
 	ar rcsf $@ $^
@@ -107,9 +107,6 @@ scheduler.o: ./scheduler_module/scheduler.cpp timespec_functions.o
 	$(CC) $(FLAGS) -c $<
 
 schedule.o: ./scheduler_module/schedule.cpp timespec_functions.o
-	$(CC) $(FLAGS) -c $<
-
-shared_mem.o: ./shared_memory_module/shared_mem.cpp
 	$(CC) $(FLAGS) -c $<
 
 taskData_real.o: ./task_module/taskData.cpp timespec_functions.o
@@ -132,10 +129,10 @@ print_buffer.o: ./printing_module/print_buffer.cpp timespec_functions.o
 	cd libyaml-cpp && mkdir -p build && cd build && cmake .. && make
 
 clustering_launcher: ./main_binaries/clustering_launcher.cpp ./libyaml-cpp/build/libyaml-cpp.a
-	$(CC) $(FLAGS) $(HEADERS_WITH_YAML) timespec_functions.o taskData.o schedule.o scheduler.o shared_mem.o $(BARRIER_OBJECTS) ./main_binaries/clustering_launcher.cpp -o clustering_launcher $(LIBS)
+	$(CC) $(FLAGS) $(HEADERS_WITH_YAML) timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS) ./main_binaries/clustering_launcher.cpp -o clustering_launcher $(LIBS)
 
 james-bin: ./target_task/james.cpp
 	$(CC) $(FLAGS) $(NVCC_OVERRIDE) ./target_task/james.cpp -c $< $(LIBS)
 
 james: james-bin task_manager.o
-	$(CC) $(FLAGS) james.o timespec_functions.o shared_mem.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o $(BARRIER_OBJECTS) -o james $(LIBS)
+	$(CC) $(FLAGS) james.o timespec_functions.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o $(BARRIER_OBJECTS) -o james $(LIBS)
