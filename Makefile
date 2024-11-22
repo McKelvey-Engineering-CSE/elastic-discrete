@@ -7,6 +7,9 @@ HAS_NVCC := $(if $(filter nvcc,$(NVCC)),true,false)
 COMMON_FLAGS := -std=c++20 -O0 -I. -g
 COMMON_LIBS := -lrt -lm -L./libyaml-cpp/build/ -lyaml-cpp
 
+# Omp library control
+OMP_LIB := -DOMP_OVERRIDE
+
 # Include directories
 HEADERS := $(addprefix -I ,$(shell find . -type d -not -path "*/\.*" | grep -v yaml))
 HEADERS_WITH_YAML := $(addprefix -I ,$(shell find . -type d -not -path "*/\.*"))
@@ -19,7 +22,7 @@ endif
 
 # Compiler-specific settings
 ifeq ($(HAS_NVCC),true)
-    CC := nvcc
+    CC := nvcc $(OMP_LIB)
     FLAGS := $(COMMON_FLAGS) -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -lcuda -lcudart
     LIBS := $(COMMON_LIBS) -Xcompiler -fopenmp -L./omp_module -Xlinker -rpath,./omp_module
 	NVCC_OVERRIDE := --x=cu
@@ -27,7 +30,7 @@ ifeq ($(HAS_NVCC),true)
         FLAGS += -Xcompiler $(ARCH_FLAGS)
     endif
 else
-    CC := g++
+    CC := g++ $(OMP_LIB)
     FLAGS := $(COMMON_FLAGS) $(HEADERS) -Wall -gdwarf-3
     LIBS := $(COMMON_LIBS) -fopenmp -L./omp_module -Wl,-rpath,./omp_module
     ifneq (,$(X86_64_ARCH))

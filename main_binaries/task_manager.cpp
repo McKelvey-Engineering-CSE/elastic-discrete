@@ -31,6 +31,14 @@
 #include <map>
 #include "print_module.h"
 
+#ifdef OMP_OVERRIDE
+
+	#include "omp_replacement.hpp"
+
+	ThreadPool<> omp(NUMCPUS);
+
+#endif
+
 #include <chrono>
 using namespace std::chrono;
 
@@ -353,7 +361,12 @@ void reschedule(){
 
 	//update our cpu mask
 	current_cpu_mask = schedule.get_task(task_index)->get_cpu_mask();
-	set_active_threads(schedule.get_task(task_index)->get_cpu_owned_by_process());
+
+	#ifdef OMP_OVERRIDE
+		omp.set_override_mask(current_cpu_mask);
+	#else
+		set_active_threads(schedule.get_task(task_index)->get_cpu_owned_by_process());
+	#endif
 		
 	//update our gpu mask
 	current_gpu_mask = schedule.get_task(task_index)->get_gpu_mask();
@@ -525,19 +538,39 @@ int main(int argc, char *argv[])
 
 	practical_max_cpus = schedule.get_task(task_index)->get_practical_max_CPUs();
 	
-	omp_set_num_threads(NUMCPUS);
+	#ifndef OMP_OVERRIDE
+		omp_set_num_threads(NUMCPUS);
+	#endif
 
-	#pragma omp parallel
-	{
+	#ifdef OMP_OVERRIDE
 
-		//set the affinity
-		cpu_set_t local_cpuset;
-		CPU_ZERO(&local_cpuset);
-		CPU_SET(omp_get_thread_num(), &local_cpuset);
+		omp(pragma_omp_parallel 
+		{
 
-		pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &local_cpuset);
+			//set the affinity
+			cpu_set_t local_cpuset;
+			CPU_ZERO(&local_cpuset);
+			CPU_SET(thread_id, &local_cpuset);
 
-	}
+			pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &local_cpuset);
+
+		});
+
+	#else 
+
+		#pragma omp parallel
+		{
+
+			//set the affinity
+			cpu_set_t local_cpuset;
+			CPU_ZERO(&local_cpuset);
+			CPU_SET(omp_get_thread_num(), &local_cpuset);
+
+			pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &local_cpuset);
+
+		}
+
+	#endif
 
 	//Determine which threads are active and passive. Pin, etc.
 	std::string active_cpu_string = "";
@@ -557,6 +590,10 @@ int main(int argc, char *argv[])
 			pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &local_cpuset);
 		
 			schedule.get_task(task_index)->set_permanent_CPU(j);
+
+			#ifdef OMP_OVERRIDE
+				omp.set_perm_cpu(j);
+			#endif
 
 		}
 		if (j >= schedule.get_task(task_index)->get_current_lowest_CPU() && j < schedule.get_task(task_index)->get_current_lowest_CPU() + schedule.get_task(task_index)->get_current_CPUs()){
@@ -604,7 +641,12 @@ int main(int argc, char *argv[])
 
 	//set the omp thread limit and mask
 	omp_set_num_threads(schedule.get_task(task_index)->get_current_CPUs());
-	set_active_threads(schedule.get_task(task_index)->get_cpu_owned_by_process());
+
+	#ifdef OMP_OVERRIDE
+		omp.set_override_mask(current_cpu_mask);
+	#else
+		set_active_threads(schedule.get_task(task_index)->get_cpu_owned_by_process());
+	#endif
 		
 	//update our gpu mask
 	current_gpu_mask = schedule.get_task(task_index)->get_gpu_mask();

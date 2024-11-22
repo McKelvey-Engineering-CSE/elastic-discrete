@@ -21,7 +21,6 @@ int iterations_complete = 0;
 
 extern int task_index;
 
-
 #ifdef __NVCC__
 
    #include "libsmctrl.h"
@@ -89,7 +88,7 @@ int init(int argc, char *argv[])
        return -2;
    }
 
-    if (task_index == 2)
+    if (task_index < 3)
         set_cooperative(false);
 
    return 0;       
@@ -99,29 +98,44 @@ int run(int argc, char *argv[]){
 
     std::atomic<int> count = 0;
 
-    #pragma omp parallel
-    {
+    #ifdef OMP_OVERRIDE
 
-        pm::task_print(std::cerr, "Thread ", omp_get_thread_num(), " on core ", sched_getcpu(), " of ", omp_get_num_threads(), " threads\n");
+        omp( pragma_omp_parallel
+        {
 
-        count++;
+            pm::task_print(std::cerr, "ompish Thread ", thread_id, " on core ", sched_getcpu(), " of ", team_dim, " threads\n");
 
-        busy_work(spin_tv);
-        
-    }
+            count++;
 
-    std::cout << "TEST: [" << task_index << "," << iterations_complete << "] core count: " << count << std::endl;
+            busy_work(spin_tv);
+            
+        });
+
+    #else
+
+        #pragma omp parallel
+        {
+
+            pm::task_print(std::cerr, "omp Thread ", omp_get_thread_num(), " on core ", sched_getcpu(), " of ", omp_get_num_threads(), " threads\n");
+
+            count++;
+
+            busy_work(spin_tv);
+            
+        }
+
+    #endif
 
     pm::task_print(std::cout, "TEST: [", task_index, ",", iterations_complete, "] core count: ", count, "\n");
 
     iterations_complete++;
 
-    if (task_index == 2 && iterations_complete % 5 == 0 && iterations_complete % 2 == 1) {
+    if (task_index < 3 && iterations_complete % 5 == 0 && iterations_complete % 2 == 1) {
         synth_current_mode = (synth_current_mode + 1) % mode_count;
         modify_self(1);
     }
 
-    if (task_index == 2 && iterations_complete % 5 == 0 && iterations_complete % 2 == 0) {
+    if (task_index < 3 && iterations_complete % 5 == 0 && iterations_complete % 2 == 0) {
         synth_current_mode = (synth_current_mode + 1) % mode_count;
         modify_self(3);
     }

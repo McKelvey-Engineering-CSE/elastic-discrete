@@ -30,6 +30,14 @@ Struct : task_t
 extern FILE * fd;
 #endif
 
+#ifdef OMP_OVERRIDE
+
+	#include "omp_replacement.hpp"
+
+	extern ThreadPool<> omp;
+
+#endif
+
 // Task struct type used by task_manager.cpp to control a task.
 typedef struct
 {
