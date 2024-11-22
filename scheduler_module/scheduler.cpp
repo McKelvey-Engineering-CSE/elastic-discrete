@@ -980,8 +980,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 	if ((result.size() == 0 || loss == 100001) && first_time){
 
 		print_module::print(std::cerr, "Error: System is not schedulable in any configuration. Exiting.\n");
-		setTermination();
-		exit(10);
+		killpg(process_group, SIGINT);
+		return;
 
 	}
 	
@@ -1042,7 +1042,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 			if ((schedule.get_task(i))->get_current_lowest_CPU() > 0){
 
 				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest CPU cleared. (this likely means memory was not cleaned up)\n");
-				killpg(process_group, SIGKILL);
+				killpg(process_group, SIGINT);
                 return;
 
 			}
@@ -1053,7 +1053,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 			if (next_CPU > num_CPUs + 1){
 
 				print_module::print(std::cerr, "Error in task ", i, ": too many CPUs have been allocated.", next_CPU, " ", num_CPUs, " \n");
-				killpg(process_group, SIGKILL);
+				killpg(process_group, SIGINT);
 				return;
 
 			}		
@@ -1076,7 +1076,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 			if ((schedule.get_task(i))->get_current_lowest_GPU() > 0){
 
 				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest GPU cleared. (this likely means memory was not cleaned up)\n");
-				killpg(process_group, SIGKILL);
+				killpg(process_group, SIGINT);
 				return;
 
 			}
@@ -1092,7 +1092,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 				if (next_TPC > (int)(NUMGPUS) + 1){
 
 					print_module::print(std::cerr, "Error in task ", i, ": too many GPUs have been allocated.", next_TPC, " ", NUMGPUS, " \n");
-					killpg(process_group, SIGKILL);
+					killpg(process_group, SIGINT);
 					return;
 
 				}
