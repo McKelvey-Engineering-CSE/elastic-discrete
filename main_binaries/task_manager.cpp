@@ -372,7 +372,13 @@ void reschedule(){
 	current_gpu_mask = schedule.get_task(task_index)->get_gpu_mask();
 	task.update_core_B(current_gpu_mask);
 
-	print_module::task_print(std::cerr, (unsigned long long) current_cpu_mask, "\n");
+	//easier viewing. make sure to remove this later
+	std::bitset<128> cpu_mask(current_cpu_mask);
+	std::string cpu_mask_string = "";
+	for (int i = 0 ; i < 128; i++)
+		cpu_mask_string += cpu_mask.test(i) ? std::to_string(i) + " " : "";
+
+	print_module::task_print(std::cerr, task_index, ": ", cpu_mask_string, "\n");
 
 	//sync all threads
 	bar.mc_bar_reinit(schedule.get_task(task_index)->get_current_CPUs());	
@@ -482,7 +488,7 @@ int main(int argc, char *argv[])
 	char **task_argv = &argv[10];
 
 	//Wait at barrier for the other tasks but mainly to make sure scheduler has finished
-	if ((ret_val = process_barrier::await_and_destroy_barrier("BAR_2")) != 0){
+	if ((ret_val = process_barrier::await_and_rearm_barrier("BAR_2")) != 0){
 
 		print_module::print(std::cerr,  "ERROR: Barrier error for task " , task_name , "\n");
 		kill(0, SIGTERM);
@@ -668,7 +674,7 @@ int main(int argc, char *argv[])
 	task.update_core_B(current_gpu_mask);
 	
 	// Wait at barrier for the other tasks
-	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name)) != 0){
+	if ((ret_val = process_barrier::await_and_rearm_barrier(barrier_name)) != 0){
 
 		print_module::print(std::cerr, "ERROR: Barrier error for task ", task_name, "\n");
 		kill(0, SIGTERM);

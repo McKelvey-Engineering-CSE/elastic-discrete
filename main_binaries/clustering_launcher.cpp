@@ -76,7 +76,7 @@ void scheduler_task()
 	pthread_setaffinity_np(pthread_self(),sizeof(cpu_set_t),&mask);
 
 	//Make sure all tasks are ready. Wait at barrier.
-	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name)) != 0)
+	if ((ret_val = process_barrier::await_and_rearm_barrier(barrier_name)) != 0)
 	{
 		print_module::print(std::cerr, "ERROR: Barrier error for scheduling task.\n");
 		kill(0, SIGTERM);
@@ -126,7 +126,7 @@ void force_cleanup() {
 	}
 
 	kill(0, SIGKILL);
-	delete scheduler;
+	//delete scheduler;
 }
 
 // User requested to exit
@@ -541,7 +541,7 @@ int main(int argc, char *argv[])
 	//tell scheduler to calculate schedule for tasks
 	scheduler->do_schedule();
 	
-	if (process_barrier::await_and_destroy_barrier(barrier_name2.c_str()) != 0)
+	if (process_barrier::await_and_rearm_barrier(barrier_name2.c_str()) != 0)
 	{
 		print_module::print(std::cerr, "ERROR: Barrier error for scheduling task \n");
 		kill(0, SIGTERM);
@@ -565,7 +565,9 @@ int main(int argc, char *argv[])
 		process_barrier::destroy_barrier("EX_SYNC");
 	}
 	
-	delete scheduler;
+	scheduler->setTermination();
+	process_barrier::destroy_barrier(barrier_name);
+	process_barrier::destroy_barrier(barrier_name2);
 	
 	return 0;
 }
