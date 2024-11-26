@@ -21,12 +21,15 @@ private:
     std::function<T> task;
     std::vector<std::mutex> queue_mutex;
     std::vector<std::condition_variable> condition;
-    std::vector<bool> completed;
+    std::vector<std::atomic<bool>> completed;  // Changed to atomic
     std::vector<int> dimension;
     std::vector<int> rank;
     std::atomic<bool> stop;
     std::atomic<int> threadIDs{1};
     std::atomic<int> threads_ready{1};
+    std::atomic<int> active_thread_count{0};  // Added counter for active threads
+    std::condition_variable completion_cv;     // Added for completion synchronization
+    std::mutex completion_mutex;               // Mutex for completion synchronization
     size_t permanent_cpu = 0;
     __uint128_t global_override_mask = ~(__uint128_t)0;
     unsigned long long job_id = 0;
@@ -35,12 +38,17 @@ public:
     explicit ThreadPool(int threads) : 
         queue_mutex(MAX_THREADS),
         condition(MAX_THREADS),
-        completed(MAX_THREADS, true),  // Initialize as true
+        completed(MAX_THREADS),  // Initialize atomic vector
         dimension(MAX_THREADS),
         rank(MAX_THREADS),
         stop(false) {
         
         assert(threads <= MAX_THREADS && "Thread count exceeds maximum supported threads");
+        
+        // Initialize completed flags
+        for (auto& c : completed) {
+            c.store(true, std::memory_order_release);
+        }
         
         workers.reserve(threads - 1);
         
@@ -59,26 +67,27 @@ public:
                             threads_ready.fetch_add(1);
                             condition[0].notify_one();
                         } else {
-                            completed[my_index] = true;
-                            condition[0].notify_one();  // Notify main thread of completion
+                            completed[my_index].store(true, std::memory_order_release);
+                            // Decrement active thread count and notify completion
+                            if (active_thread_count.fetch_sub(1) == 1) {
+                                std::lock_guard<std::mutex> completion_lock(completion_mutex);
+                                completion_cv.notify_one();
+                            }
                         }
                         
                         condition[my_index].wait(lock, [this, my_index, last_job_id] {
-                            return (stop || !completed[my_index]);
+                            return (stop || !completed[my_index].load(std::memory_order_acquire));
                         });
                         
                         if (stop) return;
                     }
                     
-                    
-
                     if (last_job_id == job_id) {
                         continue;
                     }
 
                     task(rank[my_index], dimension[my_index], my_index);
                     last_job_id = job_id;
-                    
                 }
             });
         }
@@ -94,70 +103,47 @@ public:
 
     template<class F>
     void execute_parallel(F&& f, __uint128_t mask) {
-
-        //only 1 thread may use the pool at a time
         std::unique_lock<std::mutex> lock(queue_mutex[0]);
 
         std::bitset<MAX_THREADS> thread_mask(mask);
         task = std::forward<F>(f);
-
         job_id += 1;
 
         const int thread_dim = static_cast<int>(thread_mask.count());
         int rank_ct = 0;
-        int active_threads = 0;
-        
         bool participating = false;
 
+        // Reset active thread count
+        active_thread_count.store(0, std::memory_order_release);
+        
         // Wake up the correct threads
         for (size_t i = 1; i < workers.size() + 1; ++i) {
-
             if (thread_mask[i]) {
-                
-                if (permanent_cpu != i){
-
+                if (permanent_cpu != i) {
                     std::lock_guard<std::mutex> lock(queue_mutex[i]);
-                    completed[i] = false;
+                    completed[i].store(false, std::memory_order_release);
                     dimension[i] = thread_dim;
                     rank[i] = rank_ct++;
-                    active_threads++;
+                    active_thread_count.fetch_add(1, std::memory_order_release);
                     condition[i].notify_one();
-
-                }
-
-                else
+                } else {
                     participating = true;
-            
-            }
-        }
-
-        //if the main thread is participating, run the task
-        if (participating)
-            task(rank_ct++, thread_dim, 0);
-
-        // Wait for all active threads to complete
-        if (active_threads > 0) {
-
-            int completed_count = 0;
-            
-            while(completed_count != active_threads){
-
-                for (size_t i = 1; i < workers.size() + 1; ++i) {
-
-                    if (thread_mask[i] && completed[i] && permanent_cpu != i) {
-
-                        thread_mask[i] = false;
-                    
-                        completed_count++;
-                    
-                    }
-
                 }
-
             }
-
         }
 
+        // If the main thread is participating, run the task
+        if (participating) {
+            task(rank_ct++, thread_dim, 0);
+        }
+
+        // Wait for all active threads to complete using condition variable
+        if (active_thread_count.load(std::memory_order_acquire) > 0) {
+            std::unique_lock<std::mutex> completion_lock(completion_mutex);
+            completion_cv.wait(completion_lock, [this] {
+                return active_thread_count.load(std::memory_order_acquire) == 0;
+            });
+        }
     }
 
     void set_perm_cpu(size_t cpu) {
