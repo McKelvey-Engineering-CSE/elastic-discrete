@@ -1,7 +1,7 @@
 ##### Compiler Detection and Settings #################################################
 NVCC := $(shell which nvcc 2> /dev/null)
 NVCC := $(notdir $(NVCC))
-HAS_NVCC := $(if $(filter nvcc,$(NVCC)),false,false)
+HAS_NVCC := $(if $(filter nvcc,$(NVCC)),true,false)
 
 # Common settings
 COMMON_FLAGS := -std=c++20 -O0 -I. -g
