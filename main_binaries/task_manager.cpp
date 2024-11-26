@@ -30,7 +30,14 @@
 #include <limits.h>
 #include <map>
 #include "print_module.h"
-#include "omp_replacement.hpp"
+
+#ifdef OMP_OVERRIDE
+
+	#include "omp_replacement.hpp"
+
+	ThreadPool<> omp(NUMCPUS);
+
+#endif
 
 #include <chrono>
 using namespace std::chrono;
@@ -97,7 +104,6 @@ struct sched_param global_param;
 //omp replacement thread pool
 __uint128_t current_cpu_mask;
 __uint128_t current_gpu_mask;
-ThreadPool<> omp(NUMCPUS);
 
 enum rt_gomp_task_manager_error_codes
 { 
@@ -131,8 +137,11 @@ struct sched_param sp;
 bool active_threads[64];
 bool needs_reschedule = false;
 
+int* shared_array = NULL;
+int shm_fd = -1;
+
 std::mutex con_mut;
-Schedule schedule(std::string("EFSschedule"));
+Schedule schedule(std::string("EFS"), false);
 
 //has pthread_t at omp_thread index
 std::vector<pthread_t> threads;
@@ -173,6 +182,44 @@ void allow_change(){
 	schedule.get_task(task_index)->reset_changeable();
 	killpg(process_group, SIGRTMIN+0);
 
+}
+
+void set_active_threads(std::vector<int> thread_ids){
+
+    const size_t ARRAY_SIZE = 128;
+    char shm_name[32];
+    
+    // Create process-specific name
+    snprintf(shm_name, sizeof(shm_name), "/omp_%d", (int)getpid());
+    
+    // Create new shared memory segment with create and exclusive flags
+    shm_fd = shm_open(shm_name, O_RDWR | O_CREAT, 0600);
+    if (shm_fd == -1) {
+        std::cerr << "Failed to create new shared memory segment (might already exist): " << shm_name << std::endl;
+        return;
+    }
+    
+    // Set the size of the shared memory segment
+    if (ftruncate(shm_fd, ARRAY_SIZE * sizeof(int)) == -1) {
+        std::cerr << "Failed to set shared memory size" << std::endl;
+        close(shm_fd);
+        shm_unlink(shm_name);
+        return;
+    }
+    
+    // Map the shared memory segment
+    shared_array = (int*)mmap(NULL, ARRAY_SIZE * sizeof(int), 
+                                 PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (shared_array == MAP_FAILED) {
+        std::cerr << "Failed to map shared memory" << std::endl;
+        close(shm_fd);
+        shm_unlink(shm_name);
+        return;
+    }
+    
+    //add the thread indices we want to see run
+    for (int i = 0; i < (int) thread_ids.size(); i++) 
+        shared_array[i + 1] = thread_ids.at(i);
 }
 
 //function of pure vanity courtesy of claude
@@ -314,13 +361,24 @@ void reschedule(){
 
 	//update our cpu mask
 	current_cpu_mask = schedule.get_task(task_index)->get_cpu_mask();
-	omp.set_override_mask(current_cpu_mask);
+
+	#ifdef OMP_OVERRIDE
+		omp.set_override_mask(current_cpu_mask);
+	#else
+		set_active_threads(schedule.get_task(task_index)->get_cpu_owned_by_process());
+	#endif
 		
 	//update our gpu mask
 	current_gpu_mask = schedule.get_task(task_index)->get_gpu_mask();
 	task.update_core_B(current_gpu_mask);
 
-	print_module::task_print(std::cerr, (unsigned long long) current_cpu_mask, "\n");
+	//easier viewing. make sure to remove this later
+	std::bitset<128> cpu_mask(current_cpu_mask);
+	std::string cpu_mask_string = "";
+	for (int i = 0 ; i < 128; i++)
+		cpu_mask_string += cpu_mask.test(i) ? std::to_string(i) + " " : "";
+
+	print_module::task_print(std::cerr, task_index, ": ", cpu_mask_string, "\n");
 
 	//sync all threads
 	bar.mc_bar_reinit(schedule.get_task(task_index)->get_current_CPUs());	
@@ -430,7 +488,7 @@ int main(int argc, char *argv[])
 	char **task_argv = &argv[10];
 
 	//Wait at barrier for the other tasks but mainly to make sure scheduler has finished
-	if ((ret_val = process_barrier::await_and_destroy_barrier("BAR_2")) != 0){
+	if ((ret_val = process_barrier::await_and_rearm_barrier("BAR_2")) != 0){
 
 		print_module::print(std::cerr,  "ERROR: Barrier error for task " , task_name , "\n");
 		kill(0, SIGTERM);
@@ -484,25 +542,41 @@ int main(int argc, char *argv[])
 	if (ret_val != 0)
  		print_module::print(std::cerr,  "WARNING: " , getpid() , " Could not set priority. Returned: " , errno , "  (" , strerror(errno) , ")\n");
 
-	// OMP settings
-	//omp_set_nested(0);
-	//omp_set_dynamic(0);
-	//omp_set_schedule(omp_sched_dynamic, 1);	
-
 	practical_max_cpus = schedule.get_task(task_index)->get_practical_max_CPUs();
-	//omp_set_num_threads(practical_max_cpus);
+	
+	#ifndef OMP_OVERRIDE
+		omp_set_num_threads(NUMCPUS);
+	#endif
 
-	//pin each thread to a core
-	omp(pragma_omp_parallel
-	{
+	#ifdef OMP_OVERRIDE
 
-		cpu_set_t local_cpuset;
-		CPU_ZERO(&local_cpuset);
-		CPU_SET(thread_id, &local_cpuset);
+		omp(pragma_omp_parallel 
+		{
 
-		pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &local_cpuset);
+			//set the affinity
+			cpu_set_t local_cpuset;
+			CPU_ZERO(&local_cpuset);
+			CPU_SET(thread_id, &local_cpuset);
 
-	});
+			pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &local_cpuset);
+
+		});
+
+	#else 
+
+		#pragma omp parallel
+		{
+
+			//set the affinity
+			cpu_set_t local_cpuset;
+			CPU_ZERO(&local_cpuset);
+			CPU_SET(omp_get_thread_num(), &local_cpuset);
+
+			pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &local_cpuset);
+
+		}
+
+	#endif
 
 	//Determine which threads are active and passive. Pin, etc.
 	std::string active_cpu_string = "";
@@ -516,13 +590,16 @@ int main(int argc, char *argv[])
 		
 			cpu_set_t local_cpuset;
 			CPU_ZERO(&local_cpuset);
-			//CPU_SET(j, &local_cpuset);
-			CPU_SET(task_index + 1, &local_cpuset);
+			CPU_SET(j, &local_cpuset);
 
 			//pin the main thread to this core
 			pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &local_cpuset);
 		
 			schedule.get_task(task_index)->set_permanent_CPU(j);
+
+			#ifdef OMP_OVERRIDE
+				omp.set_perm_cpu(j);
+			#endif
 
 		}
 		if (j >= schedule.get_task(task_index)->get_current_lowest_CPU() && j < schedule.get_task(task_index)->get_current_lowest_CPU() + schedule.get_task(task_index)->get_current_CPUs()){
@@ -547,8 +624,7 @@ int main(int argc, char *argv[])
 
 	//set the cpu mask
 	current_cpu_mask = schedule.get_task(task_index)->get_cpu_mask();
-	std::cout << "CPU Mask: " << (unsigned long long) current_cpu_mask << std::endl;
-	omp.set_override_mask(current_cpu_mask);
+	std::cout << "Process: " << task_index <<  " Initial CPU Mask: " << (unsigned long long) current_cpu_mask << std::endl;
 
 	//print active vs passive CPUs
 	print_module::buffered_print(task_info, "CPU Core Configuration: \n");
@@ -569,8 +645,17 @@ int main(int argc, char *argv[])
 		std::vector<uint64_t> period_timings;
 	#endif
 
-	//set the omp thread limit
+	//set the omp thread limit and mask
 	omp_set_num_threads(schedule.get_task(task_index)->get_current_CPUs());
+
+	#ifdef OMP_OVERRIDE
+		omp.set_override_mask(current_cpu_mask);
+	#else
+		set_active_threads(schedule.get_task(task_index)->get_cpu_owned_by_process());
+	#endif
+		
+	//update our gpu mask
+	current_gpu_mask = schedule.get_task(task_index)->get_gpu_mask();
 
 	// Initialize the task
 	if (schedule.get_task(task_index) && task.init != NULL){
@@ -584,18 +669,18 @@ int main(int argc, char *argv[])
 		}
 
 	}
+
+	//call the core B update
+	task.update_core_B(current_gpu_mask);
 	
 	// Wait at barrier for the other tasks
-	if ((ret_val = process_barrier::await_and_destroy_barrier(barrier_name)) != 0){
+	if ((ret_val = process_barrier::await_and_rearm_barrier(barrier_name)) != 0){
 
 		print_module::print(std::cerr, "ERROR: Barrier error for task ", task_name, "\n");
 		kill(0, SIGTERM);
 		return RT_GOMP_TASK_MANAGER_BARRIER_ERROR;
 	
 	}	
-
-	//tell the pool which cpu is permanent
-	omp.set_perm_cpu(schedule.get_task(task_index)->get_permanent_CPU());
 	
 	//Don't go until it's time.
 	//Grab a timestamp at the start of real-time operation
@@ -614,7 +699,6 @@ int main(int argc, char *argv[])
 	while(execution_condition(current_time, end_time, iterations, num_iters)){
 
 		if (schedule.get_task(task_index))
-
 			num_iters++;
 
 		// Sleep until the start of the period
@@ -765,6 +849,9 @@ int main(int argc, char *argv[])
 		print_module::print(outfile, "\n");
 		outfile.close();
 	#endif
+
+    munmap(shared_array, 128 * sizeof(int));
+    close(shm_fd);
 
 	fflush(stdout);
 	fflush(stderr);

@@ -21,14 +21,17 @@ int iterations_complete = 0;
 
 extern int task_index;
 
-
 #ifdef __NVCC__
 
    #include "libsmctrl.h"
    #include <cuda.h>
    #include <cuda_runtime.h>
 
+   #include "sm_mapper.cuh"
+
    cudaStream_t stream;
+
+   bool display_sms = true;
 
 #endif
 
@@ -49,7 +52,15 @@ void update_core_B(__uint128_t mask) {
     //example of how to use core B masks
    #ifdef __NVCC__
 
-       libsmctrl_set_stream_mask(stream, mask);
+       libsmctrl_set_stream_mask(stream, ~mask);
+
+       //if first time, print sms
+        if (display_sms) {
+
+            visualize_sm_partitions_interprocess(stream, 3, "JAMESSM");
+            display_sms = false;
+            
+        }
 
    #endif
 
@@ -77,7 +88,7 @@ int init(int argc, char *argv[])
        return -2;
    }
 
-    if (task_index > 14)
+    if (task_index < 3)
         set_cooperative(false);
 
    return 0;       
@@ -85,43 +96,51 @@ int init(int argc, char *argv[])
 
 int run(int argc, char *argv[]){
 
-   std::atomic<int> count = 0;
-   /*omp( pragma_omp_parallel
-   {
-       count++;
+    std::atomic<int> count = 0;
 
-       busy_work(spin_tv);
-       
-   });*/
+    #ifdef OMP_OVERRIDE
 
-   //std::cout << current_cpu_mask << std::endl;
+        omp( pragma_omp_parallel
+        {
 
-   busy_work(spin_tv);
+            pm::task_print(std::cerr, "ompish Thread ", thread_id, " on core ", sched_getcpu(), " of ", team_dim, " threads\n");
 
-   auto current_mask = omp.get_override_mask();
+            count++;
 
-   std::bitset<128> thread_mask(current_mask);
+            busy_work(spin_tv);
+            
+        });
 
-   // Wake up the correct threads
-   for (size_t i = 1; i < 128; ++i)
-       if (thread_mask[i])
-           count ++;
+    #else
 
-   std::cout << "TEST: [" << task_index << "," << iterations_complete << "] core count: " << count << std::endl;
+        #pragma omp parallel
+        {
 
-   iterations_complete++;
+            pm::task_print(std::cerr, "omp Thread ", omp_get_thread_num(), " on core ", sched_getcpu(), " of ", omp_get_num_threads(), " threads\n");
 
-   if (task_index > 14 && iterations_complete % 5 == 0 && iterations_complete % 2 == 1) {
-       synth_current_mode = (synth_current_mode + 1) % mode_count;
-       modify_self(1);
-   }
+            count++;
 
-   if (task_index > 14 && iterations_complete % 5 == 0 && iterations_complete % 2 == 0) {
-       synth_current_mode = (synth_current_mode + 1) % mode_count;
-       modify_self(3);
-   }
+            busy_work(spin_tv);
+            
+        }
 
-   return 0;
+    #endif
+
+    pm::task_print(std::cout, "TEST: [", task_index, ",", iterations_complete, "] core count: ", count, "\n");
+
+    iterations_complete++;
+
+    if (task_index < 3 && iterations_complete % 5 == 0 && iterations_complete % 2 == 1) {
+        synth_current_mode = (synth_current_mode + 1) % mode_count;
+        modify_self(1);
+    }
+
+    if (task_index < 3 && iterations_complete % 5 == 0 && iterations_complete % 2 == 0) {
+        synth_current_mode = (synth_current_mode + 1) % mode_count;
+        modify_self(3);
+    }
+
+    return 0;
 }
 
 int finalize(int argc, char *argv[])
