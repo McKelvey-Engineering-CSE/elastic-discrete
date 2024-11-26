@@ -1,14 +1,14 @@
 ##### Compiler Detection and Settings #################################################
 NVCC := $(shell which nvcc 2> /dev/null)
 NVCC := $(notdir $(NVCC))
-HAS_NVCC := $(if $(filter nvcc,$(NVCC)),true,false)
+HAS_NVCC := $(if $(filter nvcc,$(NVCC)),false,false)
 
 # Common settings
 COMMON_FLAGS := -std=c++20 -O0 -I. -g
 COMMON_LIBS := -lrt -lm -L./libyaml-cpp/build/ -lyaml-cpp
 
 # Omp library control
-OMP_LIB := -DOMP_OVERRIDE
+OMP_LIB := -DOMP_OVERRIDE -DPRETTY_PRINTING
 
 # Include directories
 HEADERS := $(addprefix -I ,$(shell find . -type d -not -path "*/\.*" | grep -v yaml))
