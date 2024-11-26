@@ -94,6 +94,7 @@ namespace print_module {
             
             //flush buffer first
             oss << buff.str();
+            buff.str("");
             buff.clear();
 
             //expander boilerplate
@@ -204,6 +205,7 @@ namespace print_module {
             
             //flush buffer first
             ss << buff.str();
+            buff.str("");
             buff.clear();
 
             //expander boilerplate
