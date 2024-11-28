@@ -416,7 +416,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 			//(-1 because perm core is never returned)
 			auto task_owned_cpus = (schedule.get_task(i))->get_cpu_owned_by_process();
 
-			if (((previous_modes.at(i).cores - 1) != (int) task_owned_cpus.size()) && (task_owned_cpus.size() != 0) && (previous_modes.at(i).cores != 0)){
+			if (((previous_modes.at(i).cores - 1) != (int) task_owned_cpus.size())){
 				
 				std::cout << "CPU Count Mismatch. Process:" << i << " | Cores assigned: " << previous_modes.at(i).cores << " | Cores found: " << task_owned_cpus.size() << " | Cannot Continue" << std::endl;
 				killpg(process_group, SIGINT);
