@@ -43,17 +43,19 @@ Function :  print_module::print(ostream, args...)
 
 namespace print_module {
 
-    template <typename Arg, typename... Args>
-    static void buffered_print(std::ostringstream& oss, Arg&& arg, Args&&... args){   
-        
-        //expander boilerplate
-        oss << std::forward<Arg>(arg);
-        using expander = int[];
-        (void)expander{0, (void(oss << std::forward<Args>(args)), 0)...};
-        
-    }
-
     #if __cplusplus > 201703L
+
+        template <typename Arg, typename... Args>
+        static void buffered_print(std::ostringstream& out, Arg&& arg, Args&&... args){   
+
+            std::basic_osyncstream oss(out);
+            
+            //expander boilerplate
+            oss << std::forward<Arg>(arg);
+            using expander = int[];
+            (void)expander{0, (void(oss << std::forward<Args>(args)), 0)...};
+            
+        }
 
         template <typename Arg, typename... Args>
         static void print(std::ostream& out, Arg&& arg, Args&&... args){   
@@ -92,6 +94,7 @@ namespace print_module {
             
             //flush buffer first
             oss << buff.str();
+            buff.str("");
             buff.clear();
 
             //expander boilerplate
@@ -150,6 +153,16 @@ namespace print_module {
     #else
 
         template <typename Arg, typename... Args>
+        static void buffered_print(std::ostringstream& oss, Arg&& arg, Args&&... args){   
+            
+            //expander boilerplate
+            oss << std::forward<Arg>(arg);
+            using expander = int[];
+            (void)expander{0, (void(oss << std::forward<Args>(args)), 0)...};
+            
+        }
+
+        template <typename Arg, typename... Args>
         static void print(std::ostream& out, Arg&& arg, Args&&... args){   
             
             //ostringstream seems to have lowest possible 
@@ -192,6 +205,7 @@ namespace print_module {
             
             //flush buffer first
             ss << buff.str();
+            buff.str("");
             buff.clear();
 
             //expander boilerplate

@@ -1,83 +1,474 @@
---- 
+---
 schedulable: true
-explicit_sync: true
-FPTAS: false
-maxRuntime: {sec: 5, nsec: 0}
+explicit_sync: false
+maxRuntime: {sec: 30, nsec: 0}
 tasks:
   - program:
       name: james
-      args: " 4 61428571 2 10"
-    elasticity: 2
+      args: "0 61428571 2 10"
+    elasticity: 4
     modes:
-      - work: {sec: 0, nsec: 400205707}
-        span: {sec: 0, nsec: 167277471}
-        gpu_work: {sec: 0, nsec: 536809511}
-        gpu_span: {sec: 0, nsec: 166798272}
-        period: {sec: 0, nsec: 953404980}
-      - work: {sec: 0, nsec: 507717466}
-        span: {sec: 0, nsec: 167277471}
-        gpu_work: {sec: 0, nsec: 664996477}
-        gpu_span: {sec: 0, nsec: 166798272}
-        period: {sec: 0, nsec: 953404980}
-      - work: {sec: 0, nsec: 615229226}
-        span: {sec: 0, nsec: 167277471}
-        gpu_work: {sec: 0, nsec: 793183444}
-        gpu_span: {sec: 0, nsec: 166798272}
-        period: {sec: 0, nsec: 953404980}
-      - work: {sec: 0, nsec: 722740985}
-        span: {sec: 0, nsec: 167277471}
-        gpu_work: {sec: 0, nsec: 921370410}
-        gpu_span: {sec: 0, nsec: 166798272}
-        period: {sec: 0, nsec: 953404980}
+      - work: {sec: 0, nsec: 315572254}
+        span: {sec: 0, nsec: 153987037}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 193327588}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 315572254}
+        gpu_span: {sec: 0, nsec: 153987037}
+        period: {sec: 0, nsec: 193327588}
+      - work: {sec: 0, nsec: 406386972}
+        span: {sec: 0, nsec: 153987037}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 193327588}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 406386972}
+        gpu_span: {sec: 0, nsec: 153987037}
+        period: {sec: 0, nsec: 193327588}
+      - work: {sec: 0, nsec: 497201690}
+        span: {sec: 0, nsec: 153987037}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 193327588}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 497201690}
+        gpu_span: {sec: 0, nsec: 153987037}
+        period: {sec: 0, nsec: 193327588}
+      - work: {sec: 0, nsec: 588016408}
+        span: {sec: 0, nsec: 153987037}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 193327588}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 588016408}
+        gpu_span: {sec: 0, nsec: 153987037}
+        period: {sec: 0, nsec: 193327588}
 
   - program:
       name: james
-      args: " 4 61428571 2 10"
+      args: "0 61428571 2 10"
     elasticity: 2
     modes:
-      - work: {sec: 0, nsec: 394877209}
-        span: {sec: 0, nsec: 167980838}
-        gpu_work: {sec: 0, nsec: 581574196}
-        gpu_span: {sec: 0, nsec: 164954034}
-        period: {sec: 0, nsec: 792405620}
-      - work: {sec: 0, nsec: 491836952}
-        span: {sec: 0, nsec: 167980838}
-        gpu_work: {sec: 0, nsec: 674177484}
-        gpu_span: {sec: 0, nsec: 164954034}
-        period: {sec: 0, nsec: 792405620}
-      - work: {sec: 0, nsec: 588796694}
-        span: {sec: 0, nsec: 167980838}
-        gpu_work: {sec: 0, nsec: 766780772}
-        gpu_span: {sec: 0, nsec: 164954034}
-        period: {sec: 0, nsec: 792405620}
-      - work: {sec: 0, nsec: 685756436}
-        span: {sec: 0, nsec: 167980838}
-        gpu_work: {sec: 0, nsec: 859384060}
-        gpu_span: {sec: 0, nsec: 164954034}
-        period: {sec: 0, nsec: 792405620}
+      - work: {sec: 0, nsec: 215079497}
+        span: {sec: 0, nsec: 103369811}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 141610973}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 215079497}
+        gpu_span: {sec: 0, nsec: 103369811}
+        period: {sec: 0, nsec: 141610973}
+      - work: {sec: 0, nsec: 265317947}
+        span: {sec: 0, nsec: 103369811}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 141610973}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 265317947}
+        gpu_span: {sec: 0, nsec: 103369811}
+        period: {sec: 0, nsec: 141610973}
+      - work: {sec: 0, nsec: 315556397}
+        span: {sec: 0, nsec: 103369811}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 141610973}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 315556397}
+        gpu_span: {sec: 0, nsec: 103369811}
+        period: {sec: 0, nsec: 141610973}
+      - work: {sec: 0, nsec: 365794847}
+        span: {sec: 0, nsec: 103369811}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 141610973}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 365794847}
+        gpu_span: {sec: 0, nsec: 103369811}
+        period: {sec: 0, nsec: 141610973}
 
   - program:
       name: james
-      args: " 4 61428571 2 10"
-    elasticity: 6
+      args: "0 61428571 2 10"
+    elasticity: 3
     modes:
-      - work: {sec: 0, nsec: 86868561}
-        span: {sec: 0, nsec: 52217111}
-        gpu_work: {sec: 0, nsec: 140672467}
-        gpu_span: {sec: 0, nsec: 51398132}
-        period: {sec: 0, nsec: 326298861}
-      - work: {sec: 0, nsec: 112527639}
-        span: {sec: 0, nsec: 52217111}
-        gpu_work: {sec: 0, nsec: 169959650}
-        gpu_span: {sec: 0, nsec: 51398132}
-        period: {sec: 0, nsec: 326298861}
-      - work: {sec: 0, nsec: 138186717}
-        span: {sec: 0, nsec: 52217111}
-        gpu_work: {sec: 0, nsec: 199246832}
-        gpu_span: {sec: 0, nsec: 51398132}
-        period: {sec: 0, nsec: 326298861}
-      - work: {sec: 0, nsec: 163845795}
-        span: {sec: 0, nsec: 52217111}
-        gpu_work: {sec: 0, nsec: 228534015}
-        gpu_span: {sec: 0, nsec: 51398132}
-        period: {sec: 0, nsec: 326298861}
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 70578402}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 89082960}
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 92306859}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 90117742}
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 114035316}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 91152524}
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 135763773}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 92187306}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 8
+    modes:
+      - work: {sec: 0, nsec: 48980042}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 81333562}
+      - work: {sec: 0, nsec: 59321456}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 82289853}
+      - work: {sec: 0, nsec: 69662870}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 83246144}
+      - work: {sec: 0, nsec: 80004285}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 84202435}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 4
+    modes:
+      - work: {sec: 0, nsec: 75425591}
+        span: {sec: 0, nsec: 35621017}
+        gpu_work: {sec: 0, nsec: 114127308}
+        gpu_span: {sec: 0, nsec: 50200293}
+        period: {sec: 0, nsec: 149666241}
+      - work: {sec: 0, nsec: 95727535}
+        span: {sec: 0, nsec: 35621017}
+        gpu_work: {sec: 0, nsec: 134489387}
+        gpu_span: {sec: 0, nsec: 50200293}
+        period: {sec: 0, nsec: 149666241}
+      - work: {sec: 0, nsec: 116029480}
+        span: {sec: 0, nsec: 35621017}
+        gpu_work: {sec: 0, nsec: 154851467}
+        gpu_span: {sec: 0, nsec: 50200293}
+        period: {sec: 0, nsec: 149666241}
+      - work: {sec: 0, nsec: 136331424}
+        span: {sec: 0, nsec: 35621017}
+        gpu_work: {sec: 0, nsec: 175213546}
+        gpu_span: {sec: 0, nsec: 50200293}
+        period: {sec: 0, nsec: 149666241}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 4
+    modes:
+      - work: {sec: 0, nsec: 315572254}
+        span: {sec: 0, nsec: 153987037}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 193327588}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 315572254}
+        gpu_span: {sec: 0, nsec: 153987037}
+        period: {sec: 0, nsec: 193327588}
+      - work: {sec: 0, nsec: 406386972}
+        span: {sec: 0, nsec: 153987037}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 193327588}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 406386972}
+        gpu_span: {sec: 0, nsec: 153987037}
+        period: {sec: 0, nsec: 193327588}
+      - work: {sec: 0, nsec: 497201690}
+        span: {sec: 0, nsec: 153987037}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 193327588}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 497201690}
+        gpu_span: {sec: 0, nsec: 153987037}
+        period: {sec: 0, nsec: 193327588}
+      - work: {sec: 0, nsec: 588016408}
+        span: {sec: 0, nsec: 153987037}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 193327588}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 588016408}
+        gpu_span: {sec: 0, nsec: 153987037}
+        period: {sec: 0, nsec: 193327588}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 2
+    modes:
+      - work: {sec: 0, nsec: 215079497}
+        span: {sec: 0, nsec: 103369811}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 141610973}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 215079497}
+        gpu_span: {sec: 0, nsec: 103369811}
+        period: {sec: 0, nsec: 141610973}
+      - work: {sec: 0, nsec: 265317947}
+        span: {sec: 0, nsec: 103369811}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 141610973}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 265317947}
+        gpu_span: {sec: 0, nsec: 103369811}
+        period: {sec: 0, nsec: 141610973}
+      - work: {sec: 0, nsec: 315556397}
+        span: {sec: 0, nsec: 103369811}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 141610973}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 315556397}
+        gpu_span: {sec: 0, nsec: 103369811}
+        period: {sec: 0, nsec: 141610973}
+      - work: {sec: 0, nsec: 365794847}
+        span: {sec: 0, nsec: 103369811}
+        gpu_work: {sec: 0, nsec: 0}
+        gpu_span: {sec: 0, nsec: 0}
+        period: {sec: 0, nsec: 141610973}
+      - work: {sec: 0, nsec: 0}
+        span: {sec: 0, nsec: 0}
+        gpu_work: {sec: 0, nsec: 365794847}
+        gpu_span: {sec: 0, nsec: 103369811}
+        period: {sec: 0, nsec: 141610973}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 3
+    modes:
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 70578402}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 89082960}
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 92306859}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 90117742}
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 114035316}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 91152524}
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 135763773}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 92187306}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 8
+    modes:
+      - work: {sec: 0, nsec: 48980042}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 81333562}
+      - work: {sec: 0, nsec: 59321456}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 82289853}
+      - work: {sec: 0, nsec: 69662870}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 83246144}
+      - work: {sec: 0, nsec: 80004285}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 84202435}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 4
+    modes:
+      - work: {sec: 0, nsec: 75425591}
+        span: {sec: 0, nsec: 35621017}
+        gpu_work: {sec: 0, nsec: 114127308}
+        gpu_span: {sec: 0, nsec: 50200293}
+        period: {sec: 0, nsec: 149666241}
+      - work: {sec: 0, nsec: 95727535}
+        span: {sec: 0, nsec: 35621017}
+        gpu_work: {sec: 0, nsec: 134489387}
+        gpu_span: {sec: 0, nsec: 50200293}
+        period: {sec: 0, nsec: 149666241}
+      - work: {sec: 0, nsec: 116029480}
+        span: {sec: 0, nsec: 35621017}
+        gpu_work: {sec: 0, nsec: 154851467}
+        gpu_span: {sec: 0, nsec: 50200293}
+        period: {sec: 0, nsec: 149666241}
+      - work: {sec: 0, nsec: 136331424}
+        span: {sec: 0, nsec: 35621017}
+        gpu_work: {sec: 0, nsec: 175213546}
+        gpu_span: {sec: 0, nsec: 50200293}
+        period: {sec: 0, nsec: 149666241}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 3
+    modes:
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 70578402}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 89082960}
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 92306859}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 90117742}
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 114035316}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 91152524}
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 135763773}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 92187306}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 8
+    modes:
+      - work: {sec: 0, nsec: 48980042}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 81333562}
+      - work: {sec: 0, nsec: 59321456}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 82289853}
+      - work: {sec: 0, nsec: 69662870}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 83246144}
+      - work: {sec: 0, nsec: 80004285}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 84202435}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 4
+    modes:
+      - work: {sec: 0, nsec: 75425591}
+        span: {sec: 0, nsec: 35621017}
+        gpu_work: {sec: 0, nsec: 114127308}
+        gpu_span: {sec: 0, nsec: 50200293}
+        period: {sec: 0, nsec: 149666241}
+      - work: {sec: 0, nsec: 95727535}
+        span: {sec: 0, nsec: 35621017}
+        gpu_work: {sec: 0, nsec: 134489387}
+        gpu_span: {sec: 0, nsec: 50200293}
+        period: {sec: 0, nsec: 149666241}
+      - work: {sec: 0, nsec: 116029480}
+        span: {sec: 0, nsec: 35621017}
+        gpu_work: {sec: 0, nsec: 154851467}
+        gpu_span: {sec: 0, nsec: 50200293}
+        period: {sec: 0, nsec: 149666241}
+      - work: {sec: 0, nsec: 136331424}
+        span: {sec: 0, nsec: 35621017}
+        gpu_work: {sec: 0, nsec: 175213546}
+        gpu_span: {sec: 0, nsec: 50200293}
+        period: {sec: 0, nsec: 149666241}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 3
+    modes:
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 70578402}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 89082960}
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 92306859}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 90117742}
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 114035316}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 91152524}
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 135763773}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 92187306}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 8
+    modes:
+      - work: {sec: 0, nsec: 48980042}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 81333562}
+      - work: {sec: 0, nsec: 59321456}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 82289853}
+      - work: {sec: 0, nsec: 69662870}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 83246144}
+      - work: {sec: 0, nsec: 80004285}
+        span: {sec: 0, nsec: 28074207}
+        gpu_work: {sec: 0, nsec: 73614960}
+        gpu_span: {sec: 0, nsec: 32995742}
+        period: {sec: 0, nsec: 84202435}

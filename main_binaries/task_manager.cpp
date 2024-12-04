@@ -98,6 +98,9 @@ bool explicit_sync = false;
 pid_t process_group;
 pid_t mypid;
 
+//buffer to share with james simply for vanity
+std::ostringstream reschedule_buffer;
+
 cpu_set_t global_cpuset;
 struct sched_param global_param;
 
@@ -372,13 +375,30 @@ void reschedule(){
 	current_gpu_mask = schedule.get_task(task_index)->get_gpu_mask();
 	task.update_core_B(current_gpu_mask);
 
-	//easier viewing. make sure to remove this later
-	std::bitset<128> cpu_mask(current_cpu_mask);
-	std::string cpu_mask_string = "";
-	for (int i = 0 ; i < 128; i++)
-		cpu_mask_string += cpu_mask.test(i) ? std::to_string(i) + " " : "";
+	//all pretty printing crap
+	#ifdef PRETTY_PRINTING
 
-	print_module::task_print(std::cerr, task_index, ": ", cpu_mask_string, "\n");
+		print_module::buffered_print(reschedule_buffer, "\nTask ", task_index, " finished reschedule:\n");	
+
+		//core A
+		print_module::buffered_print(reschedule_buffer, "Core A Owned: [ ");
+
+		std::bitset<128> cpu_mask(current_cpu_mask);
+		for (int i = 0 ; i < 128; i++)
+			print_module::buffered_print(reschedule_buffer, cpu_mask.test(i) ? std::to_string(i) + " " : "");
+
+		print_module::buffered_print(reschedule_buffer, "]\n");
+
+		//core B
+		print_module::buffered_print(reschedule_buffer, "Core B Owned: [ ");
+
+		std::bitset<128> gpu_mask(current_gpu_mask);
+		for (int i = 0 ; i < 128; i++)
+			print_module::buffered_print(reschedule_buffer, gpu_mask.test(i) ? std::to_string(i) + " " : "");
+
+		print_module::buffered_print(reschedule_buffer, "]\n");
+
+	#endif
 
 	//sync all threads
 	bar.mc_bar_reinit(schedule.get_task(task_index)->get_current_CPUs());	
@@ -783,7 +803,11 @@ int main(int argc, char *argv[])
 
 				reschedule();
 				
-				print_module::task_print(std::cerr, "System: finished reschedule\n");	
+				#ifdef PRETTY_PRINTING
+
+					print_module::flush(std::cerr, reschedule_buffer);
+				
+				#endif
 
 				#ifdef TRACING
 					fprintf(fd, "thread %d: finished reschedule\n", getpid());

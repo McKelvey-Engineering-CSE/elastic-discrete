@@ -404,6 +404,64 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	}
 
+	//force checks to ensure each task has their core count
+	if (!first_time){
+
+		int total_cores = 0;
+		int total_gpus = 0;
+
+		for (int i = 0; i < (int) previous_modes.size(); i++){
+			
+			//fetch this task's current cores
+			//(-1 because perm core is never returned)
+			auto task_owned_cpus = (schedule.get_task(i))->get_cpu_owned_by_process();
+
+			if (((previous_modes.at(i).cores - 1) != (int) task_owned_cpus.size())){
+				
+				std::cout << "CPU Count Mismatch. Process:" << i << " | Cores assigned: " << previous_modes.at(i).cores << " | Cores found: " << task_owned_cpus.size() << " | Cannot Continue" << std::endl;
+				killpg(process_group, SIGINT);
+				return;
+
+			}
+			
+			//get sm units
+			//no -1 because no perm gpu
+			auto task_owned_gpus = (schedule.get_task(i))->get_gpu_owned_by_process();
+
+			if ((previous_modes.at(i).sms) != (int) task_owned_gpus.size()){
+
+				std::cout << "GPU Count Mismatch. Process:" << i << " | GPUs assigned: " << previous_modes.at(i).sms << " | GPUs found: " << task_owned_gpus.size() << " | Cannot Continue" << std::endl;
+				killpg(process_group, SIGINT);
+				return;
+
+			}
+
+			//add to total
+			total_cores += previous_modes.at(i).cores;
+			total_gpus += previous_modes.at(i).sms;
+
+		}
+
+		//check that the total cores in the system - the total found is the free count
+		if (((int) maxCPU - total_cores) != (int) free_cores_A.size()){
+
+			std::cout << "CPU Count Mismatch. Total Cores: " << maxCPU << " | Total Found: " << total_cores << " | Free Cores: " << free_cores_A.size() << " | Cannot Continue" << std::endl;
+			killpg(process_group, SIGINT);
+			return;
+
+		}
+
+		//check that the total gpus in the system - the total found is the free count
+		if (((int) NUMGPUS - total_gpus) != (int) free_cores_B.size()){
+
+			std::cout << "GPU Count Mismatch. Total GPUs: " << NUMGPUS << " | Total Found: " << total_gpus << " | Free GPUs: " << free_cores_B.size() << " | Cannot Continue" << std::endl;
+			killpg(process_group, SIGINT);
+			return;
+
+		}
+
+	}
+
 	//First time through Make sure we have enough CPUs and GPUs
 	//in the system and determine practical max for each task.	
 	if (first_time) {

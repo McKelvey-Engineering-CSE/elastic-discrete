@@ -21,6 +21,8 @@ int iterations_complete = 0;
 
 extern int task_index;
 
+bool first_time = true;
+
 #ifdef __NVCC__
 
    #include "libsmctrl.h"
@@ -37,24 +39,12 @@ extern int task_index;
 
 void update_core_B(__uint128_t mask) {
 
-   std::ostringstream buffer;
-
-   print_module::buffered_print(buffer, task_index, " -> Core B Mask: ");
-
-   //print the mask
-   for (int i = 0; i < 128; i++) {
-       print_module::buffered_print(buffer, (unsigned long long)((mask & ((__uint128_t)1 << (__uint128_t(i)))) >> (__uint128_t(i))));
-   }
-
-   print_module::buffered_print(buffer, "\n");
-   print_module::flush(std::cerr, buffer);
-
     //example of how to use core B masks
-   #ifdef __NVCC__
+    #ifdef __NVCC__
 
-       libsmctrl_set_stream_mask(stream, ~mask);
+        libsmctrl_set_stream_mask(stream, ~mask);
 
-       //if first time, print sms
+        //if first time, print sms
         if (display_sms) {
 
             visualize_sm_partitions_interprocess(stream, 3, "JAMESSM");
@@ -62,7 +52,7 @@ void update_core_B(__uint128_t mask) {
             
         }
 
-   #endif
+    #endif
 
 }
 
@@ -88,22 +78,23 @@ int init(int argc, char *argv[])
        return -2;
    }
 
-    if (task_index < 3)
-        set_cooperative(false);
-
    return 0;       
 }
 
 int run(int argc, char *argv[]){
 
+    std::ostringstream buffer;
+
     std::atomic<int> count = 0;
+
+    print_module::buffered_print(buffer, "\n(", getpid(), ") [", task_index, "] [Threads]: \n");
 
     #ifdef OMP_OVERRIDE
 
         omp( pragma_omp_parallel
         {
 
-            pm::task_print(std::cerr, "ompish Thread ", thread_id, " on core ", sched_getcpu(), " of ", team_dim, " threads\n");
+            pm::buffered_print(buffer, "ompish Thread ", thread_id, " on core ", sched_getcpu(), " of ", team_dim, " threads\n");
 
             count++;
 
@@ -116,7 +107,7 @@ int run(int argc, char *argv[]){
         #pragma omp parallel
         {
 
-            pm::task_print(std::cerr, "omp Thread ", omp_get_thread_num(), " on core ", sched_getcpu(), " of ", omp_get_num_threads(), " threads\n");
+            pm::buffered_print(buffer, "omp Thread ", omp_get_thread_num(), " on core ", sched_getcpu(), " of ", omp_get_num_threads(), " threads\n");
 
             count++;
 
@@ -126,18 +117,14 @@ int run(int argc, char *argv[]){
 
     #endif
 
-    pm::task_print(std::cout, "TEST: [", task_index, ",", iterations_complete, "] core count: ", count, "\n");
+    pm::buffered_print(buffer, "TEST: [", task_index, ",", iterations_complete, "] core count: ", count, "\n");
+    pm::flush(std::cerr, buffer);
 
     iterations_complete++;
 
-    if (task_index < 3 && iterations_complete % 5 == 0 && iterations_complete % 2 == 1) {
+    if (mode_count > 1 && mode_change_interval > 0 && iterations_complete > 0 && (iterations_complete % mode_change_interval == 0)) {
         synth_current_mode = (synth_current_mode + 1) % mode_count;
-        modify_self(1);
-    }
-
-    if (task_index < 3 && iterations_complete % 5 == 0 && iterations_complete % 2 == 0) {
-        synth_current_mode = (synth_current_mode + 1) % mode_count;
-        modify_self(3);
+        modify_self(synth_current_mode);
     }
 
     return 0;
