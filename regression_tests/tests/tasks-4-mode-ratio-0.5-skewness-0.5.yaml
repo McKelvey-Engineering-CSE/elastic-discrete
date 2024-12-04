@@ -1,0 +1,69 @@
+
+---
+schedulable: true
+maxRuntime: {sec: 3, nsec: 0}
+tasks:
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "1 10000 2 10"
+    elasticity: 2
+    modes:
+      - work: {sec: 0, nsec: 470800046}
+        span: {sec: 0, nsec: 195409155}
+        gpu_work: {sec: 0, nsec: 708725182}
+        gpu_span: {sec: 0, nsec: 192344446}
+        period: {sec: 0, nsec: 729429898}
+      - work: {sec: 0, nsec: 775159262}
+        span: {sec: 0, nsec: 195409155}
+        gpu_work: {sec: 1, nsec: 172442732}
+        gpu_span: {sec: 0, nsec: 192344446}
+        period: {sec: 0, nsec: 729429898}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "2 10000 2 10"
+    elasticity: 2
+    modes:
+      - work: {sec: 0, nsec: 196033520}
+        span: {sec: 0, nsec: 114590357}
+        gpu_work: {sec: 0, nsec: 278096673}
+        gpu_span: {sec: 0, nsec: 104052911}
+        period: {sec: 0, nsec: 379871842}
+      - work: {sec: 0, nsec: 451352603}
+        span: {sec: 0, nsec: 114590357}
+        gpu_work: {sec: 0, nsec: 493862033}
+        gpu_span: {sec: 0, nsec: 104052911}
+        period: {sec: 0, nsec: 379871842}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "3 10000 2 10"
+    elasticity: 9
+    modes:
+      - work: {sec: 0, nsec: 255194725}
+        span: {sec: 0, nsec: 124362767}
+        gpu_work: {sec: 0, nsec: 369026367}
+        gpu_span: {sec: 0, nsec: 116867170}
+        period: {sec: 0, nsec: 362565350}
+      - work: {sec: 0, nsec: 426907453}
+        span: {sec: 0, nsec: 124362767}
+        gpu_work: {sec: 0, nsec: 581060244}
+        gpu_span: {sec: 0, nsec: 116867170}
+        period: {sec: 0, nsec: 362565350}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "4 10000 2 10"
+    elasticity: 71
+    modes:
+      - work: {sec: 0, nsec: 239772324}
+        span: {sec: 0, nsec: 100075125}
+        gpu_work: {sec: 0, nsec: 249064740}
+        gpu_span: {sec: 0, nsec: 101142705}
+        period: {sec: 0, nsec: 322842339}
+      - work: {sec: 0, nsec: 347423353}
+        span: {sec: 0, nsec: 100075125}
+        gpu_work: {sec: 0, nsec: 405528678}
+        gpu_span: {sec: 0, nsec: 101142705}
+        period: {sec: 0, nsec: 322842339}
+

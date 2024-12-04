@@ -1,0 +1,499 @@
+Explicit Sync: 0
+0.065523352 0.025563316 0.102013492 0.066130502 0.036098695
+0.091086669 0.025563316 0.102013492 0.117167835 0.036098695
+Task Losses:
+Mode 0 Loss: 0.281916
+Mode 1 Loss: 0
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+0.061299490 0.030649745 0.085355235 0.071969838 0.032616147
+0.091949235 0.030649745 0.085355235 0.104585986 0.032616147
+Task Losses:
+Mode 0 Loss: 0.274694
+Mode 1 Loss: 0
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+
+========================= 
+New Schedule Layout:
+Task 0 is now in mode: 1
+Task 1 is now in mode: 1
+Total Loss from Mode Change: 0
+=========================
+
+
+========================= 
+New Resource Layout:
+Task 0 now has: 3 Core A | 6 Core B
+Task 1 now has: 6 Core A | 8 Core B
+=========================
+
+CPU 10 is free.
+CPU 11 is free.
+CPU 12 is free.
+CPU 13 is free.
+CPU 14 is free.
+CPU 15 is free.
+CPU 16 is free.
+CPU 17 is free.
+CPU 18 is free.
+CPU 19 is free.
+CPU 20 is free.
+CPU 21 is free.
+CPU 22 is free.
+CPU 23 is free.
+CPU 24 is free.
+CPU 25 is free.
+CPU 26 is free.
+CPU 27 is free.
+CPU 28 is free.
+CPU 29 is free.
+CPU 30 is free.
+CPU 31 is free.
+CPU 32 is free.
+CPU 33 is free.
+CPU 34 is free.
+CPU 35 is free.
+CPU 36 is free.
+CPU 37 is free.
+CPU 38 is free.
+CPU 39 is free.
+CPU 40 is free.
+CPU 41 is free.
+CPU 42 is free.
+CPU 43 is free.
+CPU 44 is free.
+CPU 45 is free.
+CPU 46 is free.
+CPU 47 is free.
+CPU 48 is free.
+CPU 49 is free.
+CPU 50 is free.
+CPU 51 is free.
+CPU 52 is free.
+CPU 53 is free.
+CPU 54 is free.
+CPU 55 is free.
+CPU 56 is free.
+CPU 57 is free.
+CPU 58 is free.
+CPU 59 is free.
+CPU 60 is free.
+CPU 61 is free.
+CPU 62 is free.
+CPU 63 is free.
+Time taken to reschedule: 3.84822 milliseconds.
+WARNING: 3401941 Could not set priority. Returned: 1  (Operation not permitted)
+WARNING: 3401940 Could not set priority. Returned: 1  (Operation not permitted)
+All tasks started.
+Process: 1 Initial CPU Mask: 1008
+Process: 0 Initial CPU Mask: 14
+
+==========================
+|  Task 1 (PID: 3401941) |
+==========================
+
+CPU Metrics: 
+	- Lowest CPU: 4
+	- Current CPUs: 6
+	- Minimum CPUs: 3
+	- Maximum CPUs: 6
+	- Practical Max: 6
+
+GPU Metrics: 
+	- Lowest GPU: 6
+	- Current GPUs: 8
+	- Minimum GPUs: 4
+	- Maximum GPUs: 8
+	- Practical Max: 8
+
+Timing Metrics: 
+	- Period s: 0 s
+	- Period ns: 85355235 ns
+
+CPU Core Configuration: 
+	- Active: 4-9
+	- Passive: 1-3,10-63
+
+Command Line Parameters: 
+	- Args: ./../../regression_test_task/regression_test_task 2850720 760069284 -1 2850723 760069284 7 1 BAR 0 ./../../regression_test_task/regression_test_task 2 10000 2 10 
+
+
+==========================
+|  Task 0 (PID: 3401940) |
+==========================
+
+CPU Metrics: 
+	- Lowest CPU: 1
+	- Current CPUs: 3
+	- Minimum CPUs: 2
+	- Maximum CPUs: 3
+	- Practical Max: 3
+
+GPU Metrics: 
+	- Lowest GPU: 0
+	- Current GPUs: 6
+	- Minimum GPUs: 3
+	- Maximum GPUs: 6
+	- Practical Max: 6
+
+Timing Metrics: 
+	- Period s: 0 s
+	- Period ns: 102013492 ns
+
+CPU Core Configuration: 
+	- Active: 1-3
+	- Passive: 4-63
+
+Command Line Parameters: 
+	- Args: ./../../regression_test_task/regression_test_task 2850720 760069284 -1 2850723 760069284 7 0 BAR 0 ./../../regression_test_task/regression_test_task 1 10000 2 10 
+
+TEST: [2,0] core count: A: 6, B: 8
+TEST: [1,0] core count: A: 3, B: 6
+TEST: [2,1] core count: A: 6, B: 8
+TEST: [1,1] core count: A: 3, B: 6
+TEST: [2,2] core count: A: 6, B: 8
+TEST: [1,2] core count: A: 3, B: 6
+TEST: [2,3] core count: A: 6, B: 8
+TEST: [1,3] core count: A: 3, B: 6
+TEST: [2,4] core count: A: 6, B: 8
+TEST: [1,4] core count: A: 3, B: 6
+TEST: [2,5] core count: A: 6, B: 8
+TEST: [1,5] core count: A: 3, B: 6
+TEST: [2,6] core count: A: 6, B: 8
+TEST: [2,7] core count: A: 6, B: 8
+TEST: [1,6] core count: A: 3, B: 6
+TEST: [2,8] core count: A: 6, B: 8
+TEST: [1,7] core count: A: 3, B: 6
+TEST: [2,9] core count: A: 6, B: 8
+
+========================= 
+New Schedule Layout:
+Task 0 is now in mode: 1
+Task 1 is now in mode: 1
+Total Loss from Mode Change: 0
+=========================
+
+
+========================= 
+New Resource Layout:
+Task 0 now has: 3 Core A | 6 Core B
+Task 1 now has: 6 Core A | 8 Core B
+=========================
+
+
+========================= 
+Nodes Passed to RAG Builder:
+Node 2 <54,50>
+Node 1 <0,0>
+Node 0 <0,0>
+=========================
+
+Provider size: 1 Consumer size: 0 Transfer size: 0
+
+========================= 
+New Schedule RAG:
+
+Nodes and resource transfers:
+Free Resources <54,50> → no edges
+Node 1 <0,0> → no edges
+Node 0 <0,0> → no edges
+
+========================= 
+
+Time taken to reschedule: 1.91177 milliseconds.
+TEST: [1,8] core count: A: 3, B: 6
+
+Task 0 finished reschedule:
+Core A Owned: [ 1 2 3 ]
+Core B Owned: [ 0 1 2 3 4 5 ]
+TEST: [2,10] core count: A: 6, B: 8
+
+Task 1 finished reschedule:
+Core A Owned: [ 4 5 6 7 8 9 ]
+Core B Owned: [ 6 7 8 9 10 11 12 13 ]
+TEST: [1,9] core count: A: 3, B: 6
+
+========================= 
+New Schedule Layout:
+Task 0 is now in mode: 1
+Task 1 is now in mode: 1
+Total Loss from Mode Change: 0
+=========================
+
+
+========================= 
+New Resource Layout:
+Task 0 now has: 3 Core A | 6 Core B
+Task 1 now has: 6 Core A | 8 Core B
+=========================
+
+
+========================= 
+Nodes Passed to RAG Builder:
+Node 2 <54,50>
+Node 1 <0,0>
+Node 0 <0,0>
+=========================
+
+Provider size: 1 Consumer size: 0 Transfer size: 0
+
+========================= 
+New Schedule RAG:
+
+Nodes and resource transfers:
+Free Resources <54,50> → no edges
+Node 1 <0,0> → no edges
+Node 0 <0,0> → no edges
+
+========================= 
+
+Time taken to reschedule: 1.57919 milliseconds.
+TEST: [2,11] core count: A: 6, B: 8
+
+Task 1 finished reschedule:
+Core A Owned: [ 4 5 6 7 8 9 ]
+Core B Owned: [ 6 7 8 9 10 11 12 13 ]
+TEST: [1,10] core count: A: 3, B: 6
+
+Task 0 finished reschedule:
+Core A Owned: [ 1 2 3 ]
+Core B Owned: [ 0 1 2 3 4 5 ]
+TEST: [2,12] core count: A: 6, B: 8
+TEST: [2,13] core count: A: 6, B: 8
+TEST: [1,11] core count: A: 3, B: 6
+TEST: [2,14] core count: A: 6, B: 8
+TEST: [1,12] core count: A: 3, B: 6
+TEST: [2,15] core count: A: 6, B: 8
+TEST: [1,13] core count: A: 3, B: 6
+TEST: [2,16] core count: A: 6, B: 8
+TEST: [1,14] core count: A: 3, B: 6
+TEST: [2,17] core count: A: 6, B: 8
+TEST: [1,15] core count: A: 3, B: 6
+TEST: [2,18] core count: A: 6, B: 8
+TEST: [2,19] core count: A: 6, B: 8
+
+========================= 
+New Schedule Layout:
+Task 0 is now in mode: 1
+Task 1 is now in mode: 0
+Total Loss from Mode Change: 0.274694
+=========================
+
+
+========================= 
+New Resource Layout:
+Task 0 now has: 3 Core A | 6 Core B
+Task 1 now has: 3 Core A | 4 Core B
+=========================
+
+
+========================= 
+Nodes Passed to RAG Builder:
+Node 2 <54,50>
+Node 1 <3,4>
+Node 0 <0,0>
+=========================
+
+Provider size: 2 Consumer size: 0 Transfer size: 0
+Provider: 1
+
+========================= 
+New Schedule RAG:
+
+Nodes and resource transfers:
+Free Resources <54,50> → no edges
+Node 1 <3,4> → no edges
+Node 0 <0,0> → no edges
+
+========================= 
+
+Time taken to reschedule: 1.61768 milliseconds.
+TEST: [1,16] core count: A: 3, B: 6
+
+Task 0 finished reschedule:
+Core A Owned: [ 1 2 3 ]
+Core B Owned: [ 0 1 2 3 4 5 ]
+TEST: [2,20] core count: A: 6, B: 8
+
+Task 1 finished reschedule:
+Core A Owned: [ 4 5 6 ]
+Core B Owned: [ 6 7 8 9 ]
+TEST: [1,17] core count: A: 3, B: 6
+TEST: [2,21] core count: A: 3, B: 4
+TEST: [1,18] core count: A: 3, B: 6
+TEST: [2,22] core count: A: 3, B: 4
+TEST: [1,19] core count: A: 3, B: 6
+
+========================= 
+New Schedule Layout:
+Task 0 is now in mode: 0
+Task 1 is now in mode: 1
+Total Loss from Mode Change: 0.281916
+=========================
+
+
+========================= 
+New Resource Layout:
+Task 0 now has: 2 Core A | 3 Core B
+Task 1 now has: 6 Core A | 8 Core B
+=========================
+
+
+========================= 
+Nodes Passed to RAG Builder:
+Node 2 <57,54>
+Node 1 <-3,-4>
+Node 0 <1,3>
+=========================
+
+Provider size: 2 Consumer size: 1 Transfer size: 0
+Provider: 0
+Consumer: 1
+
+========================= 
+New Schedule RAG:
+
+Nodes and resource transfers:
+Free Resources <57,54> → 1(x:3,y:4) 
+Node 1 <-3,-4> → no edges
+Node 0 <1,3> → no edges
+
+========================= 
+
+Time taken to reschedule: 1.46655 milliseconds.
+TEST: [2,23] core count: A: 3, B: 4
+
+Task 1 finished reschedule:
+Core A Owned: [ 4 5 6 7 8 9 ]
+Core B Owned: [ 6 7 8 9 10 11 12 13 ]
+TEST: [1,20] core count: A: 3, B: 6
+
+Task 0 finished reschedule:
+Core A Owned: [ 1 2 ]
+Core B Owned: [ 0 1 2 ]
+TEST: [2,24] core count: A: 6, B: 8
+TEST: [2,25] core count: A: 6, B: 8
+TEST: [1,21] core count: A: 2, B: 3
+TEST: [2,26] core count: A: 6, B: 8
+TEST: [1,22] core count: A: 2, B: 3
+TEST: [2,27] core count: A: 6, B: 8
+TEST: [1,23] core count: A: 2, B: 3
+TEST: [2,28] core count: A: 6, B: 8
+TEST: [1,24] core count: A: 2, B: 3
+TEST: [2,29] core count: A: 6, B: 8
+
+========================= 
+New Schedule Layout:
+Task 0 is now in mode: 1
+Task 1 is now in mode: 1
+Total Loss from Mode Change: 0
+=========================
+
+
+========================= 
+New Resource Layout:
+Task 0 now has: 3 Core A | 6 Core B
+Task 1 now has: 6 Core A | 8 Core B
+=========================
+
+
+========================= 
+Nodes Passed to RAG Builder:
+Node 2 <55,53>
+Node 1 <0,0>
+Node 0 <-1,-3>
+=========================
+
+Provider size: 1 Consumer size: 1 Transfer size: 0
+Consumer: 0
+
+========================= 
+New Schedule RAG:
+
+Nodes and resource transfers:
+Free Resources <55,53> → 0(x:1,y:3) 
+Node 1 <0,0> → no edges
+Node 0 <-1,-3> → no edges
+
+========================= 
+
+Time taken to reschedule: 1.45978 milliseconds.
+TEST: [1,25] core count: A: 2, B: 3
+
+Task 0 finished reschedule:
+Core A Owned: [ 1 2 3 ]
+Core B Owned: [ 0 1 2 3 4 5 ]
+TEST: [2,30] core count: A: 6, B: 8
+
+Task 1 finished reschedule:
+Core A Owned: [ 4 5 6 7 8 9 ]
+Core B Owned: [ 6 7 8 9 10 11 12 13 ]
+TEST: [2,31] core count: A: 6, B: 8
+TEST: [1,26] core count: A: 3, B: 6
+TEST: [2,32] core count: A: 6, B: 8
+TEST: [1,27] core count: A: 3, B: 6
+TEST: [2,33] core count: A: 6, B: 8
+TEST: [1,28] core count: A: 3, B: 6
+TEST: [2,34] core count: A: 6, B: 8
+TEST: [1,29] core count: A: 3, B: 6
+
+========================= 
+New Schedule Layout:
+Task 0 is now in mode: 1
+Task 1 is now in mode: 1
+Total Loss from Mode Change: 0
+=========================
+
+
+========================= 
+New Resource Layout:
+Task 0 now has: 3 Core A | 6 Core B
+Task 1 now has: 6 Core A | 8 Core B
+=========================
+
+
+========================= 
+Nodes Passed to RAG Builder:
+Node 2 <54,50>
+Node 1 <0,0>
+Node 0 <0,0>
+=========================
+
+Provider size: 1 Consumer size: 0 Transfer size: 0
+
+========================= 
+New Schedule RAG:
+
+Nodes and resource transfers:
+Free Resources <54,50> → no edges
+Node 1 <0,0> → no edges
+Node 0 <0,0> → no edges
+
+========================= 
+
+Time taken to reschedule: 1.4824 milliseconds.
+TEST: [2,35] core count: A: 6, B: 8
+
+Task 1 finished reschedule:
+Core A Owned: [ 4 5 6 7 8 9 ]
+Core B Owned: [ 6 7 8 9 10 11 12 13 ]
+TEST: [1,30] core count: A: 3, B: 6
+
+Task 0 finished reschedule:
+Core A Owned: [ 1 2 3 ]
+Core B Owned: [ 0 1 2 3 4 5 ]
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+
+(3401940) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/31
+(3401940) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  305433 nsec
+(3401940) Avg running time for task ./../../regression_test_task/regression_test_task: 0.183679 msec
+0 31 1 0.000305433
+
+TEST: [2,36] core count: A: 6, B: 8
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+
+(3401941) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/37
+(3401941) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  307510 nsec
+(3401941) Avg running time for task ./../../regression_test_task/regression_test_task: 0.185056 msec
+0 37 1 0.000307510
+
+All tasks finished.

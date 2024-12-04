@@ -1,4 +1,3 @@
-Notifying all processes
 Explicit Sync: 0
 5.0000000000 1.0000000000 0.003000000 0.0000000000 0.0000000000
 10.0000000000 2.0000000000 0.003000000 0.0000000000 0.0000000000
@@ -6,7 +5,6 @@ Task Losses:
 Mode 0 Loss: 2.77778e+06
 Mode 1 Loss: 0
 Forking and execv-ing task ./../../regression_test_task/regression_test_task
-Time taken to reschedule: 1.77163 milliseconds.
 
 ========================= 
 New Schedule Layout:
@@ -64,12 +62,27 @@ CPU 46 is free.
 CPU 47 is free.
 CPU 48 is free.
 CPU 49 is free.
-WARNING: 3083784 Could not set priority. Returned: 1  (Operation not permitted)
+CPU 50 is free.
+CPU 51 is free.
+CPU 52 is free.
+CPU 53 is free.
+CPU 54 is free.
+CPU 55 is free.
+CPU 56 is free.
+CPU 57 is free.
+CPU 58 is free.
+CPU 59 is free.
+CPU 60 is free.
+CPU 61 is free.
+CPU 62 is free.
+CPU 63 is free.
+Time taken to reschedule: 3.2983 milliseconds.
+WARNING: 3388090 Could not set priority. Returned: 1  (Operation not permitted)
 All tasks started.
-CPU Mask: 62
+Process: 0 Initial CPU Mask: 62
 
 ==========================
-|  Task 0 (PID: 3083784) |
+|  Task 0 (PID: 3388090) |
 ==========================
 
 CPU Metrics: 
@@ -92,230 +105,61 @@ Timing Metrics:
 
 CPU Core Configuration: 
 	- Active: 1-5
-	- Passive: 6-49
+	- Passive: 6-63
 
 Command Line Parameters: 
-	- Args: ./../../regression_test_task/regression_test_task 1583269 568876675 -1 1583270 568876675 7 0 BAR 0 ./../../regression_test_task/regression_test_task 0 100000 2 50 
+	- Args: ./../../regression_test_task/regression_test_task 2850408 471051641 -1 2850409 471051641 7 0 BAR 0 ./../../regression_test_task/regression_test_task 0 100000 2 50 
 
-TEST: [0,0] core count: A:5, B: 0
-TEST: [0,1] core count: A:5, B: 0
-TEST: [0,2] core count: A:5, B: 0
-TEST: [0,3] core count: A:5, B: 0
-TEST: [0,4] core count: A:5, B: 0
-TEST: [0,5] core count: A:5, B: 0
-TEST: [0,6] core count: A:5, B: 0
-TEST: [0,7] core count: A:5, B: 0
-TEST: [0,8] core count: A:5, B: 0
-TEST: [0,9] core count: A:5, B: 0
-TEST: [0,10] core count: A:5, B: 0
-TEST: [0,11] core count: A:5, B: 0
-TEST: [0,12] core count: A:5, B: 0
-TEST: [0,13] core count: A:5, B: 0
-TEST: [0,14] core count: A:5, B: 0
-TEST: [0,15] core count: A:5, B: 0
-TEST: [0,16] core count: A:5, B: 0
-TEST: [0,17] core count: A:5, B: 0
-TEST: [0,18] core count: A:5, B: 0
-TEST: [0,19] core count: A:5, B: 0
-TEST: [0,20] core count: A:5, B: 0
-TEST: [0,21] core count: A:5, B: 0
-TEST: [0,22] core count: A:5, B: 0
-TEST: [0,23] core count: A:5, B: 0
-TEST: [0,24] core count: A:5, B: 0
-TEST: [0,25] core count: A:5, B: 0
-TEST: [0,26] core count: A:5, B: 0
-TEST: [0,27] core count: A:5, B: 0
-TEST: [0,28] core count: A:5, B: 0
-TEST: [0,29] core count: A:5, B: 0
-TEST: [0,30] core count: A:5, B: 0
-TEST: [0,31] core count: A:5, B: 0
-TEST: [0,32] core count: A:5, B: 0
-TEST: [0,33] core count: A:5, B: 0
-TEST: [0,34] core count: A:5, B: 0
-TEST: [0,35] core count: A:5, B: 0
-TEST: [0,36] core count: A:5, B: 0
-TEST: [0,37] core count: A:5, B: 0
-TEST: [0,38] core count: A:5, B: 0
-TEST: [0,39] core count: A:5, B: 0
-TEST: [0,40] core count: A:5, B: 0
-TEST: [0,41] core count: A:5, B: 0
-TEST: [0,42] core count: A:5, B: 0
-TEST: [0,43] core count: A:5, B: 0
-TEST: [0,44] core count: A:5, B: 0
-TEST: [0,45] core count: A:5, B: 0
-TEST: [0,46] core count: A:5, B: 0
-TEST: [0,47] core count: A:5, B: 0
-TEST: [0,48] core count: A:5, B: 0
-TEST: [0,49] core count: A:5, B: 0
-Time taken to reschedule: 0.383657 milliseconds.
-
-========================= 
-New Schedule Layout:
-Task 0 is now in mode: 1
-Total Loss from Mode Change: 0
-=========================
-
-
-========================= 
-New Resource Layout:
-Task 0 now has: 5 Core A | 0 Core B
-=========================
-
-
-========================= 
-Nodes Passed to RAG Builder:
-Node 1 <44,50>
-Node 0 <0,0>
-=========================
-
-Provider size: 1 Consumer size: 0 Transfer size: 0
-
-========================= 
-New Schedule RAG:
-
-Nodes and resource transfers:
-Free Resources <44,50> → no edges
-Node 0 <0,0> → no edges
-
-========================= 
-
-TEST: [0,50] core count: A:5, B: 0
-(3083784) 62
-(3083784) System: finished reschedule
-TEST: [0,51] core count: A:5, B: 0
-TEST: [0,52] core count: A:5, B: 0
-TEST: [0,53] core count: A:5, B: 0
-TEST: [0,54] core count: A:5, B: 0
-TEST: [0,55] core count: A:5, B: 0
-TEST: [0,56] core count: A:5, B: 0
-TEST: [0,57] core count: A:5, B: 0
-TEST: [0,58] core count: A:5, B: 0
-TEST: [0,59] core count: A:5, B: 0
-TEST: [0,60] core count: A:5, B: 0
-TEST: [0,61] core count: A:5, B: 0
-TEST: [0,62] core count: A:5, B: 0
-TEST: [0,63] core count: A:5, B: 0
-TEST: [0,64] core count: A:5, B: 0
-TEST: [0,65] core count: A:5, B: 0
-TEST: [0,66] core count: A:5, B: 0
-TEST: [0,67] core count: A:5, B: 0
-TEST: [0,68] core count: A:5, B: 0
-TEST: [0,69] core count: A:5, B: 0
-TEST: [0,70] core count: A:5, B: 0
-TEST: [0,71] core count: A:5, B: 0
-TEST: [0,72] core count: A:5, B: 0
-TEST: [0,73] core count: A:5, B: 0
-TEST: [0,74] core count: A:5, B: 0
-TEST: [0,75] core count: A:5, B: 0
-TEST: [0,76] core count: A:5, B: 0
-TEST: [0,77] core count: A:5, B: 0
-TEST: [0,78] core count: A:5, B: 0
-TEST: [0,79] core count: A:5, B: 0
-TEST: [0,80] core count: A:5, B: 0
-TEST: [0,81] core count: A:5, B: 0
-TEST: [0,82] core count: A:5, B: 0
-TEST: [0,83] core count: A:5, B: 0
-TEST: [0,84] core count: A:5, B: 0
-TEST: [0,85] core count: A:5, B: 0
-TEST: [0,86] core count: A:5, B: 0
-TEST: [0,87] core count: A:5, B: 0
-TEST: [0,88] core count: A:5, B: 0
-TEST: [0,89] core count: A:5, B: 0
-TEST: [0,90] core count: A:5, B: 0
-TEST: [0,91] core count: A:5, B: 0
-TEST: [0,92] core count: A:5, B: 0
-TEST: [0,93] core count: A:5, B: 0
-TEST: [0,94] core count: A:5, B: 0
-TEST: [0,95] core count: A:5, B: 0
-TEST: [0,96] core count: A:5, B: 0
-TEST: [0,97] core count: A:5, B: 0
-TEST: [0,98] core count: A:5, B: 0
-TEST: [0,99] core count: A:5, B: 0
-Time taken to reschedule: 0.253681 milliseconds.
-
-========================= 
-New Schedule Layout:
-Task 0 is now in mode: 1
-Total Loss from Mode Change: 100001
-=========================
-
-
-========================= 
-New Resource Layout:
-Task 0 now has: 5 Core A | 0 Core B
-=========================
-
-
-========================= 
-Nodes Passed to RAG Builder:
-Node 1 <44,50>
-Node 0 <0,0>
-=========================
-
-Provider size: 1 Consumer size: 0 Transfer size: 0
-
-========================= 
-New Schedule RAG:
-
-Nodes and resource transfers:
-Free Resources <44,50> → no edges
-Node 0 <0,0> → no edges
-
-========================= 
-
-TEST: [0,100] core count: A:5, B: 0
-(3083784) 62
-(3083784) System: finished reschedule
-TEST: [0,101] core count: A:5, B: 0
-TEST: [0,102] core count: A:5, B: 0
-TEST: [0,103] core count: A:5, B: 0
-TEST: [0,104] core count: A:5, B: 0
-TEST: [0,105] core count: A:5, B: 0
-TEST: [0,106] core count: A:5, B: 0
-TEST: [0,107] core count: A:5, B: 0
-TEST: [0,108] core count: A:5, B: 0
-TEST: [0,109] core count: A:5, B: 0
-TEST: [0,110] core count: A:5, B: 0
-TEST: [0,111] core count: A:5, B: 0
-TEST: [0,112] core count: A:5, B: 0
-TEST: [0,113] core count: A:5, B: 0
-TEST: [0,114] core count: A:5, B: 0
-TEST: [0,115] core count: A:5, B: 0
-TEST: [0,116] core count: A:5, B: 0
-TEST: [0,117] core count: A:5, B: 0
-TEST: [0,118] core count: A:5, B: 0
-TEST: [0,119] core count: A:5, B: 0
-TEST: [0,120] core count: A:5, B: 0
-TEST: [0,121] core count: A:5, B: 0
-TEST: [0,122] core count: A:5, B: 0
-TEST: [0,123] core count: A:5, B: 0
-TEST: [0,124] core count: A:5, B: 0
-TEST: [0,125] core count: A:5, B: 0
-TEST: [0,126] core count: A:5, B: 0
-TEST: [0,127] core count: A:5, B: 0
-TEST: [0,128] core count: A:5, B: 0
-TEST: [0,129] core count: A:5, B: 0
-TEST: [0,130] core count: A:5, B: 0
-TEST: [0,131] core count: A:5, B: 0
-TEST: [0,132] core count: A:5, B: 0
-TEST: [0,133] core count: A:5, B: 0
-TEST: [0,134] core count: A:5, B: 0
-TEST: [0,135] core count: A:5, B: 0
-TEST: [0,136] core count: A:5, B: 0
-TEST: [0,137] core count: A:5, B: 0
-TEST: [0,138] core count: A:5, B: 0
-TEST: [0,139] core count: A:5, B: 0
-TEST: [0,140] core count: A:5, B: 0
-TEST: [0,141] core count: A:5, B: 0
-TEST: [0,142] core count: A:5, B: 0
-TEST: [0,143] core count: A:5, B: 0
-TEST: [0,144] core count: A:5, B: 0
-TEST: [0,145] core count: A:5, B: 0
-TEST: [0,146] core count: A:5, B: 0
-TEST: [0,147] core count: A:5, B: 0
-TEST: [0,148] core count: A:5, B: 0
-TEST: [0,149] core count: A:5, B: 0
-Time taken to reschedule: 0.299769 milliseconds.
+TEST: [0,0] core count: A: 5, B: 0
+TEST: [0,1] core count: A: 5, B: 0
+TEST: [0,2] core count: A: 5, B: 0
+TEST: [0,3] core count: A: 5, B: 0
+TEST: [0,4] core count: A: 5, B: 0
+TEST: [0,5] core count: A: 5, B: 0
+TEST: [0,6] core count: A: 5, B: 0
+TEST: [0,7] core count: A: 5, B: 0
+TEST: [0,8] core count: A: 5, B: 0
+TEST: [0,9] core count: A: 5, B: 0
+TEST: [0,10] core count: A: 5, B: 0
+TEST: [0,11] core count: A: 5, B: 0
+TEST: [0,12] core count: A: 5, B: 0
+TEST: [0,13] core count: A: 5, B: 0
+TEST: [0,14] core count: A: 5, B: 0
+TEST: [0,15] core count: A: 5, B: 0
+TEST: [0,16] core count: A: 5, B: 0
+TEST: [0,17] core count: A: 5, B: 0
+TEST: [0,18] core count: A: 5, B: 0
+TEST: [0,19] core count: A: 5, B: 0
+TEST: [0,20] core count: A: 5, B: 0
+TEST: [0,21] core count: A: 5, B: 0
+TEST: [0,22] core count: A: 5, B: 0
+TEST: [0,23] core count: A: 5, B: 0
+TEST: [0,24] core count: A: 5, B: 0
+TEST: [0,25] core count: A: 5, B: 0
+TEST: [0,26] core count: A: 5, B: 0
+TEST: [0,27] core count: A: 5, B: 0
+TEST: [0,28] core count: A: 5, B: 0
+TEST: [0,29] core count: A: 5, B: 0
+TEST: [0,30] core count: A: 5, B: 0
+TEST: [0,31] core count: A: 5, B: 0
+TEST: [0,32] core count: A: 5, B: 0
+TEST: [0,33] core count: A: 5, B: 0
+TEST: [0,34] core count: A: 5, B: 0
+TEST: [0,35] core count: A: 5, B: 0
+TEST: [0,36] core count: A: 5, B: 0
+TEST: [0,37] core count: A: 5, B: 0
+TEST: [0,38] core count: A: 5, B: 0
+TEST: [0,39] core count: A: 5, B: 0
+TEST: [0,40] core count: A: 5, B: 0
+TEST: [0,41] core count: A: 5, B: 0
+TEST: [0,42] core count: A: 5, B: 0
+TEST: [0,43] core count: A: 5, B: 0
+TEST: [0,44] core count: A: 5, B: 0
+TEST: [0,45] core count: A: 5, B: 0
+TEST: [0,46] core count: A: 5, B: 0
+TEST: [0,47] core count: A: 5, B: 0
+TEST: [0,48] core count: A: 5, B: 0
+TEST: [0,49] core count: A: 5, B: 0
 
 ========================= 
 New Schedule Layout:
@@ -332,7 +176,7 @@ Task 0 now has: 5 Core A | 0 Core B
 
 ========================= 
 Nodes Passed to RAG Builder:
-Node 1 <44,50>
+Node 1 <58,64>
 Node 0 <0,0>
 =========================
 
@@ -342,148 +186,121 @@ Provider size: 1 Consumer size: 0 Transfer size: 0
 New Schedule RAG:
 
 Nodes and resource transfers:
-Free Resources <44,50> → no edges
+Free Resources <58,64> → no edges
 Node 0 <0,0> → no edges
 
 ========================= 
 
-TEST: [0,150] core count: A:5, B: 0
-(3083784) 62
-(3083784) System: finished reschedule
-TEST: [0,151] core count: A:5, B: 0
-TEST: [0,152] core count: A:5, B: 0
-TEST: [0,153] core count: A:5, B: 0
-TEST: [0,154] core count: A:5, B: 0
-TEST: [0,155] core count: A:5, B: 0
-TEST: [0,156] core count: A:5, B: 0
-TEST: [0,157] core count: A:5, B: 0
-TEST: [0,158] core count: A:5, B: 0
-TEST: [0,159] core count: A:5, B: 0
-TEST: [0,160] core count: A:5, B: 0
-TEST: [0,161] core count: A:5, B: 0
-TEST: [0,162] core count: A:5, B: 0
-TEST: [0,163] core count: A:5, B: 0
-TEST: [0,164] core count: A:5, B: 0
-TEST: [0,165] core count: A:5, B: 0
-TEST: [0,166] core count: A:5, B: 0
-TEST: [0,167] core count: A:5, B: 0
-TEST: [0,168] core count: A:5, B: 0
-TEST: [0,169] core count: A:5, B: 0
-TEST: [0,170] core count: A:5, B: 0
-TEST: [0,171] core count: A:5, B: 0
-TEST: [0,172] core count: A:5, B: 0
-TEST: [0,173] core count: A:5, B: 0
-TEST: [0,174] core count: A:5, B: 0
-TEST: [0,175] core count: A:5, B: 0
-TEST: [0,176] core count: A:5, B: 0
-TEST: [0,177] core count: A:5, B: 0
-TEST: [0,178] core count: A:5, B: 0
-TEST: [0,179] core count: A:5, B: 0
-TEST: [0,180] core count: A:5, B: 0
-TEST: [0,181] core count: A:5, B: 0
-TEST: [0,182] core count: A:5, B: 0
-TEST: [0,183] core count: A:5, B: 0
-TEST: [0,184] core count: A:5, B: 0
-TEST: [0,185] core count: A:5, B: 0
-TEST: [0,186] core count: A:5, B: 0
-TEST: [0,187] core count: A:5, B: 0
-TEST: [0,188] core count: A:5, B: 0
-TEST: [0,189] core count: A:5, B: 0
-TEST: [0,190] core count: A:5, B: 0
-TEST: [0,191] core count: A:5, B: 0
-TEST: [0,192] core count: A:5, B: 0
-TEST: [0,193] core count: A:5, B: 0
-TEST: [0,194] core count: A:5, B: 0
-TEST: [0,195] core count: A:5, B: 0
-TEST: [0,196] core count: A:5, B: 0
-TEST: [0,197] core count: A:5, B: 0
-TEST: [0,198] core count: A:5, B: 0
-TEST: [0,199] core count: A:5, B: 0
-Time taken to reschedule: 0.253355 milliseconds.
+Time taken to reschedule: 0.806497 milliseconds.
+TEST: [0,50] core count: A: 5, B: 0
 
-========================= 
-New Schedule Layout:
-Task 0 is now in mode: 1
-Total Loss from Mode Change: 100001
-=========================
+Task 0 finished reschedule:
+Core A Owned: [ 1 2 3 4 5 ]
+Core B Owned: [ ]
+TEST: [0,51] core count: A: 5, B: 0
+TEST: [0,52] core count: A: 5, B: 0
+TEST: [0,53] core count: A: 5, B: 0
+TEST: [0,54] core count: A: 5, B: 0
+TEST: [0,55] core count: A: 5, B: 0
+TEST: [0,56] core count: A: 5, B: 0
+TEST: [0,57] core count: A: 5, B: 0
+TEST: [0,58] core count: A: 5, B: 0
+TEST: [0,59] core count: A: 5, B: 0
+TEST: [0,60] core count: A: 5, B: 0
+TEST: [0,61] core count: A: 5, B: 0
+TEST: [0,62] core count: A: 5, B: 0
+TEST: [0,63] core count: A: 5, B: 0
+TEST: [0,64] core count: A: 5, B: 0
+TEST: [0,65] core count: A: 5, B: 0
+TEST: [0,66] core count: A: 5, B: 0
+TEST: [0,67] core count: A: 5, B: 0
+TEST: [0,68] core count: A: 5, B: 0
+TEST: [0,69] core count: A: 5, B: 0
+TEST: [0,70] core count: A: 5, B: 0
+TEST: [0,71] core count: A: 5, B: 0
+TEST: [0,72] core count: A: 5, B: 0
+TEST: [0,73] core count: A: 5, B: 0
+TEST: [0,74] core count: A: 5, B: 0
+TEST: [0,75] core count: A: 5, B: 0
+TEST: [0,76] core count: A: 5, B: 0
+TEST: [0,77] core count: A: 5, B: 0
+TEST: [0,78] core count: A: 5, B: 0
+TEST: [0,79] core count: A: 5, B: 0
+TEST: [0,80] core count: A: 5, B: 0
+TEST: [0,81] core count: A: 5, B: 0
+TEST: [0,82] core count: A: 5, B: 0
+TEST: [0,83] core count: A: 5, B: 0
+TEST: [0,84] core count: A: 5, B: 0
+TEST: [0,85] core count: A: 5, B: 0
+TEST: [0,86] core count: A: 5, B: 0
+TEST: [0,87] core count: A: 5, B: 0
+TEST: [0,88] core count: A: 5, B: 0
+TEST: [0,89] core count: A: 5, B: 0
+TEST: [0,90] core count: A: 5, B: 0
+TEST: [0,91] core count: A: 5, B: 0
+TEST: [0,92] core count: A: 5, B: 0
+TEST: [0,93] core count: A: 5, B: 0
+TEST: [0,94] core count: A: 5, B: 0
+TEST: [0,95] core count: A: 5, B: 0
+TEST: [0,96] core count: A: 5, B: 0
+TEST: [0,97] core count: A: 5, B: 0
+TEST: [0,98] core count: A: 5, B: 0
+TEST: [0,99] core count: A: 5, B: 0
+Error: System is not schedulable in any configuration with specified constraints. Not updating modes.
+TEST: [0,100] core count: A: 5, B: 0
 
-
-========================= 
-New Resource Layout:
-Task 0 now has: 5 Core A | 0 Core B
-=========================
-
-
-========================= 
-Nodes Passed to RAG Builder:
-Node 1 <44,50>
-Node 0 <0,0>
-=========================
-
-Provider size: 1 Consumer size: 0 Transfer size: 0
-
-========================= 
-New Schedule RAG:
-
-Nodes and resource transfers:
-Free Resources <44,50> → no edges
-Node 0 <0,0> → no edges
-
-========================= 
-
-TEST: [0,200] core count: A:5, B: 0
-(3083784) 62
-(3083784) System: finished reschedule
-TEST: [0,201] core count: A:5, B: 0
-TEST: [0,202] core count: A:5, B: 0
-TEST: [0,203] core count: A:5, B: 0
-TEST: [0,204] core count: A:5, B: 0
-TEST: [0,205] core count: A:5, B: 0
-TEST: [0,206] core count: A:5, B: 0
-TEST: [0,207] core count: A:5, B: 0
-TEST: [0,208] core count: A:5, B: 0
-TEST: [0,209] core count: A:5, B: 0
-TEST: [0,210] core count: A:5, B: 0
-TEST: [0,211] core count: A:5, B: 0
-TEST: [0,212] core count: A:5, B: 0
-TEST: [0,213] core count: A:5, B: 0
-TEST: [0,214] core count: A:5, B: 0
-TEST: [0,215] core count: A:5, B: 0
-TEST: [0,216] core count: A:5, B: 0
-TEST: [0,217] core count: A:5, B: 0
-TEST: [0,218] core count: A:5, B: 0
-TEST: [0,219] core count: A:5, B: 0
-TEST: [0,220] core count: A:5, B: 0
-TEST: [0,221] core count: A:5, B: 0
-TEST: [0,222] core count: A:5, B: 0
-TEST: [0,223] core count: A:5, B: 0
-TEST: [0,224] core count: A:5, B: 0
-TEST: [0,225] core count: A:5, B: 0
-TEST: [0,226] core count: A:5, B: 0
-TEST: [0,227] core count: A:5, B: 0
-TEST: [0,228] core count: A:5, B: 0
-TEST: [0,229] core count: A:5, B: 0
-TEST: [0,230] core count: A:5, B: 0
-TEST: [0,231] core count: A:5, B: 0
-TEST: [0,232] core count: A:5, B: 0
-TEST: [0,233] core count: A:5, B: 0
-TEST: [0,234] core count: A:5, B: 0
-TEST: [0,235] core count: A:5, B: 0
-TEST: [0,236] core count: A:5, B: 0
-TEST: [0,237] core count: A:5, B: 0
-TEST: [0,238] core count: A:5, B: 0
-TEST: [0,239] core count: A:5, B: 0
-TEST: [0,240] core count: A:5, B: 0
-TEST: [0,241] core count: A:5, B: 0
-TEST: [0,242] core count: A:5, B: 0
-TEST: [0,243] core count: A:5, B: 0
-TEST: [0,244] core count: A:5, B: 0
-TEST: [0,245] core count: A:5, B: 0
-TEST: [0,246] core count: A:5, B: 0
-TEST: [0,247] core count: A:5, B: 0
-TEST: [0,248] core count: A:5, B: 0
-TEST: [0,249] core count: A:5, B: 0
-Time taken to reschedule: 0.299518 milliseconds.
+Task 0 finished reschedule:
+Core A Owned: [ 1 2 3 4 5 ]
+Core B Owned: [ ]
+TEST: [0,101] core count: A: 5, B: 0
+TEST: [0,102] core count: A: 5, B: 0
+TEST: [0,103] core count: A: 5, B: 0
+TEST: [0,104] core count: A: 5, B: 0
+TEST: [0,105] core count: A: 5, B: 0
+TEST: [0,106] core count: A: 5, B: 0
+TEST: [0,107] core count: A: 5, B: 0
+TEST: [0,108] core count: A: 5, B: 0
+TEST: [0,109] core count: A: 5, B: 0
+TEST: [0,110] core count: A: 5, B: 0
+TEST: [0,111] core count: A: 5, B: 0
+TEST: [0,112] core count: A: 5, B: 0
+TEST: [0,113] core count: A: 5, B: 0
+TEST: [0,114] core count: A: 5, B: 0
+TEST: [0,115] core count: A: 5, B: 0
+TEST: [0,116] core count: A: 5, B: 0
+TEST: [0,117] core count: A: 5, B: 0
+TEST: [0,118] core count: A: 5, B: 0
+TEST: [0,119] core count: A: 5, B: 0
+TEST: [0,120] core count: A: 5, B: 0
+TEST: [0,121] core count: A: 5, B: 0
+TEST: [0,122] core count: A: 5, B: 0
+TEST: [0,123] core count: A: 5, B: 0
+TEST: [0,124] core count: A: 5, B: 0
+TEST: [0,125] core count: A: 5, B: 0
+TEST: [0,126] core count: A: 5, B: 0
+TEST: [0,127] core count: A: 5, B: 0
+TEST: [0,128] core count: A: 5, B: 0
+TEST: [0,129] core count: A: 5, B: 0
+TEST: [0,130] core count: A: 5, B: 0
+TEST: [0,131] core count: A: 5, B: 0
+TEST: [0,132] core count: A: 5, B: 0
+TEST: [0,133] core count: A: 5, B: 0
+TEST: [0,134] core count: A: 5, B: 0
+TEST: [0,135] core count: A: 5, B: 0
+TEST: [0,136] core count: A: 5, B: 0
+TEST: [0,137] core count: A: 5, B: 0
+TEST: [0,138] core count: A: 5, B: 0
+TEST: [0,139] core count: A: 5, B: 0
+TEST: [0,140] core count: A: 5, B: 0
+TEST: [0,141] core count: A: 5, B: 0
+TEST: [0,142] core count: A: 5, B: 0
+TEST: [0,143] core count: A: 5, B: 0
+TEST: [0,144] core count: A: 5, B: 0
+TEST: [0,145] core count: A: 5, B: 0
+TEST: [0,146] core count: A: 5, B: 0
+TEST: [0,147] core count: A: 5, B: 0
+TEST: [0,148] core count: A: 5, B: 0
+TEST: [0,149] core count: A: 5, B: 0
 
 ========================= 
 New Schedule Layout:
@@ -500,7 +317,7 @@ Task 0 now has: 5 Core A | 0 Core B
 
 ========================= 
 Nodes Passed to RAG Builder:
-Node 1 <44,50>
+Node 1 <58,64>
 Node 0 <0,0>
 =========================
 
@@ -510,69 +327,126 @@ Provider size: 1 Consumer size: 0 Transfer size: 0
 New Schedule RAG:
 
 Nodes and resource transfers:
-Free Resources <44,50> → no edges
+Free Resources <58,64> → no edges
 Node 0 <0,0> → no edges
 
 ========================= 
 
-TEST: [0,250] core count: A:5, B: 0
-(3083784) 62
-(3083784) System: finished reschedule
-TEST: [0,251] core count: A:5, B: 0
-TEST: [0,252] core count: A:5, B: 0
-TEST: [0,253] core count: A:5, B: 0
-TEST: [0,254] core count: A:5, B: 0
-TEST: [0,255] core count: A:5, B: 0
-TEST: [0,256] core count: A:5, B: 0
-TEST: [0,257] core count: A:5, B: 0
-TEST: [0,258] core count: A:5, B: 0
-TEST: [0,259] core count: A:5, B: 0
-TEST: [0,260] core count: A:5, B: 0
-TEST: [0,261] core count: A:5, B: 0
-TEST: [0,262] core count: A:5, B: 0
-TEST: [0,263] core count: A:5, B: 0
-TEST: [0,264] core count: A:5, B: 0
-TEST: [0,265] core count: A:5, B: 0
-TEST: [0,266] core count: A:5, B: 0
-TEST: [0,267] core count: A:5, B: 0
-TEST: [0,268] core count: A:5, B: 0
-TEST: [0,269] core count: A:5, B: 0
-TEST: [0,270] core count: A:5, B: 0
-TEST: [0,271] core count: A:5, B: 0
-TEST: [0,272] core count: A:5, B: 0
-TEST: [0,273] core count: A:5, B: 0
-TEST: [0,274] core count: A:5, B: 0
-TEST: [0,275] core count: A:5, B: 0
-TEST: [0,276] core count: A:5, B: 0
-TEST: [0,277] core count: A:5, B: 0
-TEST: [0,278] core count: A:5, B: 0
-TEST: [0,279] core count: A:5, B: 0
-TEST: [0,280] core count: A:5, B: 0
-TEST: [0,281] core count: A:5, B: 0
-TEST: [0,282] core count: A:5, B: 0
-TEST: [0,283] core count: A:5, B: 0
-TEST: [0,284] core count: A:5, B: 0
-TEST: [0,285] core count: A:5, B: 0
-TEST: [0,286] core count: A:5, B: 0
-TEST: [0,287] core count: A:5, B: 0
-TEST: [0,288] core count: A:5, B: 0
-TEST: [0,289] core count: A:5, B: 0
-TEST: [0,290] core count: A:5, B: 0
-TEST: [0,291] core count: A:5, B: 0
-TEST: [0,292] core count: A:5, B: 0
-TEST: [0,293] core count: A:5, B: 0
-TEST: [0,294] core count: A:5, B: 0
-TEST: [0,295] core count: A:5, B: 0
-TEST: [0,296] core count: A:5, B: 0
-TEST: [0,297] core count: A:5, B: 0
-TEST: [0,298] core count: A:5, B: 0
-TEST: [0,299] core count: A:5, B: 0
-Time taken to reschedule: 0.253264 milliseconds.
+Time taken to reschedule: 0.542519 milliseconds.
+TEST: [0,150] core count: A: 5, B: 0
+
+Task 0 finished reschedule:
+Core A Owned: [ 1 2 3 4 5 ]
+Core B Owned: [ ]
+TEST: [0,151] core count: A: 5, B: 0
+TEST: [0,152] core count: A: 5, B: 0
+TEST: [0,153] core count: A: 5, B: 0
+TEST: [0,154] core count: A: 5, B: 0
+TEST: [0,155] core count: A: 5, B: 0
+TEST: [0,156] core count: A: 5, B: 0
+TEST: [0,157] core count: A: 5, B: 0
+TEST: [0,158] core count: A: 5, B: 0
+TEST: [0,159] core count: A: 5, B: 0
+TEST: [0,160] core count: A: 5, B: 0
+TEST: [0,161] core count: A: 5, B: 0
+TEST: [0,162] core count: A: 5, B: 0
+TEST: [0,163] core count: A: 5, B: 0
+TEST: [0,164] core count: A: 5, B: 0
+TEST: [0,165] core count: A: 5, B: 0
+TEST: [0,166] core count: A: 5, B: 0
+TEST: [0,167] core count: A: 5, B: 0
+TEST: [0,168] core count: A: 5, B: 0
+TEST: [0,169] core count: A: 5, B: 0
+TEST: [0,170] core count: A: 5, B: 0
+TEST: [0,171] core count: A: 5, B: 0
+TEST: [0,172] core count: A: 5, B: 0
+TEST: [0,173] core count: A: 5, B: 0
+TEST: [0,174] core count: A: 5, B: 0
+TEST: [0,175] core count: A: 5, B: 0
+TEST: [0,176] core count: A: 5, B: 0
+TEST: [0,177] core count: A: 5, B: 0
+TEST: [0,178] core count: A: 5, B: 0
+TEST: [0,179] core count: A: 5, B: 0
+TEST: [0,180] core count: A: 5, B: 0
+TEST: [0,181] core count: A: 5, B: 0
+TEST: [0,182] core count: A: 5, B: 0
+TEST: [0,183] core count: A: 5, B: 0
+TEST: [0,184] core count: A: 5, B: 0
+TEST: [0,185] core count: A: 5, B: 0
+TEST: [0,186] core count: A: 5, B: 0
+TEST: [0,187] core count: A: 5, B: 0
+TEST: [0,188] core count: A: 5, B: 0
+TEST: [0,189] core count: A: 5, B: 0
+TEST: [0,190] core count: A: 5, B: 0
+TEST: [0,191] core count: A: 5, B: 0
+TEST: [0,192] core count: A: 5, B: 0
+TEST: [0,193] core count: A: 5, B: 0
+TEST: [0,194] core count: A: 5, B: 0
+TEST: [0,195] core count: A: 5, B: 0
+TEST: [0,196] core count: A: 5, B: 0
+TEST: [0,197] core count: A: 5, B: 0
+TEST: [0,198] core count: A: 5, B: 0
+TEST: [0,199] core count: A: 5, B: 0
+Error: System is not schedulable in any configuration with specified constraints. Not updating modes.
+TEST: [0,200] core count: A: 5, B: 0
+
+Task 0 finished reschedule:
+Core A Owned: [ 1 2 3 4 5 ]
+Core B Owned: [ ]
+TEST: [0,201] core count: A: 5, B: 0
+TEST: [0,202] core count: A: 5, B: 0
+TEST: [0,203] core count: A: 5, B: 0
+TEST: [0,204] core count: A: 5, B: 0
+TEST: [0,205] core count: A: 5, B: 0
+TEST: [0,206] core count: A: 5, B: 0
+TEST: [0,207] core count: A: 5, B: 0
+TEST: [0,208] core count: A: 5, B: 0
+TEST: [0,209] core count: A: 5, B: 0
+TEST: [0,210] core count: A: 5, B: 0
+TEST: [0,211] core count: A: 5, B: 0
+TEST: [0,212] core count: A: 5, B: 0
+TEST: [0,213] core count: A: 5, B: 0
+TEST: [0,214] core count: A: 5, B: 0
+TEST: [0,215] core count: A: 5, B: 0
+TEST: [0,216] core count: A: 5, B: 0
+TEST: [0,217] core count: A: 5, B: 0
+TEST: [0,218] core count: A: 5, B: 0
+TEST: [0,219] core count: A: 5, B: 0
+TEST: [0,220] core count: A: 5, B: 0
+TEST: [0,221] core count: A: 5, B: 0
+TEST: [0,222] core count: A: 5, B: 0
+TEST: [0,223] core count: A: 5, B: 0
+TEST: [0,224] core count: A: 5, B: 0
+TEST: [0,225] core count: A: 5, B: 0
+TEST: [0,226] core count: A: 5, B: 0
+TEST: [0,227] core count: A: 5, B: 0
+TEST: [0,228] core count: A: 5, B: 0
+TEST: [0,229] core count: A: 5, B: 0
+TEST: [0,230] core count: A: 5, B: 0
+TEST: [0,231] core count: A: 5, B: 0
+TEST: [0,232] core count: A: 5, B: 0
+TEST: [0,233] core count: A: 5, B: 0
+TEST: [0,234] core count: A: 5, B: 0
+TEST: [0,235] core count: A: 5, B: 0
+TEST: [0,236] core count: A: 5, B: 0
+TEST: [0,237] core count: A: 5, B: 0
+TEST: [0,238] core count: A: 5, B: 0
+TEST: [0,239] core count: A: 5, B: 0
+TEST: [0,240] core count: A: 5, B: 0
+TEST: [0,241] core count: A: 5, B: 0
+TEST: [0,242] core count: A: 5, B: 0
+TEST: [0,243] core count: A: 5, B: 0
+TEST: [0,244] core count: A: 5, B: 0
+TEST: [0,245] core count: A: 5, B: 0
+TEST: [0,246] core count: A: 5, B: 0
+TEST: [0,247] core count: A: 5, B: 0
+TEST: [0,248] core count: A: 5, B: 0
+TEST: [0,249] core count: A: 5, B: 0
 
 ========================= 
 New Schedule Layout:
 Task 0 is now in mode: 1
-Total Loss from Mode Change: 100001
+Total Loss from Mode Change: 0
 =========================
 
 
@@ -584,7 +458,7 @@ Task 0 now has: 5 Core A | 0 Core B
 
 ========================= 
 Nodes Passed to RAG Builder:
-Node 1 <44,50>
+Node 1 <58,64>
 Node 0 <0,0>
 =========================
 
@@ -594,53 +468,111 @@ Provider size: 1 Consumer size: 0 Transfer size: 0
 New Schedule RAG:
 
 Nodes and resource transfers:
-Free Resources <44,50> → no edges
+Free Resources <58,64> → no edges
 Node 0 <0,0> → no edges
 
 ========================= 
 
-TEST: [0,300] core count: A:5, B: 0
-(3083784) 62
-(3083784) System: finished reschedule
-TEST: [0,301] core count: A:5, B: 0
-TEST: [0,302] core count: A:5, B: 0
-TEST: [0,303] core count: A:5, B: 0
-TEST: [0,304] core count: A:5, B: 0
-TEST: [0,305] core count: A:5, B: 0
-TEST: [0,306] core count: A:5, B: 0
-TEST: [0,307] core count: A:5, B: 0
-TEST: [0,308] core count: A:5, B: 0
-TEST: [0,309] core count: A:5, B: 0
-TEST: [0,310] core count: A:5, B: 0
-TEST: [0,311] core count: A:5, B: 0
-TEST: [0,312] core count: A:5, B: 0
-TEST: [0,313] core count: A:5, B: 0
-TEST: [0,314] core count: A:5, B: 0
-TEST: [0,315] core count: A:5, B: 0
-TEST: [0,316] core count: A:5, B: 0
-TEST: [0,317] core count: A:5, B: 0
-TEST: [0,318] core count: A:5, B: 0
-TEST: [0,319] core count: A:5, B: 0
-TEST: [0,320] core count: A:5, B: 0
-TEST: [0,321] core count: A:5, B: 0
-TEST: [0,322] core count: A:5, B: 0
-TEST: [0,323] core count: A:5, B: 0
-TEST: [0,324] core count: A:5, B: 0
-TEST: [0,325] core count: A:5, B: 0
-TEST: [0,326] core count: A:5, B: 0
-TEST: [0,327] core count: A:5, B: 0
-TEST: [0,328] core count: A:5, B: 0
-TEST: [0,329] core count: A:5, B: 0
-TEST: [0,330] core count: A:5, B: 0
-TEST: [0,331] core count: A:5, B: 0
-TEST: [0,332] core count: A:5, B: 0
-TEST: [0,333] core count: A:5, B: 0
-TEST: [0,334] core count: A:5, B: 0
+Time taken to reschedule: 0.540324 milliseconds.
+TEST: [0,250] core count: A: 5, B: 0
+
+Task 0 finished reschedule:
+Core A Owned: [ 1 2 3 4 5 ]
+Core B Owned: [ ]
+TEST: [0,251] core count: A: 5, B: 0
+TEST: [0,252] core count: A: 5, B: 0
+TEST: [0,253] core count: A: 5, B: 0
+TEST: [0,254] core count: A: 5, B: 0
+TEST: [0,255] core count: A: 5, B: 0
+TEST: [0,256] core count: A: 5, B: 0
+TEST: [0,257] core count: A: 5, B: 0
+TEST: [0,258] core count: A: 5, B: 0
+TEST: [0,259] core count: A: 5, B: 0
+TEST: [0,260] core count: A: 5, B: 0
+TEST: [0,261] core count: A: 5, B: 0
+TEST: [0,262] core count: A: 5, B: 0
+TEST: [0,263] core count: A: 5, B: 0
+TEST: [0,264] core count: A: 5, B: 0
+TEST: [0,265] core count: A: 5, B: 0
+TEST: [0,266] core count: A: 5, B: 0
+TEST: [0,267] core count: A: 5, B: 0
+TEST: [0,268] core count: A: 5, B: 0
+TEST: [0,269] core count: A: 5, B: 0
+TEST: [0,270] core count: A: 5, B: 0
+TEST: [0,271] core count: A: 5, B: 0
+TEST: [0,272] core count: A: 5, B: 0
+TEST: [0,273] core count: A: 5, B: 0
+TEST: [0,274] core count: A: 5, B: 0
+TEST: [0,275] core count: A: 5, B: 0
+TEST: [0,276] core count: A: 5, B: 0
+TEST: [0,277] core count: A: 5, B: 0
+TEST: [0,278] core count: A: 5, B: 0
+TEST: [0,279] core count: A: 5, B: 0
+TEST: [0,280] core count: A: 5, B: 0
+TEST: [0,281] core count: A: 5, B: 0
+TEST: [0,282] core count: A: 5, B: 0
+TEST: [0,283] core count: A: 5, B: 0
+TEST: [0,284] core count: A: 5, B: 0
+TEST: [0,285] core count: A: 5, B: 0
+TEST: [0,286] core count: A: 5, B: 0
+TEST: [0,287] core count: A: 5, B: 0
+TEST: [0,288] core count: A: 5, B: 0
+TEST: [0,289] core count: A: 5, B: 0
+TEST: [0,290] core count: A: 5, B: 0
+TEST: [0,291] core count: A: 5, B: 0
+TEST: [0,292] core count: A: 5, B: 0
+TEST: [0,293] core count: A: 5, B: 0
+TEST: [0,294] core count: A: 5, B: 0
+TEST: [0,295] core count: A: 5, B: 0
+TEST: [0,296] core count: A: 5, B: 0
+TEST: [0,297] core count: A: 5, B: 0
+TEST: [0,298] core count: A: 5, B: 0
+TEST: [0,299] core count: A: 5, B: 0
+Error: System is not schedulable in any configuration with specified constraints. Not updating modes.
+TEST: [0,300] core count: A: 5, B: 0
+
+Task 0 finished reschedule:
+Core A Owned: [ 1 2 3 4 5 ]
+Core B Owned: [ ]
+TEST: [0,301] core count: A: 5, B: 0
+TEST: [0,302] core count: A: 5, B: 0
+TEST: [0,303] core count: A: 5, B: 0
+TEST: [0,304] core count: A: 5, B: 0
+TEST: [0,305] core count: A: 5, B: 0
+TEST: [0,306] core count: A: 5, B: 0
+TEST: [0,307] core count: A: 5, B: 0
+TEST: [0,308] core count: A: 5, B: 0
+TEST: [0,309] core count: A: 5, B: 0
+TEST: [0,310] core count: A: 5, B: 0
+TEST: [0,311] core count: A: 5, B: 0
+TEST: [0,312] core count: A: 5, B: 0
+TEST: [0,313] core count: A: 5, B: 0
+TEST: [0,314] core count: A: 5, B: 0
+TEST: [0,315] core count: A: 5, B: 0
+TEST: [0,316] core count: A: 5, B: 0
+TEST: [0,317] core count: A: 5, B: 0
+TEST: [0,318] core count: A: 5, B: 0
+TEST: [0,319] core count: A: 5, B: 0
+TEST: [0,320] core count: A: 5, B: 0
+TEST: [0,321] core count: A: 5, B: 0
+TEST: [0,322] core count: A: 5, B: 0
+TEST: [0,323] core count: A: 5, B: 0
+TEST: [0,324] core count: A: 5, B: 0
+TEST: [0,325] core count: A: 5, B: 0
+TEST: [0,326] core count: A: 5, B: 0
+TEST: [0,327] core count: A: 5, B: 0
+TEST: [0,328] core count: A: 5, B: 0
+TEST: [0,329] core count: A: 5, B: 0
+TEST: [0,330] core count: A: 5, B: 0
+TEST: [0,331] core count: A: 5, B: 0
+TEST: [0,332] core count: A: 5, B: 0
+TEST: [0,333] core count: A: 5, B: 0
+TEST: [0,334] core count: A: 5, B: 0
 WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
 
-(3083784) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/335
-(3083784) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  223093 nsec
-(3083784) Avg running time for task ./../../regression_test_task/regression_test_task: 0.156204 msec
-0 335 1 0.000223093
+(3388090) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/335
+(3388090) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  222988 nsec
+(3388090) Avg running time for task ./../../regression_test_task/regression_test_task: 0.138136 msec
+0 335 1 0.000222988
 
 All tasks finished.

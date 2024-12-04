@@ -1,0 +1,19 @@
+---
+schedulable: true
+maxRuntime: {sec: 0, nsec: 100000000}
+tasks:
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "0 100000 2 10"
+    elasticity: 1
+    modes:
+      - work: {sec: 5, nsec: 0}
+        span: {sec: 1, nsec: 0}
+        gpu_work: {sec: 5, nsec: 0}
+        gpu_span: {sec: 1, nsec: 0}
+        period: {sec: 0, nsec: 3000000}
+      - work: {sec: 10, nsec: 0}
+        span: {sec: 2, nsec: 0}
+        gpu_work: {sec: 10, nsec: 0}
+        gpu_span: {sec: 2, nsec: 0}
+        period: {sec: 0, nsec: 3000000}

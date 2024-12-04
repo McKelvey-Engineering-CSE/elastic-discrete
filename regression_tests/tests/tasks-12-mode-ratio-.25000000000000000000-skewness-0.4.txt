@@ -1,0 +1,1002 @@
+Explicit Sync: 0
+0.209763986 0.085070956 0.322842339 0.279073078 0.116146874
+0.240646273 0.085070956 0.322842339 0.336229113 0.116146874
+0.271528560 0.085070956 0.322842339 0.393385149 0.116146874
+0.302410847 0.085070956 0.322842339 0.450541184 0.116146874
+Task Losses:
+Mode 0 Loss: 0.00942642
+Mode 1 Loss: 0.00418952
+Mode 2 Loss: 0.00104738
+Mode 3 Loss: 0
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+0.330140836 0.132543439 0.567059025 0.549538242 0.178750828
+0.385558561 0.132543439 0.567059025 0.643752804 0.178750828
+0.440976285 0.132543439 0.567059025 0.737967367 0.178750828
+0.496394010 0.132543439 0.567059025 0.832181929 0.178750828
+Task Losses:
+Mode 0 Loss: 0.0783333
+Mode 1 Loss: 0.0348148
+Mode 2 Loss: 0.0087037
+Mode 3 Loss: 0
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+0.239710005 0.100840983 0.431229888 0.378787683 0.147189345
+0.277848882 0.100840983 0.431229888 0.483573853 0.147189345
+0.315987758 0.100840983 0.431229888 0.588360022 0.147189345
+0.354126635 0.100840983 0.431229888 0.693146191 0.147189345
+Task Losses:
+Mode 0 Loss: 0.494324
+Mode 1 Loss: 0.219699
+Mode 2 Loss: 0.0549249
+Mode 3 Loss: 0
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+0.380333051 0.143321018 0.664382566 0.737816053 0.211708066
+0.447864424 0.143321018 0.664382566 0.865935515 0.211708066
+0.515395796 0.143321018 0.664382566 0.994054978 0.211708066
+0.582927168 0.143321018 0.664382566 1.122174441 0.211708066
+Task Losses:
+Mode 0 Loss: 0.390247
+Mode 1 Loss: 0.173443
+Mode 2 Loss: 0.0433608
+Mode 3 Loss: 0
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+0.589239020 0.244417873 0.893892009 1.037991487 0.276165581
+0.710991566 0.244417873 0.893892009 1.238795244 0.276165581
+0.832744112 0.244417873 0.893892009 1.439599002 0.276165581
+0.954496659 0.244417873 0.893892009 1.640402759 0.276165581
+Task Losses:
+Mode 0 Loss: 0.58594
+Mode 1 Loss: 0.260418
+Mode 2 Loss: 0.0651045
+Mode 3 Loss: 0
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+0.230694336 0.103913260 0.414790438 0.392314560 0.133234096
+0.297902102 0.103913260 0.414790438 0.473280286 0.133234096
+0.365109867 0.103913260 0.414790438 0.554246011 0.133234096
+0.432317633 0.103913260 0.414790438 0.635211737 0.133234096
+Task Losses:
+Mode 0 Loss: 0.574243
+Mode 1 Loss: 0.255219
+Mode 2 Loss: 0.0638048
+Mode 3 Loss: 0
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+0.468651782 0.171978155 0.850752941 0.886180398 0.251926316
+0.563826764 0.171978155 0.850752941 1.081094926 0.251926316
+0.659001746 0.171978155 0.850752941 1.276009455 0.251926316
+0.754176727 0.171978155 0.850752941 1.470923984 0.251926316
+Task Losses:
+Mode 0 Loss: 0.0872004
+Mode 1 Loss: 0.0387557
+Mode 2 Loss: 0.00968893
+Mode 3 Loss: 0
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+0.347039188 0.151732021 0.620917811 0.647929768 0.204292323
+0.418054819 0.151732021 0.620917811 0.778397416 0.204292323
+0.489070451 0.151732021 0.620917811 0.908865064 0.204292323
+0.560086082 0.151732021 0.620917811 1.039332712 0.204292323
+Task Losses:
+Mode 0 Loss: 0.236915
+Mode 1 Loss: 0.105295
+Mode 2 Loss: 0.0263239
+Mode 3 Loss: 0
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+0.613206486 0.172406312 0.588919239 0.657711574 0.194239688
+0.684181688 0.172406312 0.588919239 0.764294581 0.194239688
+0.755156891 0.172406312 0.588919239 0.870877587 0.194239688
+0.826132093 0.172406312 0.588919239 0.977460593 0.194239688
+Task Losses:
+Mode 0 Loss: 0.409056
+Mode 1 Loss: 0.181803
+Mode 2 Loss: 0.0454506
+Mode 3 Loss: 0
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+0.444132061 0.166207444 0.810905276 0.842980914 0.252182949
+0.549761369 0.166207444 0.810905276 1.030567391 0.252182949
+0.655390676 0.166207444 0.810905276 1.218153868 0.252182949
+0.761019984 0.166207444 0.810905276 1.405740344 0.252182949
+Task Losses:
+Mode 0 Loss: 0.588365
+Mode 1 Loss: 0.261496
+Mode 2 Loss: 0.0653739
+Mode 3 Loss: 0
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+0.099126251 0.047009934 0.191342800 0.130645843 0.055705997
+0.124592639 0.047009934 0.191342800 0.159374231 0.055705997
+0.150059027 0.047009934 0.191342800 0.188102618 0.055705997
+0.175525415 0.047009934 0.191342800 0.216831006 0.055705997
+Task Losses:
+Mode 0 Loss: 0.360997
+Mode 1 Loss: 0.160443
+Mode 2 Loss: 0.0401107
+Mode 3 Loss: 0
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+0.387189338 0.155274053 0.749813226 0.741311157 0.221155080
+0.463583001 0.155274053 0.749813226 0.894577541 0.221155080
+0.539976663 0.155274053 0.749813226 1.047843924 0.221155080
+0.616370326 0.155274053 0.749813226 1.201110307 0.221155080
+Task Losses:
+Mode 0 Loss: 0.28144
+Mode 1 Loss: 0.125084
+Mode 2 Loss: 0.0312711
+Mode 3 Loss: 0
+Forking and execv-ing task ./../../regression_test_task/regression_test_task
+
+========================= 
+New Schedule Layout:
+Task 0 is now in mode: 0
+Task 1 is now in mode: 0
+Task 2 is now in mode: 1
+Task 3 is now in mode: 1
+Task 4 is now in mode: 2
+Task 5 is now in mode: 2
+Task 6 is now in mode: 0
+Task 7 is now in mode: 1
+Task 8 is now in mode: 2
+Task 9 is now in mode: 2
+Task 10 is now in mode: 1
+Task 11 is now in mode: 1
+Total Loss from Mode Change: 1.19866
+=========================
+
+
+========================= 
+New Resource Layout:
+Task 0 now has: 2 Core A | 4 Core B
+Task 1 now has: 2 Core A | 4 Core B
+Task 2 now has: 2 Core A | 5 Core B
+Task 3 now has: 2 Core A | 6 Core B
+Task 4 now has: 3 Core A | 7 Core B
+Task 5 now has: 3 Core A | 6 Core B
+Task 6 now has: 2 Core A | 4 Core B
+Task 7 now has: 2 Core A | 6 Core B
+Task 8 now has: 5 Core A | 7 Core B
+Task 9 now has: 3 Core A | 7 Core B
+Task 10 now has: 2 Core A | 3 Core B
+Task 11 now has: 2 Core A | 5 Core B
+=========================
+
+CPU 31 is free.
+CPU 32 is free.
+CPU 33 is free.
+CPU 34 is free.
+CPU 35 is free.
+CPU 36 is free.
+CPU 37 is free.
+CPU 38 is free.
+CPU 39 is free.
+CPU 40 is free.
+CPU 41 is free.
+CPU 42 is free.
+CPU 43 is free.
+CPU 44 is free.
+CPU 45 is free.
+CPU 46 is free.
+CPU 47 is free.
+CPU 48 is free.
+CPU 49 is free.
+CPU 50 is free.
+CPU 51 is free.
+CPU 52 is free.
+CPU 53 is free.
+CPU 54 is free.
+CPU 55 is free.
+CPU 56 is free.
+CPU 57 is free.
+CPU 58 is free.
+CPU 59 is free.
+CPU 60 is free.
+CPU 61 is free.
+CPU 62 is free.
+CPU 63 is free.
+Time taken to reschedule: 17.2449 milliseconds.
+All tasks started.
+WARNING: 3399459 Could not set priority. Returned: 1  (Operation not permitted)
+WARNING: 3399448 Could not set priority. Returned: 1  (Operation not permitted)
+WARNING: 3399452 Could not set priority. Returned: 1  (Operation not permitted)
+WARNING: 3399453 Could not set priority. Returned: 1  (Operation not permitted)
+WARNING: 3399457 Could not set priority. Returned: 1  (Operation not permitted)
+WARNING: 3399455 Could not set priority. Returned: 1  (Operation not permitted)
+WARNING: 3399451 Could not set priority. Returned: 1  (Operation not permitted)
+WARNING: 3399449 Could not set priority. Returned: 1  (Operation not permitted)
+WARNING: 3399458 Could not set priority. Returned: 1  (Operation not permitted)
+WARNING: 3399454 Could not set priority. Returned: 1  (Operation not permitted)
+WARNING: 3399450 Could not set priority. Returned: 1  (Operation not permitted)
+WARNING: 3399456 Could not set priority. Returned: 1  (Operation not permitted)
+Process: 0 Initial CPU Mask: 6
+Process: 2 Initial CPU Mask: 96
+Process: 7 Initial CPU Mask: 393216
+Process: 8 Initial CPU Mask: 16252928
+Process: 3 Initial CPU Mask: 384
+Process: 4 Initial CPU Mask: 3584
+Process: 11 Initial CPU Mask: 1610612736
+Process: 10 Initial CPU Mask: 402653184
+
+==========================
+|  Task 0 (PID: 3399448) |
+==========================
+
+CPU Metrics: 
+	- Lowest CPU: 1
+	- Current CPUs: 2
+	- Minimum CPUs: 2
+	- Maximum CPUs: 3
+	- Practical Max: 3
+
+GPU Metrics: 
+	- Lowest GPU: 0
+	- Current GPUs: 4
+	- Minimum GPUs: 4
+	- Maximum GPUs: 8
+	- Practical Max: 8
+
+Timing Metrics: 
+	- Period s: 0 s
+	- Period ns: 322842339 ns
+
+CPU Core Configuration: 
+	- Active: 1-2
+	- Passive: 3-63
+
+Command Line Parameters: 
+	- Args: ./../../regression_test_task/regression_test_task 2850674 34644345 -1 2850677 34644345 7 0 BAR 0 ./../../regression_test_task/regression_test_task 1 10000 4 10 
+
+Process: 1 Initial CPU Mask: 24
+
+==========================
+|  Task 7 (PID: 3399455) |
+==========================
+
+CPU Metrics: 
+	- Lowest CPU: 17
+	- Current CPUs: 2
+	- Minimum CPUs: 2
+	- Maximum CPUs: 3
+	- Practical Max: 3
+
+GPU Metrics: 
+	- Lowest GPU: 36
+	- Current GPUs: 6
+	- Minimum GPUs: 5
+	- Maximum GPUs: 8
+	- Practical Max: 8
+
+Timing Metrics: 
+	- Period s: 0 s
+	- Period ns: 620917811 ns
+
+CPU Core Configuration: 
+	- Active: 17-18
+	- Passive: 1-16,19-63
+
+Command Line Parameters: 
+	- Args: ./../../regression_test_task/regression_test_task 2850674 34644345 -1 2850677 34644345 7 7 BAR 0 ./../../regression_test_task/regression_test_task 8 10000 4 10 
+
+Process: 5 Initial CPU Mask: 28672
+Process: 9 Initial CPU Mask: 117440512
+
+==========================
+|  Task 2 (PID: 3399450) |
+==========================
+
+CPU Metrics: 
+	- Lowest CPU: 5
+	- Current CPUs: 2
+	- Minimum CPUs: 2
+	- Maximum CPUs: 3
+	- Practical Max: 3
+
+GPU Metrics: 
+	- Lowest GPU: 8
+	- Current GPUs: 5
+	- Minimum GPUs: 4
+	- Maximum GPUs: 8
+	- Practical Max: 8
+
+Timing Metrics: 
+	- Period s: 0 s
+	- Period ns: 431229888 ns
+
+CPU Core Configuration: 
+	- Active: 5-6
+	- Passive: 1-4,7-63
+
+Command Line Parameters: 
+	- Args: ./../../regression_test_task/regression_test_task 2850674 34644345 -1 2850677 34644345 7 2 BAR 0 ./../../regression_test_task/regression_test_task 3 10000 4 10 
+
+Process: 6 Initial CPU Mask: 98304
+
+==========================
+|  Task 8 (PID: 3399456) |
+==========================
+
+CPU Metrics: 
+	- Lowest CPU: 19
+	- Current CPUs: 5
+	- Minimum CPUs: 4
+	- Maximum CPUs: 6
+	- Practical Max: 6
+
+GPU Metrics: 
+	- Lowest GPU: 42
+	- Current GPUs: 7
+	- Minimum GPUs: 5
+	- Maximum GPUs: 8
+	- Practical Max: 8
+
+Timing Metrics: 
+	- Period s: 0 s
+	- Period ns: 588919239 ns
+
+CPU Core Configuration: 
+	- Active: 19-23
+	- Passive: 1-18,24-63
+
+Command Line Parameters: 
+	- Args: ./../../regression_test_task/regression_test_task 2850674 34644345 -1 2850677 34644345 7 8 BAR 0 ./../../regression_test_task/regression_test_task 9 10000 4 10 
+
+
+==========================
+|  Task 3 (PID: 3399451) |
+==========================
+
+CPU Metrics: 
+	- Lowest CPU: 7
+	- Current CPUs: 2
+	- Minimum CPUs: 2
+	- Maximum CPUs: 3
+	- Practical Max: 3
+
+GPU Metrics: 
+	- Lowest GPU: 13
+	- Current GPUs: 6
+	- Minimum GPUs: 5
+	- Maximum GPUs: 8
+	- Practical Max: 8
+
+Timing Metrics: 
+	- Period s: 0 s
+	- Period ns: 664382566 ns
+
+CPU Core Configuration: 
+	- Active: 7-8
+	- Passive: 1-6,9-63
+
+Command Line Parameters: 
+	- Args: ./../../regression_test_task/regression_test_task 2850674 34644345 -1 2850677 34644345 7 3 BAR 0 ./../../regression_test_task/regression_test_task 4 10000 4 10 
+
+
+==========================
+|  Task 4 (PID: 3399452) |
+==========================
+
+CPU Metrics: 
+	- Lowest CPU: 9
+	- Current CPUs: 3
+	- Minimum CPUs: 2
+	- Maximum CPUs: 4
+	- Practical Max: 4
+
+GPU Metrics: 
+	- Lowest GPU: 19
+	- Current GPUs: 7
+	- Minimum GPUs: 5
+	- Maximum GPUs: 8
+	- Practical Max: 8
+
+Timing Metrics: 
+	- Period s: 0 s
+	- Period ns: 893892009 ns
+
+CPU Core Configuration: 
+	- Active: 9-11
+	- Passive: 1-8,12-63
+
+Command Line Parameters: 
+	- Args: ./../../regression_test_task/regression_test_task 2850674 34644345 -1 2850677 34644345 7 4 BAR 0 ./../../regression_test_task/regression_test_task 5 10000 4 10 
+
+
+===========================
+|  Task 11 (PID: 3399459) |
+===========================
+
+CPU Metrics: 
+	- Lowest CPU: 29
+	- Current CPUs: 2
+	- Minimum CPUs: 2
+	- Maximum CPUs: 3
+	- Practical Max: 3
+
+GPU Metrics: 
+	- Lowest GPU: 59
+	- Current GPUs: 5
+	- Minimum GPUs: 4
+	- Maximum GPUs: 7
+	- Practical Max: 7
+
+Timing Metrics: 
+	- Period s: 0 s
+	- Period ns: 749813226 ns
+
+CPU Core Configuration: 
+	- Active: 29-30
+	- Passive: 1-28,31-63
+
+Command Line Parameters: 
+	- Args: ./../../regression_test_task/regression_test_task 2850674 34644345 -1 2850677 34644345 7 11 BAR 0 ./../../regression_test_task/regression_test_task 12 10000 4 10 
+
+
+===========================
+|  Task 10 (PID: 3399458) |
+===========================
+
+CPU Metrics: 
+	- Lowest CPU: 27
+	- Current CPUs: 2
+	- Minimum CPUs: 2
+	- Maximum CPUs: 3
+	- Practical Max: 3
+
+GPU Metrics: 
+	- Lowest GPU: 56
+	- Current GPUs: 3
+	- Minimum GPUs: 2
+	- Maximum GPUs: 5
+	- Practical Max: 5
+
+Timing Metrics: 
+	- Period s: 0 s
+	- Period ns: 191342800 ns
+
+CPU Core Configuration: 
+	- Active: 27-28
+	- Passive: 1-26,29-63
+
+Command Line Parameters: 
+	- Args: ./../../regression_test_task/regression_test_task 2850674 34644345 -1 2850677 34644345 7 10 BAR 0 ./../../regression_test_task/regression_test_task 11 10000 4 10 
+
+
+==========================
+|  Task 1 (PID: 3399449) |
+==========================
+
+CPU Metrics: 
+	- Lowest CPU: 3
+	- Current CPUs: 2
+	- Minimum CPUs: 2
+	- Maximum CPUs: 3
+	- Practical Max: 3
+
+GPU Metrics: 
+	- Lowest GPU: 4
+	- Current GPUs: 4
+	- Minimum GPUs: 4
+	- Maximum GPUs: 7
+	- Practical Max: 7
+
+Timing Metrics: 
+	- Period s: 0 s
+	- Period ns: 567059025 ns
+
+CPU Core Configuration: 
+	- Active: 3-4
+	- Passive: 1-2,5-63
+
+Command Line Parameters: 
+	- Args: ./../../regression_test_task/regression_test_task 2850674 34644345 -1 2850677 34644345 7 1 BAR 0 ./../../regression_test_task/regression_test_task 2 10000 4 10 
+
+
+==========================
+|  Task 5 (PID: 3399453) |
+==========================
+
+CPU Metrics: 
+	- Lowest CPU: 12
+	- Current CPUs: 3
+	- Minimum CPUs: 2
+	- Maximum CPUs: 4
+	- Practical Max: 4
+
+GPU Metrics: 
+	- Lowest GPU: 26
+	- Current GPUs: 6
+	- Minimum GPUs: 4
+	- Maximum GPUs: 7
+	- Practical Max: 7
+
+Timing Metrics: 
+	- Period s: 0 s
+	- Period ns: 414790438 ns
+
+CPU Core Configuration: 
+	- Active: 12-14
+	- Passive: 1-11,15-63
+
+Command Line Parameters: 
+	- Args: ./../../regression_test_task/regression_test_task 2850674 34644345 -1 2850677 34644345 7 5 BAR 0 ./../../regression_test_task/regression_test_task 6 10000 4 10 
+
+
+==========================
+|  Task 9 (PID: 3399457) |
+==========================
+
+CPU Metrics: 
+	- Lowest CPU: 24
+	- Current CPUs: 3
+	- Minimum CPUs: 2
+	- Maximum CPUs: 3
+	- Practical Max: 3
+
+GPU Metrics: 
+	- Lowest GPU: 49
+	- Current GPUs: 7
+	- Minimum GPUs: 4
+	- Maximum GPUs: 8
+	- Practical Max: 8
+
+Timing Metrics: 
+	- Period s: 0 s
+	- Period ns: 810905276 ns
+
+CPU Core Configuration: 
+	- Active: 24-26
+	- Passive: 1-23,27-63
+
+Command Line Parameters: 
+	- Args: ./../../regression_test_task/regression_test_task 2850674 34644345 -1 2850677 34644345 7 9 BAR 0 ./../../regression_test_task/regression_test_task 10 10000 4 10 
+
+
+==========================
+|  Task 6 (PID: 3399454) |
+==========================
+
+CPU Metrics: 
+	- Lowest CPU: 15
+	- Current CPUs: 2
+	- Minimum CPUs: 2
+	- Maximum CPUs: 3
+	- Practical Max: 3
+
+GPU Metrics: 
+	- Lowest GPU: 32
+	- Current GPUs: 4
+	- Minimum GPUs: 4
+	- Maximum GPUs: 8
+	- Practical Max: 8
+
+Timing Metrics: 
+	- Period s: 0 s
+	- Period ns: 850752941 ns
+
+CPU Core Configuration: 
+	- Active: 15-16
+	- Passive: 1-14,17-63
+
+Command Line Parameters: 
+	- Args: ./../../regression_test_task/regression_test_task 2850674 34644345 -1 2850677 34644345 7 6 BAR 0 ./../../regression_test_task/regression_test_task 7 10000 4 10 
+
+TEST: [8,0] core count: A: 2, B: 6
+TEST: [9,0] core count: A: 5, B: 7
+TEST: [12,0] core count: A: 2, B: 5
+TEST: [11,0] core count: A: 2, B: 3
+TEST: [10,0] core count: A: 3, B: 7
+TEST: [5,0] core count: A: 3, B: 7
+TEST: [2,0] core count: A: 2, B: 4
+TEST: [6,0] core count: A: 3, B: 6
+TEST: [4,0] core count: A: 2, B: 6
+TEST: [3,0] core count: A: 2, B: 5
+TEST: [1,0] core count: A: 2, B: 4
+TEST: [7,0] core count: A: 2, B: 4
+TEST: [11,1] core count: A: 2, B: 3
+TEST: [1,1] core count: A: 2, B: 4
+TEST: [11,2] core count: A: 2, B: 3
+TEST: [6,1] core count: A: 3, B: 6
+TEST: [3,1] core count: A: 2, B: 5
+TEST: [2,1] core count: A: 2, B: 4
+TEST: [11,3] core count: A: 2, B: 3
+TEST: [9,1] core count: A: 5, B: 7
+TEST: [8,1] core count: A: 2, B: 6
+TEST: [1,2] core count: A: 2, B: 4
+TEST: [4,1] core count: A: 2, B: 6
+TEST: [12,1] core count: A: 2, B: 5
+TEST: [11,4] core count: A: 2, B: 3
+TEST: [10,1] core count: A: 3, B: 7
+TEST: [6,2] core count: A: 3, B: 6
+TEST: [7,1] core count: A: 2, B: 4
+TEST: [3,2] core count: A: 2, B: 5
+TEST: [5,1] core count: A: 3, B: 7
+TEST: [11,5] core count: A: 2, B: 3
+TEST: [1,3] core count: A: 2, B: 4
+TEST: [2,2] core count: A: 2, B: 4
+TEST: [11,6] core count: A: 2, B: 3
+TEST: [9,2] core count: A: 5, B: 7
+TEST: [8,2] core count: A: 2, B: 6
+TEST: [6,3] core count: A: 3, B: 6
+TEST: [1,4] core count: A: 2, B: 4
+TEST: [3,3] core count: A: 2, B: 5
+TEST: [4,2] core count: A: 2, B: 6
+TEST: [11,7] core count: A: 2, B: 3
+TEST: [12,2] core count: A: 2, B: 5
+TEST: [11,8] core count: A: 2, B: 3
+TEST: [1,5] core count: A: 2, B: 4
+TEST: [10,2] core count: A: 3, B: 7
+TEST: [6,4] core count: A: 3, B: 6
+TEST: [2,3] core count: A: 2, B: 4
+TEST: [7,2] core count: A: 2, B: 4
+TEST: [11,9] core count: A: 2, B: 3
+TEST: [3,4] core count: A: 2, B: 5
+
+========================= 
+New Schedule Layout:
+Task 0 is now in mode: 0
+Task 1 is now in mode: 0
+Task 2 is now in mode: 1
+Task 3 is now in mode: 1
+Task 4 is now in mode: 2
+Task 5 is now in mode: 2
+Task 6 is now in mode: 0
+Task 7 is now in mode: 1
+Task 8 is now in mode: 2
+Task 9 is now in mode: 2
+Task 10 is now in mode: 1
+Task 11 is now in mode: 1
+Total Loss from Mode Change: 1.19866
+=========================
+
+
+========================= 
+New Resource Layout:
+Task 0 now has: 2 Core A | 4 Core B
+Task 1 now has: 2 Core A | 4 Core B
+Task 2 now has: 2 Core A | 5 Core B
+Task 3 now has: 2 Core A | 6 Core B
+Task 4 now has: 3 Core A | 7 Core B
+Task 5 now has: 3 Core A | 6 Core B
+Task 6 now has: 2 Core A | 4 Core B
+Task 7 now has: 2 Core A | 6 Core B
+Task 8 now has: 5 Core A | 7 Core B
+Task 9 now has: 3 Core A | 7 Core B
+Task 10 now has: 2 Core A | 3 Core B
+Task 11 now has: 2 Core A | 5 Core B
+=========================
+
+
+========================= 
+Nodes Passed to RAG Builder:
+Node 12 <33,0>
+Node 11 <0,0>
+Node 10 <0,0>
+Node 9 <0,0>
+Node 8 <0,0>
+Node 7 <0,0>
+Node 6 <0,0>
+Node 5 <0,0>
+Node 4 <0,0>
+Node 3 <0,0>
+Node 2 <0,0>
+Node 1 <0,0>
+Node 0 <0,0>
+=========================
+
+Provider size: 1 Consumer size: 0 Transfer size: 0
+
+========================= 
+New Schedule RAG:
+
+Nodes and resource transfers:
+Free Resources <33,0> → no edges
+Node 11 <0,0> → no edges
+Node 10 <0,0> → no edges
+Node 9 <0,0> → no edges
+Node 8 <0,0> → no edges
+Node 7 <0,0> → no edges
+Node 6 <0,0> → no edges
+Node 5 <0,0> → no edges
+Node 4 <0,0> → no edges
+Node 3 <0,0> → no edges
+Node 2 <0,0> → no edges
+Node 1 <0,0> → no edges
+Node 0 <0,0> → no edges
+
+========================= 
+
+Time taken to reschedule: 16.4604 milliseconds.
+TEST: [9,3] core count: A: 5, B: 7
+
+Task 8 finished reschedule:
+Core A Owned: [ 19 20 21 22 23 ]
+Core B Owned: [ 42 43 44 45 46 47 48 ]
+TEST: [5,2] core count: A: 3, B: 7
+
+Task 4 finished reschedule:
+Core A Owned: [ 9 10 11 ]
+Core B Owned: [ 19 20 21 22 23 24 25 ]
+TEST: [8,3] core count: A: 2, B: 6
+
+Task 7 finished reschedule:
+Core A Owned: [ 17 18 ]
+Core B Owned: [ 36 37 38 39 40 41 ]
+TEST: [11,10] core count: A: 2, B: 3
+
+Task 10 finished reschedule:
+Core A Owned: [ 27 28 ]
+Core B Owned: [ 56 57 58 ]
+TEST: [1,6] core count: A: 2, B: 4
+
+Task 0 finished reschedule:
+Core A Owned: [ 1 2 ]
+Core B Owned: [ 0 1 2 3 ]
+TEST: [4,3] core count: A: 2, B: 6
+
+Task 3 finished reschedule:
+Core A Owned: [ 7 8 ]
+Core B Owned: [ 13 14 15 16 17 18 ]
+TEST: [6,5] core count: A: 3, B: 6
+
+Task 5 finished reschedule:
+Core A Owned: [ 12 13 14 ]
+Core B Owned: [ 26 27 28 29 30 31 ]
+TEST: [11,11] core count: A: 2, B: 3
+TEST: [3,5] core count: A: 2, B: 5
+
+Task 2 finished reschedule:
+Core A Owned: [ 5 6 ]
+Core B Owned: [ 8 9 10 11 12 ]
+TEST: [12,3] core count: A: 2, B: 5
+
+Task 11 finished reschedule:
+Core A Owned: [ 29 30 ]
+Core B Owned: [ 59 60 61 62 63 ]
+TEST: [1,7] core count: A: 2, B: 4
+TEST: [2,4] core count: A: 2, B: 4
+
+Task 1 finished reschedule:
+Core A Owned: [ 3 4 ]
+Core B Owned: [ 4 5 6 7 ]
+TEST: [11,12] core count: A: 2, B: 3
+TEST: [9,4] core count: A: 5, B: 7
+TEST: [10,3] core count: A: 3, B: 7
+
+Task 9 finished reschedule:
+Core A Owned: [ 24 25 26 ]
+Core B Owned: [ 49 50 51 52 53 54 55 ]
+TEST: [8,4] core count: A: 2, B: 6
+TEST: [11,13] core count: A: 2, B: 3
+TEST: [6,6] core count: A: 3, B: 6
+TEST: [7,3] core count: A: 2, B: 4
+
+Task 6 finished reschedule:
+Core A Owned: [ 15 16 ]
+Core B Owned: [ 32 33 34 35 ]
+TEST: [1,8] core count: A: 2, B: 4
+TEST: [3,6] core count: A: 2, B: 5
+TEST: [4,4] core count: A: 2, B: 6
+TEST: [11,14] core count: A: 2, B: 3
+TEST: [5,3] core count: A: 3, B: 7
+TEST: [2,5] core count: A: 2, B: 4
+TEST: [11,15] core count: A: 2, B: 3
+TEST: [6,7] core count: A: 3, B: 6
+TEST: [1,9] core count: A: 2, B: 4
+
+========================= 
+New Schedule Layout:
+Task 0 is now in mode: 1
+Task 1 is now in mode: 0
+Task 2 is now in mode: 1
+Task 3 is now in mode: 1
+Task 4 is now in mode: 2
+Task 5 is now in mode: 2
+Task 6 is now in mode: 0
+Task 7 is now in mode: 0
+Task 8 is now in mode: 2
+Task 9 is now in mode: 2
+Task 10 is now in mode: 1
+Task 11 is now in mode: 1
+Total Loss from Mode Change: 1.32504
+=========================
+
+
+========================= 
+New Resource Layout:
+Task 0 now has: 3 Core A | 5 Core B
+Task 1 now has: 2 Core A | 4 Core B
+Task 2 now has: 2 Core A | 5 Core B
+Task 3 now has: 2 Core A | 6 Core B
+Task 4 now has: 3 Core A | 7 Core B
+Task 5 now has: 3 Core A | 6 Core B
+Task 6 now has: 2 Core A | 4 Core B
+Task 7 now has: 2 Core A | 5 Core B
+Task 8 now has: 5 Core A | 7 Core B
+Task 9 now has: 3 Core A | 7 Core B
+Task 10 now has: 2 Core A | 3 Core B
+Task 11 now has: 2 Core A | 5 Core B
+=========================
+
+
+========================= 
+Nodes Passed to RAG Builder:
+Node 12 <33,0>
+Node 11 <0,0>
+Node 10 <0,0>
+Node 9 <0,0>
+Node 8 <0,0>
+Node 7 <0,1>
+Node 6 <0,0>
+Node 5 <0,0>
+Node 4 <0,0>
+Node 3 <0,0>
+Node 2 <0,0>
+Node 1 <0,0>
+Node 0 <-1,-1>
+=========================
+
+Provider size: 2 Consumer size: 1 Transfer size: 0
+Consumer: 0
+Provider: 7
+
+========================= 
+New Schedule RAG:
+
+Nodes and resource transfers:
+Free Resources <33,0> → 0(x:1) 
+Node 11 <0,0> → no edges
+Node 10 <0,0> → no edges
+Node 9 <0,0> → no edges
+Node 8 <0,0> → no edges
+Node 7 <0,1> → 0(y:1) 
+Node 6 <0,0> → no edges
+Node 5 <0,0> → no edges
+Node 4 <0,0> → no edges
+Node 3 <0,0> → no edges
+Node 2 <0,0> → no edges
+Node 1 <0,0> → no edges
+Node 0 <-1,-1> → no edges
+
+========================= 
+
+Time taken to reschedule: 13.7678 milliseconds.
+TEST: [9,5] core count: A: 5, B: 7
+
+Task 8 finished reschedule:
+Core A Owned: [ 19 20 21 22 23 ]
+Core B Owned: [ 42 43 44 45 46 47 48 ]
+TEST: [12,4] core count: A: 2, B: 5
+
+Task 11 finished reschedule:
+Core A Owned: [ 29 30 ]
+Core B Owned: [ 59 60 61 62 63 ]
+TEST: [3,7] core count: A: 2, B: 5
+
+Task 2 finished reschedule:
+Core A Owned: [ 5 6 ]
+Core B Owned: [ 8 9 10 11 12 ]
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+
+(3399450) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/8
+(3399450) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  316318 nsec
+(3399450) Avg running time for task ./../../regression_test_task/regression_test_task: 0.198871 msec
+0 8 1 0.000316318
+
+TEST: [11,16] core count: A: 2, B: 3
+
+Task 10 finished reschedule:
+Core A Owned: [ 27 28 ]
+Core B Owned: [ 56 57 58 ]
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+
+(3399458) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/17
+(3399458) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  253145 nsec
+(3399458) Avg running time for task ./../../regression_test_task/regression_test_task: 0.175649 msec
+0 17 1 0.000253145
+
+TEST: [8,5] core count: A: 2, B: 6
+
+Task 7 finished reschedule:
+Core A Owned: [ 17 18 ]
+Core B Owned: [ 36 37 38 39 40 ]
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+
+(3399455) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/6
+(3399455) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  315191 nsec
+(3399455) Avg running time for task ./../../regression_test_task/regression_test_task: 0.196469 msec
+0 6 1 0.000315191
+
+TEST: [1,10] core count: A: 2, B: 4
+
+Task 0 finished reschedule:
+Core A Owned: [ 1 2 63 ]
+Core B Owned: [ 0 1 2 3 41 ]
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+
+(3399448) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/11
+(3399448) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  299099 nsec
+(3399448) Avg running time for task ./../../regression_test_task/regression_test_task: 0.188768 msec
+0 11 1 0.000299099
+
+TEST: [10,4] core count: A: 3, B: 7
+
+Task 9 finished reschedule:
+Core A Owned: [ 24 25 26 ]
+Core B Owned: [ 49 50 51 52 53 54 55 ]
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+
+(3399457) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/5
+(3399457) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  314006 nsec
+(3399457) Avg running time for task ./../../regression_test_task/regression_test_task: 0.206557 msec
+0 5 1 0.000314006
+
+TEST: [6,8] core count: A: 3, B: 6
+
+Task 5 finished reschedule:
+Core A Owned: [ 12 13 14 ]
+Core B Owned: [ 26 27 28 29 30 31 ]
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+
+(3399453) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/9
+(3399453) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  332906 nsec
+(3399453) Avg running time for task ./../../regression_test_task/regression_test_task: 0.193628 msec
+0 9 1 0.000332906
+
+TEST: [4,5] core count: A: 2, B: 6
+
+Task 3 finished reschedule:
+Core A Owned: [ 7 8 ]
+Core B Owned: [ 13 14 15 16 17 18 ]
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+
+(3399451) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/6
+(3399451) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  293419 nsec
+(3399451) Avg running time for task ./../../regression_test_task/regression_test_task: 0.193889 msec
+0 6 1 0.000293419
+
+TEST: [2,6] core count: A: 2, B: 4
+
+Task 1 finished reschedule:
+Core A Owned: [ 3 4 ]
+Core B Owned: [ 4 5 6 7 ]
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+TEST: [7,4] core count: A: 2, B: 4
+
+(3399449) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/7
+(3399449) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  330322 nsec
+(3399449) Avg running time for task ./../../regression_test_task/regression_test_task: 0.193543 msec
+0 7 1 0.000330322
+
+
+Task 6 finished reschedule:
+Core A Owned: [ 15 16 ]
+Core B Owned: [ 32 33 34 35 ]
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+
+(3399454) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/5
+(3399454) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  342436 nsec
+(3399454) Avg running time for task ./../../regression_test_task/regression_test_task: 0.222625 msec
+0 5 1 0.000342436
+
+TEST: [9,6] core count: A: 5, B: 7
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+
+(3399456) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/7
+(3399456) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  305180 nsec
+(3399456) Avg running time for task ./../../regression_test_task/regression_test_task: 0.185451 msec
+0 7 1 0.000305180
+
+TEST: [5,4] core count: A: 3, B: 7
+
+Task 4 finished reschedule:
+Core A Owned: [ 9 10 11 ]
+Core B Owned: [ 19 20 21 22 23 24 25 ]
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+
+(3399452) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/5
+(3399452) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  327377 nsec
+(3399452) Avg running time for task ./../../regression_test_task/regression_test_task: 0.204306 msec
+0 5 1 0.000327377
+
+TEST: [12,5] core count: A: 2, B: 5
+WARNING: Could not set FINALIZE_PRIORITY: Operation not permitted
+
+(3399459) Deadlines missed for task ./../../regression_test_task/regression_test_task: 0/6
+(3399459) Max running time for task ./../../regression_test_task/regression_test_task: 0 sec  319253 nsec
+(3399459) Avg running time for task ./../../regression_test_task/regression_test_task: 0.202662 msec
+0 6 1 0.000319253
+
+All tasks finished.

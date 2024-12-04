@@ -1,0 +1,369 @@
+
+---
+schedulable: true
+maxRuntime: {sec: 3, nsec: 0}
+tasks:
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "1 10000 4 10"
+    elasticity: 71
+    modes:
+      - work: {sec: 0, nsec: 209763986}
+        span: {sec: 0, nsec: 85070956}
+        gpu_work: {sec: 0, nsec: 279073078}
+        gpu_span: {sec: 0, nsec: 116146874}
+        period: {sec: 0, nsec: 322842339}
+      - work: {sec: 0, nsec: 240646273}
+        span: {sec: 0, nsec: 85070956}
+        gpu_work: {sec: 0, nsec: 336229113}
+        gpu_span: {sec: 0, nsec: 116146874}
+        period: {sec: 0, nsec: 322842339}
+      - work: {sec: 0, nsec: 271528560}
+        span: {sec: 0, nsec: 85070956}
+        gpu_work: {sec: 0, nsec: 393385149}
+        gpu_span: {sec: 0, nsec: 116146874}
+        period: {sec: 0, nsec: 322842339}
+      - work: {sec: 0, nsec: 302410847}
+        span: {sec: 0, nsec: 85070956}
+        gpu_work: {sec: 0, nsec: 450541184}
+        gpu_span: {sec: 0, nsec: 116146874}
+        period: {sec: 0, nsec: 322842339}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "2 10000 4 10"
+    elasticity: 8
+    modes:
+      - work: {sec: 0, nsec: 330140836}
+        span: {sec: 0, nsec: 132543439}
+        gpu_work: {sec: 0, nsec: 549538242}
+        gpu_span: {sec: 0, nsec: 178750828}
+        period: {sec: 0, nsec: 567059025}
+      - work: {sec: 0, nsec: 385558561}
+        span: {sec: 0, nsec: 132543439}
+        gpu_work: {sec: 0, nsec: 643752804}
+        gpu_span: {sec: 0, nsec: 178750828}
+        period: {sec: 0, nsec: 567059025}
+      - work: {sec: 0, nsec: 440976285}
+        span: {sec: 0, nsec: 132543439}
+        gpu_work: {sec: 0, nsec: 737967367}
+        gpu_span: {sec: 0, nsec: 178750828}
+        period: {sec: 0, nsec: 567059025}
+      - work: {sec: 0, nsec: 496394010}
+        span: {sec: 0, nsec: 132543439}
+        gpu_work: {sec: 0, nsec: 832181929}
+        gpu_span: {sec: 0, nsec: 178750828}
+        period: {sec: 0, nsec: 567059025}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "3 10000 4 10"
+    elasticity: 2
+    modes:
+      - work: {sec: 0, nsec: 239710005}
+        span: {sec: 0, nsec: 100840983}
+        gpu_work: {sec: 0, nsec: 378787683}
+        gpu_span: {sec: 0, nsec: 147189345}
+        period: {sec: 0, nsec: 431229888}
+      - work: {sec: 0, nsec: 277848882}
+        span: {sec: 0, nsec: 100840983}
+        gpu_work: {sec: 0, nsec: 483573853}
+        gpu_span: {sec: 0, nsec: 147189345}
+        period: {sec: 0, nsec: 431229888}
+      - work: {sec: 0, nsec: 315987758}
+        span: {sec: 0, nsec: 100840983}
+        gpu_work: {sec: 0, nsec: 588360022}
+        gpu_span: {sec: 0, nsec: 147189345}
+        period: {sec: 0, nsec: 431229888}
+      - work: {sec: 0, nsec: 354126635}
+        span: {sec: 0, nsec: 100840983}
+        gpu_work: {sec: 0, nsec: 693146191}
+        gpu_span: {sec: 0, nsec: 147189345}
+        period: {sec: 0, nsec: 431229888}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "4 10000 4 10"
+    elasticity: 2
+    modes:
+      - work: {sec: 0, nsec: 380333051}
+        span: {sec: 0, nsec: 143321018}
+        gpu_work: {sec: 0, nsec: 737816053}
+        gpu_span: {sec: 0, nsec: 211708066}
+        period: {sec: 0, nsec: 664382566}
+      - work: {sec: 0, nsec: 447864424}
+        span: {sec: 0, nsec: 143321018}
+        gpu_work: {sec: 0, nsec: 865935515}
+        gpu_span: {sec: 0, nsec: 211708066}
+        period: {sec: 0, nsec: 664382566}
+      - work: {sec: 0, nsec: 515395796}
+        span: {sec: 0, nsec: 143321018}
+        gpu_work: {sec: 0, nsec: 994054978}
+        gpu_span: {sec: 0, nsec: 211708066}
+        period: {sec: 0, nsec: 664382566}
+      - work: {sec: 0, nsec: 582927168}
+        span: {sec: 0, nsec: 143321018}
+        gpu_work: {sec: 1, nsec: 122174441}
+        gpu_span: {sec: 0, nsec: 211708066}
+        period: {sec: 0, nsec: 664382566}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "5 10000 4 10"
+    elasticity: 2
+    modes:
+      - work: {sec: 0, nsec: 589239020}
+        span: {sec: 0, nsec: 244417873}
+        gpu_work: {sec: 1, nsec: 37991487}
+        gpu_span: {sec: 0, nsec: 276165581}
+        period: {sec: 0, nsec: 893892009}
+      - work: {sec: 0, nsec: 710991566}
+        span: {sec: 0, nsec: 244417873}
+        gpu_work: {sec: 1, nsec: 238795244}
+        gpu_span: {sec: 0, nsec: 276165581}
+        period: {sec: 0, nsec: 893892009}
+      - work: {sec: 0, nsec: 832744112}
+        span: {sec: 0, nsec: 244417873}
+        gpu_work: {sec: 1, nsec: 439599002}
+        gpu_span: {sec: 0, nsec: 276165581}
+        period: {sec: 0, nsec: 893892009}
+      - work: {sec: 0, nsec: 954496659}
+        span: {sec: 0, nsec: 244417873}
+        gpu_work: {sec: 1, nsec: 640402759}
+        gpu_span: {sec: 0, nsec: 276165581}
+        period: {sec: 0, nsec: 893892009}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "6 10000 4 10"
+    elasticity: 2
+    modes:
+      - work: {sec: 0, nsec: 230694336}
+        span: {sec: 0, nsec: 103913260}
+        gpu_work: {sec: 0, nsec: 392314560}
+        gpu_span: {sec: 0, nsec: 133234096}
+        period: {sec: 0, nsec: 414790438}
+      - work: {sec: 0, nsec: 297902102}
+        span: {sec: 0, nsec: 103913260}
+        gpu_work: {sec: 0, nsec: 473280286}
+        gpu_span: {sec: 0, nsec: 133234096}
+        period: {sec: 0, nsec: 414790438}
+      - work: {sec: 0, nsec: 365109867}
+        span: {sec: 0, nsec: 103913260}
+        gpu_work: {sec: 0, nsec: 554246011}
+        gpu_span: {sec: 0, nsec: 133234096}
+        period: {sec: 0, nsec: 414790438}
+      - work: {sec: 0, nsec: 432317633}
+        span: {sec: 0, nsec: 103913260}
+        gpu_work: {sec: 0, nsec: 635211737}
+        gpu_span: {sec: 0, nsec: 133234096}
+        period: {sec: 0, nsec: 414790438}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "7 10000 4 10"
+    elasticity: 12
+    modes:
+      - work: {sec: 0, nsec: 468651782}
+        span: {sec: 0, nsec: 171978155}
+        gpu_work: {sec: 0, nsec: 886180398}
+        gpu_span: {sec: 0, nsec: 251926316}
+        period: {sec: 0, nsec: 850752941}
+      - work: {sec: 0, nsec: 563826764}
+        span: {sec: 0, nsec: 171978155}
+        gpu_work: {sec: 1, nsec: 81094926}
+        gpu_span: {sec: 0, nsec: 251926316}
+        period: {sec: 0, nsec: 850752941}
+      - work: {sec: 0, nsec: 659001746}
+        span: {sec: 0, nsec: 171978155}
+        gpu_work: {sec: 1, nsec: 276009455}
+        gpu_span: {sec: 0, nsec: 251926316}
+        period: {sec: 0, nsec: 850752941}
+      - work: {sec: 0, nsec: 754176727}
+        span: {sec: 0, nsec: 171978155}
+        gpu_work: {sec: 1, nsec: 470923984}
+        gpu_span: {sec: 0, nsec: 251926316}
+        period: {sec: 0, nsec: 850752941}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "8 10000 4 10"
+    elasticity: 4
+    modes:
+      - work: {sec: 0, nsec: 347039188}
+        span: {sec: 0, nsec: 151732021}
+        gpu_work: {sec: 0, nsec: 647929768}
+        gpu_span: {sec: 0, nsec: 204292323}
+        period: {sec: 0, nsec: 620917811}
+      - work: {sec: 0, nsec: 418054819}
+        span: {sec: 0, nsec: 151732021}
+        gpu_work: {sec: 0, nsec: 778397416}
+        gpu_span: {sec: 0, nsec: 204292323}
+        period: {sec: 0, nsec: 620917811}
+      - work: {sec: 0, nsec: 489070451}
+        span: {sec: 0, nsec: 151732021}
+        gpu_work: {sec: 0, nsec: 908865064}
+        gpu_span: {sec: 0, nsec: 204292323}
+        period: {sec: 0, nsec: 620917811}
+      - work: {sec: 0, nsec: 560086082}
+        span: {sec: 0, nsec: 151732021}
+        gpu_work: {sec: 1, nsec: 39332712}
+        gpu_span: {sec: 0, nsec: 204292323}
+        period: {sec: 0, nsec: 620917811}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "9 10000 4 10"
+    elasticity: 2
+    modes:
+      - work: {sec: 0, nsec: 613206486}
+        span: {sec: 0, nsec: 172406312}
+        gpu_work: {sec: 0, nsec: 657711574}
+        gpu_span: {sec: 0, nsec: 194239688}
+        period: {sec: 0, nsec: 588919239}
+      - work: {sec: 0, nsec: 684181688}
+        span: {sec: 0, nsec: 172406312}
+        gpu_work: {sec: 0, nsec: 764294581}
+        gpu_span: {sec: 0, nsec: 194239688}
+        period: {sec: 0, nsec: 588919239}
+      - work: {sec: 0, nsec: 755156891}
+        span: {sec: 0, nsec: 172406312}
+        gpu_work: {sec: 0, nsec: 870877587}
+        gpu_span: {sec: 0, nsec: 194239688}
+        period: {sec: 0, nsec: 588919239}
+      - work: {sec: 0, nsec: 826132093}
+        span: {sec: 0, nsec: 172406312}
+        gpu_work: {sec: 0, nsec: 977460593}
+        gpu_span: {sec: 0, nsec: 194239688}
+        period: {sec: 0, nsec: 588919239}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "10 10000 4 10"
+    elasticity: 2
+    modes:
+      - work: {sec: 0, nsec: 444132061}
+        span: {sec: 0, nsec: 166207444}
+        gpu_work: {sec: 0, nsec: 842980914}
+        gpu_span: {sec: 0, nsec: 252182949}
+        period: {sec: 0, nsec: 810905276}
+      - work: {sec: 0, nsec: 549761369}
+        span: {sec: 0, nsec: 166207444}
+        gpu_work: {sec: 1, nsec: 30567391}
+        gpu_span: {sec: 0, nsec: 252182949}
+        period: {sec: 0, nsec: 810905276}
+      - work: {sec: 0, nsec: 655390676}
+        span: {sec: 0, nsec: 166207444}
+        gpu_work: {sec: 1, nsec: 218153868}
+        gpu_span: {sec: 0, nsec: 252182949}
+        period: {sec: 0, nsec: 810905276}
+      - work: {sec: 0, nsec: 761019984}
+        span: {sec: 0, nsec: 166207444}
+        gpu_work: {sec: 1, nsec: 405740344}
+        gpu_span: {sec: 0, nsec: 252182949}
+        period: {sec: 0, nsec: 810905276}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "11 10000 4 10"
+    elasticity: 2
+    modes:
+      - work: {sec: 0, nsec: 99126251}
+        span: {sec: 0, nsec: 47009934}
+        gpu_work: {sec: 0, nsec: 130645843}
+        gpu_span: {sec: 0, nsec: 55705997}
+        period: {sec: 0, nsec: 191342800}
+      - work: {sec: 0, nsec: 124592639}
+        span: {sec: 0, nsec: 47009934}
+        gpu_work: {sec: 0, nsec: 159374231}
+        gpu_span: {sec: 0, nsec: 55705997}
+        period: {sec: 0, nsec: 191342800}
+      - work: {sec: 0, nsec: 150059027}
+        span: {sec: 0, nsec: 47009934}
+        gpu_work: {sec: 0, nsec: 188102618}
+        gpu_span: {sec: 0, nsec: 55705997}
+        period: {sec: 0, nsec: 191342800}
+      - work: {sec: 0, nsec: 175525415}
+        span: {sec: 0, nsec: 47009934}
+        gpu_work: {sec: 0, nsec: 216831006}
+        gpu_span: {sec: 0, nsec: 55705997}
+        period: {sec: 0, nsec: 191342800}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "12 10000 4 10"
+    elasticity: 3
+    modes:
+      - work: {sec: 0, nsec: 387189338}
+        span: {sec: 0, nsec: 155274053}
+        gpu_work: {sec: 0, nsec: 741311157}
+        gpu_span: {sec: 0, nsec: 221155080}
+        period: {sec: 0, nsec: 749813226}
+      - work: {sec: 0, nsec: 463583001}
+        span: {sec: 0, nsec: 155274053}
+        gpu_work: {sec: 0, nsec: 894577541}
+        gpu_span: {sec: 0, nsec: 221155080}
+        period: {sec: 0, nsec: 749813226}
+      - work: {sec: 0, nsec: 539976663}
+        span: {sec: 0, nsec: 155274053}
+        gpu_work: {sec: 1, nsec: 47843924}
+        gpu_span: {sec: 0, nsec: 221155080}
+        period: {sec: 0, nsec: 749813226}
+      - work: {sec: 0, nsec: 616370326}
+        span: {sec: 0, nsec: 155274053}
+        gpu_work: {sec: 1, nsec: 201110307}
+        gpu_span: {sec: 0, nsec: 221155080}
+        period: {sec: 0, nsec: 749813226}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "13 10000 4 10"
+    elasticity: 4
+    modes:
+      - work: {sec: 0, nsec: 189170253}
+        span: {sec: 0, nsec: 85574847}
+        gpu_work: {sec: 0, nsec: 305359135}
+        gpu_span: {sec: 0, nsec: 119608815}
+        period: {sec: 0, nsec: 376765716}
+      - work: {sec: 0, nsec: 234539770}
+        span: {sec: 0, nsec: 85574847}
+        gpu_work: {sec: 0, nsec: 376842525}
+        gpu_span: {sec: 0, nsec: 119608815}
+        period: {sec: 0, nsec: 376765716}
+      - work: {sec: 0, nsec: 279909286}
+        span: {sec: 0, nsec: 85574847}
+        gpu_work: {sec: 0, nsec: 448325914}
+        gpu_span: {sec: 0, nsec: 119608815}
+        period: {sec: 0, nsec: 376765716}
+      - work: {sec: 0, nsec: 325278803}
+        span: {sec: 0, nsec: 85574847}
+        gpu_work: {sec: 0, nsec: 519809304}
+        gpu_span: {sec: 0, nsec: 119608815}
+        period: {sec: 0, nsec: 376765716}
+
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "14 10000 4 10"
+    elasticity: 7
+    modes:
+      - work: {sec: 0, nsec: 321862030}
+        span: {sec: 0, nsec: 140626043}
+        gpu_work: {sec: 0, nsec: 523074489}
+        gpu_span: {sec: 0, nsec: 180555507}
+        period: {sec: 0, nsec: 596914965}
+      - work: {sec: 0, nsec: 383679070}
+        span: {sec: 0, nsec: 140626043}
+        gpu_work: {sec: 0, nsec: 639477318}
+        gpu_span: {sec: 0, nsec: 180555507}
+        period: {sec: 0, nsec: 596914965}
+      - work: {sec: 0, nsec: 445496111}
+        span: {sec: 0, nsec: 140626043}
+        gpu_work: {sec: 0, nsec: 755880147}
+        gpu_span: {sec: 0, nsec: 180555507}
+        period: {sec: 0, nsec: 596914965}
+      - work: {sec: 0, nsec: 507313151}
+        span: {sec: 0, nsec: 140626043}
+        gpu_work: {sec: 0, nsec: 872282975}
+        gpu_span: {sec: 0, nsec: 180555507}
+        period: {sec: 0, nsec: 596914965}
+

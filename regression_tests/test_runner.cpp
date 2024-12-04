@@ -65,6 +65,18 @@ struct clusteringRunResult runClustering(const std::string test_name) {
   FILE* p_stdout = subprocess_stdout(&subprocess);
   FILE* p_stderr = subprocess_stderr(&subprocess);
   int process_return;
+
+  // Force termination in case the launcher hangs (tests are intended to run for 5 seconds). 
+  // In the case of a forced termination, the launch doesn't currently clean up all of its resources, so this unfortunately may cause all future tests to fail.
+  sleep(15);
+  if (subprocess_alive(&subprocess)) {
+    printf("WARNING: launcher seems to have hung. Forcing termination - future tests may fail\n");
+    int terminate_res = subprocess_terminate(&subprocess);
+    if (terminate_res != 0) {
+      printf("WARNING: failed to terminate process: %d\n", terminate_res);
+    }
+  }
+
   int result2 = subprocess_join(&subprocess, &process_return);
 
   result.exit_code = process_return;
@@ -85,6 +97,13 @@ struct clusteringRunResult runClustering(const std::string test_name) {
 
   result.stdout = proc_stdout;
   result.stderr = proc_stderr;
+
+  // Terminating the task always generates a non-zero exit code, even if it didn't hang, so we assume it exited successfully if we got to finalization
+  // if (result.stdout.find("regression_test_task: finalized") != std::string::npos) {
+  //   result.exit_code = 0;
+  // } else {
+  //   result.exit_code = process_return;
+  // }
 
   return result;
 }
