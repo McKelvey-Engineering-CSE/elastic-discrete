@@ -47,7 +47,7 @@ BARRIER_OBJECTS := process_primitives.o generic_barrier.o process_barrier.o thre
 ##### Main Targets ##############################################################
 .PHONY: all clean finish clean_libsmctrl libsmctrl
 
-all: libsmctrl clustering_distribution finish
+all: libsmctrl clustering_distribution finish regression_test_task
 
 finish:
 	mkdir -p ./bin
@@ -139,3 +139,8 @@ james-bin: ./target_task/james.cpp
 
 james: james-bin task_manager.o
 	$(CC) $(FLAGS) james.o timespec_functions.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o $(BARRIER_OBJECTS) -o james $(LIBS)
+
+regression_test_task: ./regression_test_task/regression_test_task.cpp clustering timespec_functions.o
+	$(CC) $(FLAGS) ./regression_test_task/regression_test_task.cpp timespec_functions.o shared_mem.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o $(BARRIER_OBJECTS) -o regression_test_task/regression_test_task $(LIBS)
+
+##################################################################################
