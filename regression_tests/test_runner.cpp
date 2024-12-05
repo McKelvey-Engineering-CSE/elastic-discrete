@@ -71,7 +71,7 @@ struct clusteringRunResult runClustering(const std::string test_name) {
   sleep(15);
   if (subprocess_alive(&subprocess)) {
     printf("WARNING: launcher seems to have hung. Forcing termination - future tests may fail\n");
-    int terminate_res = subprocess_terminate(&subprocess);
+    int terminate_res = kill(subprocess.child, SIGINT);
     if (terminate_res != 0) {
       printf("WARNING: failed to terminate process: %d\n", terminate_res);
     }
