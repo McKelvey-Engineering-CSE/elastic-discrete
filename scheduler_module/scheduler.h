@@ -49,6 +49,7 @@ class Scheduler{
 		double gpuLoss = 0.0;
 		int cores = 0;
 		int sms = 0;
+		bool unsafe_mode = false;
 	};
 
 	//structure for item map cause I'm lazy
@@ -103,6 +104,9 @@ class Scheduler{
 	//each entry corresponds to a core which is held by a task
 	std::vector<int> free_cores_A;
 	std::vector<int> free_cores_B;
+
+	//table for storing the combination for unsafe tasks later
+	int* unsafe_table;
 	
 public:
 
@@ -124,6 +128,8 @@ public:
  	}
 
 	~Scheduler(){}
+
+	void generate_unsafe_combinations(size_t maxCPU = NUMCPUS - 1);
 
 	void do_schedule(size_t maxCPU = NUMCPUS - 1);
 

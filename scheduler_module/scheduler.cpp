@@ -26,8 +26,132 @@ int Scheduler::get_num_tasks(){
 	return task_table.size();
 }
 
+void Scheduler::generate_unsafe_combinations(size_t maxCPU){
+
+	std::vector<int> unsafe_tasks;
+
+	//find the unsafe tasks
+	for (int i = 0; i < (int) task_table.size(); i++){
+
+		//for each mode
+		for (int j = 0; j < (int) task_table.at(i).size(); j++){
+
+			//if this mode is unsafe
+			if (task_table.at(i).at(j).unsafe_mode){
+
+				//add to the unsafe tasks
+				unsafe_tasks.push_back(i);
+				break;
+
+			}
+
+		}
+
+	}
+
+	//temporary tables
+	double dp_two[unsafe_tasks.size() + 1][maxCPU + 1][NUMGPUS + 1][3];
+	int solutions[num_tasks + 1][maxCPU + 1][NUMGPUS + 1][num_tasks];
+
+	//run the knapsack algorithm
+	for (int i = 1; i <= (int) unsafe_tasks.size(); i++) {
+
+		//only use the unsafe tasks
+		int z = unsafe_tasks.at(i - 1);
+
+		for (int w = 0; w <= (int) maxCPU; w++) {
+
+			for (int v = 0; v <= (int) NUMGPUS; v++) {
+
+				//invalid state
+				dp_two[i][w][v][0] = -1.0;
+				dp_two[i][w][v][1] = 0.0;
+				dp_two[i][w][v][2] = 0.0;
+
+				//for each item in class
+				for (size_t j = 0; j < task_table.at(z).size(); j++) {
+
+					auto item = task_table.at(z).at(j);
+
+					//fetch initial suspected resource values
+					int current_item_sms = item.sms;
+					int current_item_cores = item.cores;
+
+					//if this item is feasible at all 
+					if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)){
+						
+						//all values are static at value of 1
+						double newCPULoss_two = dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] - 1;
+						
+						//no solution will ever be "better" when at pos - 1, but
+						//we will fill out all possible combinations in the table
+						if ((newCPULoss_two) > (dp_two[i][w][v][0])) {
+
+							dp_two[i][w][v][0] = newCPULoss_two;
+
+							std::memcpy(solutions[i][w][v], solutions[i - 1][w - current_item_cores][v - current_item_sms], num_tasks * sizeof(int));
+
+							solutions[i][w][v][i - 1] = j;
+
+						}
+
+					}
+
+				}
+
+			}
+
+		}
+
+	}
+
+	//malloc the unsafe table
+	unsafe_table = (int*) malloc(sizeof(int) * (maxCPU + 1 + NUMGPUS + 1 + num_tasks));
+
+	//after this, we have all possible unsafe combinations in the last
+	//layer. We need to fill out all empty slots now with answers which
+	//are at least as good
+	int i = (int) unsafe_tasks.size();
+
+	for (int w = (int) maxCPU; w > 0; w--) {
+
+		int last_largest_v = 0;
+
+		for (int v = (int) NUMGPUS; v > 0; v--) {
+
+			//if we have an invalid state
+			if (dp_two[i][w][v][0] != -1.0)
+				last_largest_v = v;
+
+			//store in the permanent table
+			std::memcpy(&unsafe_table[w * ((NUMGPUS + 1) * (num_tasks)) + v * (num_tasks)], solutions[i][w][last_largest_v], num_tasks * sizeof(int));
+
+		}
+
+	}
+
+	//check from the other direction now
+	for (int v = (int) NUMGPUS; v > 0; v--) {
+
+		int last_largest_w = 0;
+
+		for (int w = (int) maxCPU; w > 0; w--) {
+
+			//if we have an invalid state
+			if (dp_two[i][w][v][0] != -1.0)
+				last_largest_w = w;
+
+			//store in the permanent table
+			std::memcpy(&unsafe_table[w * ((NUMGPUS + 1) * (num_tasks)) + v * (num_tasks)], solutions[i][last_largest_w][v], num_tasks * sizeof(int));
+
+		}
+
+	}
+
+}
+
 TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_){
-	
+
 	//add the task to the legacy schedule object, but also add to vector
 	//to make the scheduler much easier to read and work with.
 	auto taskData_object = schedule.add_task(elasticity_, num_modes_, work_, span_, period_, gpu_work_, gpu_span_, gpu_period_);
@@ -56,6 +180,23 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 		item.sms = taskData_object->get_GPUs(j);
 
 		task_table.at(task_table.size() - 1).push_back(item);
+
+		//check all other modes stored for this task
+		//and if it gains one resource while losing another
+		//mark it as unsafe
+		for (int i = 0; i < task_table.at(task_table.size() - 1).size(); i++){
+
+			for (int k = i; k < task_table.at(task_table.size() - 1).size(); k++){
+
+				if (task_table.at(task_table.size() - 1).at(i).cores < task_table.at(task_table.size() - 1).at(k).cores && task_table.at(task_table.size() - 1).at(i).sms > task_table.at(task_table.size() - 1).at(k).sms)
+					task_table.at(task_table.size() - 1).at(i).unsafe_mode = true;
+
+				else if (task_table.at(task_table.size() - 1).at(i).cores > task_table.at(task_table.size() - 1).at(k).cores && task_table.at(task_table.size() - 1).at(i).sms < task_table.at(task_table.size() - 1).at(k).sms)
+					task_table.at(task_table.size() - 1).at(i).unsafe_mode = true;
+
+			}
+
+		}
 		
 	}
 

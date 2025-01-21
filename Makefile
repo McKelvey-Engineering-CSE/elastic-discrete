@@ -1,5 +1,5 @@
 ##### Compiler Detection and Settings #################################################
-NVCC := $(shell which nvcc 2> /dev/null)
+NVCC := $(shell which hppt 2> /dev/null)
 NVCC := $(notdir $(NVCC))
 HAS_NVCC := $(if $(filter nvcc,$(NVCC)),true,false)
 
@@ -49,7 +49,7 @@ BARRIER_OBJECTS := process_primitives.o generic_barrier.o process_barrier.o thre
 
 all: libsmctrl clustering_distribution finish
 
-finish:
+finish: libsmctrl clustering_distribution james
 	mkdir -p ./bin
 	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./bin
 
@@ -131,11 +131,11 @@ print_buffer.o: ./printing_module/print_buffer.cpp timespec_functions.o
 ./libyaml-cpp/build/libyaml-cpp.a:
 	cd libyaml-cpp && mkdir -p build && cd build && cmake .. && make
 
-clustering_launcher: ./main_binaries/clustering_launcher.cpp ./libyaml-cpp/build/libyaml-cpp.a
+clustering_launcher: ./main_binaries/clustering_launcher.cpp ./libyaml-cpp/build/libyaml-cpp.a timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS)
 	$(CC) $(FLAGS) $(HEADERS_WITH_YAML) timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS) ./main_binaries/clustering_launcher.cpp -o clustering_launcher $(LIBS)
 
-james-bin: ./target_task/james.cpp
+james-bin: ./target_task/james.cpp 
 	$(CC) $(FLAGS) $(NVCC_OVERRIDE) ./target_task/james.cpp -c $< $(LIBS)
 
-james: james-bin task_manager.o
+james: james-bin task_manager.o print_library.o $(BARRIER_OBJECTS) timespec_functions.o scheduler.o schedule.o taskData.o task.o
 	$(CC) $(FLAGS) james.o timespec_functions.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o $(BARRIER_OBJECTS) -o james $(LIBS)
