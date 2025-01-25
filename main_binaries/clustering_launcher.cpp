@@ -14,8 +14,7 @@
 #include "timespec_functions.h"
 #include "scheduler.h"
 #include "print_module.h"
-
-#include "libyaml-cpp/include/yaml-cpp/yaml.h"
+#include "memory_allocator.h"
 
 /************************************************************************************
 Globals
@@ -121,6 +120,9 @@ void force_cleanup() {
 	process_barrier::destroy_barrier(barrier_name);
 	process_barrier::destroy_barrier(barrier_name2);
 
+	//delete the shared memory
+	smm::delete_memory<int>("PRSEDOBJ");
+
 	if (explicit_sync) {
 		process_barrier::destroy_barrier("EX_SYNC");
 	}
@@ -192,7 +194,7 @@ int get_scheduling_file(std::string name, std::ifstream &ifs){
 struct parsed_task_mode_info {
 
 	//mode type
-	std::string mode_type = "";
+	char mode_type[1024];
 
 	//CPU stuff
 	int work_sec = -1;
@@ -213,8 +215,10 @@ struct parsed_task_mode_info {
 };
 
 struct parsed_task_info {
-	std::string program_name = "";
-	std::string program_args = "";
+
+	char C_program_name[1024];
+	char C_program_args[1024];
+
 	int elasticity = 1;
 	int max_iterations = -1;
 	// Default priority carried over from the original scheduler code - no particular reason for this otherwise
@@ -222,133 +226,20 @@ struct parsed_task_info {
 	std::vector<struct parsed_task_mode_info> modes;
 };
 
-bool yaml_is_time(YAML::Node node) {
-	return node && node["sec"] && node["nsec"];
-}
+struct parsed_shared_objects {
 
-int read_scheduling_yaml_file(std::ifstream &ifs, 
-						int* schedulable, 
-						std::vector<parsed_task_info>* parsed_tasks, 
-						unsigned* sec_to_run, 
-						long* nsec_to_run){
-	std::stringstream buffer;
-	buffer << ifs.rdbuf();
-	std::string contents = buffer.str();
+	int schedulable;
+	unsigned sec_to_run = 0;
+	long nsec_to_run = 0;
 
-	YAML::Node config = YAML::Load(contents);
-	
-	if (!config["schedulable"]) {
-		return -1;
-	}
-	if (config["explicit_sync"]){
-		explicit_sync = config["explicit_sync"].as<bool>();
-	}
-	if (config["FPTAS"]){
-		FPTAS = config["FPTAS"].as<bool>();
-	}
-	if (config["schedulable"].as<bool>()) {
-		*schedulable = 1;
-	} else {
-		*schedulable = 0;
-	}
+	int num_tasks_parsed = 0;
+	parsed_task_info parsed_tasks[50];
 
-	if (yaml_is_time(config["maxRuntime"])) {
-		*sec_to_run = config["maxRuntime"]["sec"].as<unsigned int>();
-		*nsec_to_run = config["maxRuntime"]["nsec"].as<unsigned int>();
-	} else {
-		*sec_to_run = 0;
-		*nsec_to_run = 0;
-	}
+	int num_modes_parsed[50] = {0};
+	parsed_task_mode_info parsed_modes[50][16];
 
-	if (!config["tasks"]) {
-		return -3;
-	}
-	for (YAML::Node task : config["tasks"]) {
-		struct parsed_task_info task_info;
+};
 
-		if (!task["program"] || !task["program"]["name"]) {
-			return -4;
-		}
-		
-		task_info.program_name = task["program"]["name"].as<std::string>();
-		if (task["program"]["args"]) {
-			task_info.program_args = task["program"]["args"].as<std::string>();
-		} else {
-			task_info.program_args = "";
-		}
-
-
-		if (task["elasticity"]) {
-			task_info.elasticity = task["elasticity"].as<int>();
-		}
-
-		if (task["priority"]) {
-			task_info.sched_priority = task["priority"].as<int>();
-		}
-
-
-		if (task["maxIterations"]) {
-			task_info.max_iterations = task["maxIterations"].as<int>();
-		} else if (*sec_to_run == 0) {
-			print_module::print(std::cout, "Warning: no maxRuntime set and task has no maxIterations; will run forever\n");
-		}
-
-		if (!task["modes"] || !task["modes"].IsSequence() || task["modes"].size() == 0) {
-			return -5;
-		}
-
-		for (YAML::Node mode : task["modes"]) {
-			if (!yaml_is_time(mode["work"]) || !yaml_is_time(mode["span"]) || !yaml_is_time(mode["period"])) {
-				return -6;
-			}
-
-			struct parsed_task_mode_info mode_info;
-
-			if (mode["type"])
-				mode_info.mode_type = mode["type"].as<std::string>();
-			else
-				mode_info.mode_type = "heavy";
-
-			mode_info.work_sec = mode["work"]["sec"].as<int>();
-			mode_info.work_nsec = mode["work"]["nsec"].as<int>();
-			mode_info.span_sec = mode["span"]["sec"].as<int>();
-			mode_info.span_nsec = mode["span"]["nsec"].as<int>();
-			mode_info.period_sec = mode["period"]["sec"].as<int>();
-			mode_info.period_nsec = mode["period"]["nsec"].as<int>();
-
-			//check for GPU params
-			if (yaml_is_time(mode["gpu_work"]) && yaml_is_time(mode["gpu_span"])){
-
-				mode_info.gpu_work_sec = mode["gpu_work"]["sec"].as<int>();
-				mode_info.gpu_work_nsec = mode["gpu_work"]["nsec"].as<int>();
-				mode_info.gpu_span_sec = mode["gpu_span"]["sec"].as<int>();
-				mode_info.gpu_span_nsec = mode["gpu_span"]["nsec"].as<int>();
-
-				//if an arbitrary period has been set for modifying the GPU assignemnt
-				if (yaml_is_time(mode["gpu_period"])){
-
-					mode_info.gpu_period_sec = mode["gpu_period"]["sec"].as<int>();
-					mode_info.gpu_period_nsec = mode["gpu_period"]["nsec"].as<int>();
-
-				}
-
-				else{
-
-					mode_info.gpu_period_sec = mode_info.period_sec;
-					mode_info.gpu_period_nsec = mode_info.period_nsec;
-				}
-
-			}
-
-			task_info.modes.push_back(mode_info);
-		}
-
-
-		parsed_tasks->push_back(task_info);
-	}
-
-	return 0;
-}
 
 /************************************************************************************
 
@@ -392,9 +283,73 @@ int main(int argc, char *argv[])
 		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
 	}
 
-	if (get_scheduling_file(args[1], ifs) != 0) return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
+	//open the shared memory for the stupid yaml parser
+	auto yaml_object = smm::allocate<struct parsed_shared_objects>("PRSEDOBJ");
 
-	if (read_scheduling_yaml_file(ifs, &schedulable, &parsed_tasks, &sec_to_run, &nsec_to_run) != 0) return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
+	//fork the process to allow for the yaml parser to run in a separate process
+	auto pid = fork();
+	if (pid == 0){
+
+		std::cout << "starting yaml parser" << std::endl;
+
+		//execv the yaml parser
+		execv("./yaml_parser", argv);
+
+		std::cout << "yaml parser failed to start" << std::endl;
+
+	}
+
+	else{
+
+		//wait for process to return
+		wait(NULL);
+
+	}
+
+	//fetch all the data from the shared memory
+	schedulable = yaml_object->schedulable;
+	sec_to_run = yaml_object->sec_to_run;
+	nsec_to_run = yaml_object->nsec_to_run;
+
+	for (int i = 0; i < yaml_object->num_tasks_parsed; i++){
+
+		struct parsed_task_info task_info;
+
+		task_info.elasticity = yaml_object->parsed_tasks[i].elasticity;
+		task_info.max_iterations = yaml_object->parsed_tasks[i].max_iterations;
+		task_info.sched_priority = yaml_object->parsed_tasks[i].sched_priority;
+
+		for (int j = 0; j < 1024; j++){
+			
+			task_info.C_program_name[j] = yaml_object->parsed_tasks[i].C_program_name[j];
+			task_info.C_program_args[j] = yaml_object->parsed_tasks[i].C_program_args[j];
+
+		}
+
+		for (int j = 0; j < yaml_object->num_modes_parsed[i]; j++){
+
+			struct parsed_task_mode_info mode_info;
+
+			mode_info.work_sec = yaml_object->parsed_modes[i][j].work_sec;
+			mode_info.work_nsec = yaml_object->parsed_modes[i][j].work_nsec;
+			mode_info.span_sec = yaml_object->parsed_modes[i][j].span_sec;
+			mode_info.span_nsec = yaml_object->parsed_modes[i][j].span_nsec;
+			mode_info.period_sec = yaml_object->parsed_modes[i][j].period_sec;
+			mode_info.period_nsec = yaml_object->parsed_modes[i][j].period_nsec;
+			mode_info.gpu_work_sec = yaml_object->parsed_modes[i][j].gpu_work_sec;
+			mode_info.gpu_work_nsec = yaml_object->parsed_modes[i][j].gpu_work_nsec;
+			mode_info.gpu_span_sec = yaml_object->parsed_modes[i][j].gpu_span_sec;
+			mode_info.gpu_span_nsec = yaml_object->parsed_modes[i][j].gpu_span_nsec;
+			mode_info.gpu_period_sec = yaml_object->parsed_modes[i][j].gpu_period_sec;
+			mode_info.gpu_period_nsec = yaml_object->parsed_modes[i][j].gpu_period_nsec;
+
+			task_info.modes.push_back(mode_info);
+
+		}
+
+		parsed_tasks.push_back(task_info);
+
+	}
 
 	//create the scheduling object
 	//(retain CPU 0 for the scheduler)
@@ -453,7 +408,8 @@ int main(int argc, char *argv[])
 		std::vector<std::string> task_manager_argvector;
 
 		// Add the task program name to the argument vector with number of modes as well as start and finish times
-		task_manager_argvector.push_back(task_info.program_name);
+		task_manager_argvector.push_back(std::string(task_info.C_program_name));
+
 		task_manager_argvector.push_back(std::to_string(start_time.tv_sec));
 		task_manager_argvector.push_back(std::to_string(start_time.tv_nsec));
 
@@ -501,9 +457,9 @@ int main(int argc, char *argv[])
 		task_manager_argvector.push_back(std::to_string(explicit_sync));
 		
 		// Add the task arguments to the argument vector
-		task_manager_argvector.push_back(task_info.program_name);
+		task_manager_argvector.push_back(std::string(task_info.C_program_name));
 
-		task_manager_argvector.push_back(task_info.program_args);
+		task_manager_argvector.push_back(std::string(task_info.C_program_args));
 
 		// Create a vector of char * arguments from the vector of string arguments
 		std::vector<const char *> task_manager_argv;
@@ -514,7 +470,7 @@ int main(int argc, char *argv[])
 		
 		//Null terminate the task manager arg vector as a sentinel
 		task_manager_argv.push_back(NULL);	
-		print_module::print(std::cerr, "Forking and execv-ing task " , task_info.program_name.c_str() , "\n");
+		print_module::print(std::cerr, "Forking and execv-ing task " , std::string(task_info.C_program_name).c_str() , "\n");
 		
 		// Fork and execv the task program
 		pid_t pid = fork();
@@ -522,7 +478,7 @@ int main(int argc, char *argv[])
 		{
 			// Const cast is necessary for type compatibility. Since the strings are
 			// not shared, there is no danger in removing the const modifier.
-			execv(task_info.program_name.c_str(), const_cast<char **>(&task_manager_argv[0]));
+			execv(std::string(task_info.C_program_name).c_str(), const_cast<char **>(&task_manager_argv[0]));
 			
 			// Error if execv returns
 			std::perror("Execv-ing a new task failed.\n");
@@ -539,7 +495,7 @@ int main(int argc, char *argv[])
 	}
 
 	//run the table generation for all unsafe task combinations
-	scheduler->generate_unsafe_combinations();
+	//scheduler->generate_unsafe_combinations();
 
 	//tell scheduler to calculate schedule for tasks
 	scheduler->do_schedule();

@@ -51,10 +51,10 @@ all: libsmctrl clustering_distribution finish
 
 finish: libsmctrl clustering_distribution james
 	mkdir -p ./bin
-	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./bin
+	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./yaml_parser ./bin
 
 clean: clean_libsmctrl
-	rm -r ./bin *.o *.a $(TARGET_TASK) clustering_launcher synthetic_task || true
+	rm -r ./bin *.o *.a $(TARGET_TASK) clustering_launcher yaml_parser synthetic_task || true
 
 ##### Conditional Targets and Rules #############################################
 ifeq ($(HAS_NVCC),true)
@@ -131,8 +131,11 @@ print_buffer.o: ./printing_module/print_buffer.cpp timespec_functions.o
 ./libyaml-cpp/build/libyaml-cpp.a:
 	cd libyaml-cpp && mkdir -p build && cd build && cmake .. && make
 
-clustering_launcher: ./main_binaries/clustering_launcher.cpp ./libyaml-cpp/build/libyaml-cpp.a timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS)
-	$(CC) $(FLAGS) $(HEADERS_WITH_YAML) timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS) ./main_binaries/clustering_launcher.cpp -o clustering_launcher $(LIBS)
+yaml_parser: ./main_binaries/yaml_parser.cpp ./libyaml-cpp/build/libyaml-cpp.a timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS)
+	$(CC) $(FLAGS) $(HEADERS_WITH_YAML) timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS) ./main_binaries/yaml_parser.cpp -o yaml_parser $(LIBS)
+
+clustering_launcher: ./main_binaries/clustering_launcher.cpp yaml_parser timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS)
+	$(CC) $(FLAGS) timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS) ./main_binaries/clustering_launcher.cpp -o clustering_launcher $(LIBS)
 
 james-bin: ./target_task/james.cpp 
 	$(CC) $(FLAGS) $(NVCC_OVERRIDE) ./target_task/james.cpp -c $< $(LIBS)
