@@ -92,7 +92,7 @@ __device__ volatile int solutions[25][128 + 1][128 + 1][2];
 //25 tasks, 4 modes (0-3): cores, sms, cpuLoss
 //__device__ double task_table[25 * 4 * 3];
 
-__global__ void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, int* uncooperative_tasks, int* final_solution){
+__global__ void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution){
 
 	//loop over all tasks
 	for (int i = 0; i <= (int) num_tasks; i++) {
@@ -163,9 +163,6 @@ __global__ void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* 
 						//store j into the corresponding slot of the 1d array in the first position
 						solutions[i][w][v][0] = j;
 
-						if (i == num_tasks && w == maxCPU && v == NUMGPUS)
-							printf("VALUE BEING SET: %d\n", j);
-
 						//store a pointer to the previous portion of the solution in the second position
 						solutions[i][w][v][1] = ((char)(i - 1) << 16) | ((char)(w - current_item_cores) << 8) | (char)(v - current_item_sms);
 
@@ -189,9 +186,7 @@ __global__ void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* 
 		
 		final_solution[num_tasks - 1] = solutions[num_tasks][maxCPU][NUMGPUS][0];
 
-		printf("first element: %d\n", solutions[num_tasks][maxCPU][NUMGPUS][0]);
-
-		for (int i = num_tasks - 2; i > 0; i--){
+		for (int i = num_tasks - 2; i >= 0; i--){
 
 			//im lazy and bad at math apparently
 			int first = (pivot >> 16) & 0xFF;
@@ -204,7 +199,7 @@ __global__ void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* 
 		}
 
 		//print the final loss 
-		//printf("Final Loss: %f\n", 100000 - dp_two[num_tasks][maxCPU][NUMGPUS][0]);
+		*final_loss = 100000 - dp_two[num_tasks][maxCPU][NUMGPUS][0];
 
 	}
 
@@ -941,6 +936,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 		CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_uncooperative_tasks, sizeof(int) * 25));
 		CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_final_solution, sizeof(int) * 25));
 		CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_losses, sizeof(double) * 25 * 8));
+		CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_final_loss, sizeof(double)));
 
 		//copy it
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_task_table, host_task_table, sizeof(int) * 25 * 8 * 2, cudaMemcpyHostToDevice));
@@ -1064,7 +1060,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 	CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, 25 * sizeof(int), cudaMemcpyHostToDevice));
 
 	//Execute exact solution
-	device_do_schedule<<<1, 1024>>>(N, maxCPU, NUMGPUS, d_task_table, d_losses, d_uncooperative_tasks, d_final_solution);
+	device_do_schedule<<<1, 1024>>>(N, maxCPU, NUMGPUS, d_task_table, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
 
 	//peek for launch errors
 	CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
@@ -1074,10 +1070,11 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	//copy the final_solution array back
 	int host_final[25] = {0};
+	double loss;
 
 	//copy it 
 	CUDA_NEW_SAFE_CALL(cudaMemcpy(host_final, d_final_solution, 25 * sizeof(int), cudaMemcpyDeviceToHost));
-
+	CUDA_NEW_SAFE_CALL(cudaMemcpy(&loss, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost));
 
 	/*
 	//Execute exact solution
@@ -1141,10 +1138,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 
     //return optimal solution
 	std::vector<int> result;
-	double loss = 0;
 
 	for (int i = 0; i < (int) num_tasks; i++) result.push_back(host_final[i]);
-	loss = .001;
 
 	//check to see that we got a solution that renders this system schedulable
 	if ((result.size() == 0 || loss == 100001) && first_time){

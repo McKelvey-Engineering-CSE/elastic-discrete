@@ -111,6 +111,7 @@ class Scheduler{
 	//pointers for cuda memory
 	int* d_task_table;
 	double* d_losses;
+	double* d_final_loss;
 	int* d_final_solution;
 	int* d_uncooperative_tasks;
 	
