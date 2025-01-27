@@ -17,6 +17,199 @@
 #include <vector>
 #include <stack>
 
+#include <cuda.h>
+#include <cuda_runtime.h>
+
+/************************************************************
+
+Macros directly from NVIDIA themselves for working with 
+NVRTC, CUDA, CUDART and JIT calls
+
+*************************************************************/
+
+#ifndef CHECK_MACROS_H
+#define CHECK_MACROS_H
+
+#define NVRTC_SAFE_CALL(x)                                        \
+do {                                                              \
+   nvrtcResult result = x;                                        \
+   if (result != NVRTC_SUCCESS) {                                 \
+      std::cerr << "\nerror: " #x " failed with error "           \
+                << nvrtcGetErrorString(result) << '\n';           \
+      exit(1);                                                    \
+   }                                                              \
+} while(0)
+
+#define CUDA_SAFE_CALL(x)                                         \
+do {                                                              \
+   CUresult result = x;                                           \
+   if (result != CUDA_SUCCESS) {                                  \
+      const char *msg;                                            \
+      cuGetErrorName(result, &msg);                               \
+      std::cerr << "\nerror: " #x " failed with error "           \
+                << msg << '\n';                                   \
+      exit(1);                                                    \
+   }                                                              \
+} while(0)
+
+#define CUDA_NEW_SAFE_CALL(x)                                     \
+do {                                                              \
+   cudaError_t result = x;                                        \
+   if (result != cudaSuccess) {                                   \
+      std::cerr << "\nerror: " #x " failed with error "           \
+                << cudaGetErrorName(result) << '\n';              \
+      exit(1);                                                    \
+   }                                                              \
+} while(0)
+
+#define NVJITLINK_SAFE_CALL(h,x)                                  \
+do {                                                              \
+   nvJitLinkResult result = x;                                    \
+   if (result != NVJITLINK_SUCCESS) {                             \
+      std::cerr << "\nerror: " #x " failed with error "           \
+                << result << '\n';                                \
+      size_t lsize;                                               \
+      result = nvJitLinkGetErrorLogSize(h, &lsize);               \
+      if (result == NVJITLINK_SUCCESS && lsize > 0) {             \
+         char *log = (char*)malloc(lsize);                        \
+         result = nvJitLinkGetErrorLog(h, log);                   \
+         if (result == NVJITLINK_SUCCESS) {                       \
+            std::cerr << "error: " << log << '\n';                \
+            free(log);                                            \
+         }                                                        \
+      }                                                           \
+      exit(1);                                                    \
+   }                                                              \
+} while(0)
+
+#endif
+
+__device__ volatile	double dp_two[25 + 1][128 + 1][128 + 1][3];
+//__device__ volatile int solutions[(25 + 1) * (64 + 1) * (64 + 1) * 2];
+
+__device__ volatile int solutions[25][128 + 1][128 + 1][2];
+
+//25 tasks, 4 modes (0-3): cores, sms, cpuLoss
+//__device__ double task_table[25 * 4 * 3];
+
+__global__ void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, int* uncooperative_tasks, int* final_solution){
+
+	//loop over all tasks
+	for (int i = 0; i <= (int) num_tasks; i++) {
+
+		//gather task info
+		int j_start = 0;
+		int j_end = 8;
+
+		//check if cooperative
+		if (i != 0){
+
+			if ((uncooperative_tasks[i - 1])){
+
+				j_start = uncooperative_tasks[i - 1];
+				j_end = j_start + 1;
+
+			}
+
+		}
+
+		//assume 1 block of 1024 threads for now
+		for (int k = 0; k < 16; k++){
+
+			//w = cpu
+			int w = (threadIdx.x / 128) + (8 * k);
+			
+			//v = gpu
+			int v = (threadIdx.x % 128);
+
+			//init table
+			if (i == 0){
+
+				dp_two[i][w][v][0] = 100000;
+
+				__syncthreads();
+
+				continue;
+
+			}
+
+			//invalid state
+			dp_two[i][w][v][0] = -1.0;
+			dp_two[i][w][v][1] = 0.0;
+			dp_two[i][w][v][2] = 0.0;
+
+			__syncthreads();
+
+			//for each item in class
+			for (size_t j = j_start; j < j_end; j++) {
+
+				//fetch initial suspected resource values
+				int current_item_sms = task_table[(i - 1) * 8 * 2 + j * 2 + 1];
+				int current_item_cores = task_table[(i - 1) * 8 * 2 + j * 2];
+
+				if (current_item_cores == -1 || current_item_sms == -1)
+					continue;
+
+				//if item fits in both sacks
+				if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)) {
+
+					double newCPULoss_two = dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] - losses[(i - 1) * 8 + j];
+					
+					//if found solution is better, update
+					if ((newCPULoss_two) > (dp_two[i][w][v][0])) {
+
+						dp_two[i][w][v][0] = newCPULoss_two;
+
+						//store j into the corresponding slot of the 1d array in the first position
+						solutions[i][w][v][0] = j;
+
+						if (i == num_tasks && w == maxCPU && v == NUMGPUS)
+							printf("VALUE BEING SET: %d\n", j);
+
+						//store a pointer to the previous portion of the solution in the second position
+						solutions[i][w][v][1] = ((char)(i - 1) << 16) | ((char)(w - current_item_cores) << 8) | (char)(v - current_item_sms);
+
+
+					}
+
+				}
+
+			}
+
+			__syncthreads();
+
+		}
+
+	}
+
+	//to get the final answer, start at the end and work backwards, taking the j values
+	if (threadIdx.x < 1){
+
+		int pivot = solutions[num_tasks][maxCPU][NUMGPUS][1];
+		
+		final_solution[num_tasks - 1] = solutions[num_tasks][maxCPU][NUMGPUS][0];
+
+		printf("first element: %d\n", solutions[num_tasks][maxCPU][NUMGPUS][0]);
+
+		for (int i = num_tasks - 2; i > 0; i--){
+
+			//im lazy and bad at math apparently
+			int first = (pivot >> 16) & 0xFF;
+			int second = (pivot >> 8) & 0xFF;
+			int third = pivot & 0xFF;
+
+			pivot = solutions[first][second][third][1];
+			final_solution[i] = solutions[first][second][third][0];
+
+		}
+
+		//print the final loss 
+		//printf("Final Loss: %f\n", 100000 - dp_two[num_tasks][maxCPU][NUMGPUS][0]);
+
+	}
+
+}
+
 
 class Schedule * Scheduler::get_schedule(){
 	return &schedule;
@@ -693,9 +886,8 @@ void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes, std::uno
 //Implement scheduling algorithm
 void Scheduler::do_schedule(size_t maxCPU){
 
-	//get current time
-	timespec start_time;
-	clock_gettime(CLOCK_MONOTONIC, &start_time);
+	if (first_time)
+		CUDA_SAFE_CALL(cuInit(0));
 
 	//vector for transitioned tasks
 	std::vector<int> transitioned_tasks;
@@ -710,30 +902,55 @@ void Scheduler::do_schedule(size_t maxCPU){
 		for (int i = 0; i < schedule.count(); i++)
 			previous_modes.push_back(task_mode());
 
-	}
+		//copy all of the task table to the device after conversion
 
-	//dynamic programming table
-	int N = task_table.size();
-	std::vector<int> best_solution;
+		//25 tasks, 4 modes (0-3): cores, sms, cpuLoss
+		int host_task_table[25 * 8 * 2];
+		double host_losses[25 * 8];
 
-	double dp_two[N + 1][maxCPU + 1][NUMGPUS + 1][3];
-	int solutions[num_tasks + 1][maxCPU + 1][NUMGPUS + 1][num_tasks];
+		//find largest number of modes in the task table
+		int max_modes = 0;
 
-	for(int i = 0; i <= (int) num_tasks; i++) {
+		for (int i = 0; i < (int) task_table.size(); i++)
+			if ((int) task_table.at(i).size() > max_modes)
+				max_modes = (int) task_table.at(i).size();
 
-		for(int j = 0; j <= (int) maxCPU; j++) {
+		for (int i = 0; i < (int) task_table.size(); i++){
 
-			for(int k = 0; k <= (int) NUMGPUS; k++) {
+			for (int j = 0; j < (int) task_table.at(i).size(); j++){
 
-				dp_two[i][j][k][0] = 100000;
-				dp_two[i][j][k][1] = starting_CPUs;
-				dp_two[i][j][k][2] = starting_GPUs;
+				host_task_table[i * 8 * 2 + j * 2 + 0] = task_table.at(i).at(j).cores;
+				host_task_table[i * 8 * 2 + j * 2 + 1] = task_table.at(i).at(j).sms;
+				host_losses[i * 8 + j] = task_table.at(i).at(j).cpuLoss;
+
+			}
+
+			//if this task had fewer modes than max, pad all the rest with -1
+			for (int j = (int) task_table.at(i).size(); j < max_modes; j++){
+
+				host_task_table[i * 8 * 2 + j * 2 + 0] = -1;
+				host_task_table[i * 8 * 2 + j * 2 + 1] = -1;
+				host_losses[i * 8 + j] = -1;
 
 			}
 
 		}
 
+		//get the symbol on the device
+		CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_task_table, sizeof(int) * 25 * 8 * 2));
+		CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_uncooperative_tasks, sizeof(int) * 25));
+		CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_final_solution, sizeof(int) * 25));
+		CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_losses, sizeof(double) * 25 * 8));
+
+		//copy it
+		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_task_table, host_task_table, sizeof(int) * 25 * 8 * 2, cudaMemcpyHostToDevice));
+		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_losses, host_losses, sizeof(double) * 25 * 8, cudaMemcpyHostToDevice));
+
 	}
+
+	//dynamic programming table
+	int N = task_table.size();
+	std::vector<int> best_solution;
 
 	//force checks to ensure each task has their core count
 	if (!first_time){
@@ -833,6 +1050,36 @@ void Scheduler::do_schedule(size_t maxCPU){
 		}
 	}
 
+	//get current time
+	timespec start_time;
+	clock_gettime(CLOCK_MONOTONIC, &start_time);
+
+	//copy over all the uncooperative tasks' selected modes
+	int host_uncooperative[25] = {0};
+	for (int i = 0; i < schedule.count(); i++)
+		if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative())
+			host_uncooperative[i] = (schedule.get_task(i))->get_current_mode();
+
+	//copy the array to the device
+	CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, 25 * sizeof(int), cudaMemcpyHostToDevice));
+
+	//Execute exact solution
+	device_do_schedule<<<1, 1024>>>(N, maxCPU, NUMGPUS, d_task_table, d_losses, d_uncooperative_tasks, d_final_solution);
+
+	//peek for launch errors
+	CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
+
+	//sync
+	CUDA_NEW_SAFE_CALL(cudaDeviceSynchronize());
+
+	//copy the final_solution array back
+	int host_final[25] = {0};
+
+	//copy it 
+	CUDA_NEW_SAFE_CALL(cudaMemcpy(host_final, d_final_solution, 25 * sizeof(int), cudaMemcpyDeviceToHost));
+
+
+	/*
 	//Execute exact solution
 	for (int i = 1; i <= (int) num_tasks; i++) {
 
@@ -890,12 +1137,14 @@ void Scheduler::do_schedule(size_t maxCPU){
 		}
 	}
 
+	*/
+
     //return optimal solution
 	std::vector<int> result;
 	double loss = 0;
 
-	for (int i = 0; i < (int) num_tasks; i++) result.push_back(solutions[N][maxCPU][NUMGPUS][i]);
-	loss = 100000 - dp_two[N][maxCPU][NUMGPUS][0];
+	for (int i = 0; i < (int) num_tasks; i++) result.push_back(host_final[i]);
+	loss = .001;
 
 	//check to see that we got a solution that renders this system schedulable
 	if ((result.size() == 0 || loss == 100001) && first_time){
@@ -916,6 +1165,16 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	//deal with pessemism negatives
 	auto backup = result;
+
+	timespec end_time;
+	clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+	//determine ellapsed time in nanoseconds
+	double elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1e9;
+	elapsed_time += (end_time.tv_nsec - start_time.tv_nsec);
+
+	//print out the time taken
+	print_module::print(std::cerr, "Time taken to run just the double knapsack: ", elapsed_time / 1000000, " milliseconds.\n");
 
 	//update the tasks
 	std::ostringstream mode_strings;
@@ -1339,15 +1598,15 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	first_time = false;
 
-	timespec end_time;
 	clock_gettime(CLOCK_MONOTONIC, &end_time);
 
 	//determine ellapsed time in nanoseconds
-	double elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1e9;
+	elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1e9;
 	elapsed_time += (end_time.tv_nsec - start_time.tv_nsec);
 
 	//print out the time taken
 	print_module::print(std::cerr, "Time taken to reschedule: ", elapsed_time / 1000000, " milliseconds.\n");
+
 }
 
 void Scheduler::setTermination(){

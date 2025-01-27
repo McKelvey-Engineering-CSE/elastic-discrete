@@ -1,5 +1,5 @@
 ##### Compiler Detection and Settings #################################################
-NVCC := $(shell which hppt 2> /dev/null)
+NVCC := $(shell which nvcc 2> /dev/null)
 NVCC := $(notdir $(NVCC))
 HAS_NVCC := $(if $(filter nvcc,$(NVCC)),true,false)
 
@@ -23,7 +23,7 @@ endif
 # Compiler-specific settings
 ifeq ($(HAS_NVCC),true)
     CC := nvcc $(OMP_LIB)
-    FLAGS := $(COMMON_FLAGS) -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -lcuda -lcudart
+    FLAGS := $(COMMON_FLAGS) -arch=native -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -lcuda -lcudart
     LIBS := $(COMMON_LIBS) -Xcompiler -fopenmp -L./omp_module -Xlinker -rpath,./omp_module
 	NVCC_OVERRIDE := --x=cu
     ifneq (,$(X86_64_ARCH))
@@ -83,16 +83,16 @@ timespec_functions.o: ./timespec_module/timespec_functions.cpp
 
 # Barrier module components
 process_primitives.o: ./barrier_module/process_primitives.cpp
-	$(CC) $(FLAGS) -c $<
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
 generic_barrier.o: process_primitives.o ./barrier_module/generic_barrier.cpp
 	$(CC) $(FLAGS) -c ./barrier_module/generic_barrier.cpp
 
 process_barrier.o: ./barrier_module/process_barrier.cpp generic_barrier.o
-	$(CC) $(FLAGS) -c $<
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
 thread_barrier.o: ./barrier_module/thread_barrier.cpp generic_barrier.o process_barrier.o
-	$(CC) $(FLAGS) -c $<
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
 synthetic_task: ./task_module/synthetic_task.cpp task.o task_manager.o print_library.o $(BARRIER_OBJECTS) schedule.o taskData.o timespec_functions.o
 	$(CC) $(FLAGS) $^ -o $@ $(LIBS)
@@ -104,28 +104,28 @@ libclustering.a: $(CLUSTERING_OBJECTS)
 
 # Object compilation rules
 task.o: ./task_module/task.cpp timespec_functions.o
-	$(CC) $(FLAGS) -c $<
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
 scheduler.o: ./scheduler_module/scheduler.cpp timespec_functions.o
-	$(CC) $(FLAGS) -c $<
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
 schedule.o: ./scheduler_module/schedule.cpp timespec_functions.o
-	$(CC) $(FLAGS) -c $<
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
 taskData_real.o: ./task_module/taskData.cpp timespec_functions.o
-	$(CC) $(FLAGS) -c $< -o $@
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $< -o $@
 
 task_manager.o: ./main_binaries/task_manager.cpp timespec_functions.o process_barrier.o generic_barrier.o
-	$(CC) $(FLAGS) $(LIBS) -c $<
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) $(LIBS) -c $<
 
 print_library.o: print_module.o print_buffer.o
 	ld -relocatable $^ -o $@
 
 print_module.o: ./printing_module/print_module.cpp timespec_functions.o
-	$(CC) $(FLAGS) -c $<
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
 print_buffer.o: ./printing_module/print_buffer.cpp timespec_functions.o
-	$(CC) $(FLAGS) -c $<
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
 ##### Final Targets ###########################################################
 ./libyaml-cpp/build/libyaml-cpp.a:
@@ -134,8 +134,11 @@ print_buffer.o: ./printing_module/print_buffer.cpp timespec_functions.o
 yaml_parser: ./main_binaries/yaml_parser.cpp ./libyaml-cpp/build/libyaml-cpp.a timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS)
 	$(CC) $(FLAGS) $(HEADERS_WITH_YAML) timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS) ./main_binaries/yaml_parser.cpp -o yaml_parser $(LIBS)
 
-clustering_launcher: ./main_binaries/clustering_launcher.cpp yaml_parser timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS)
-	$(CC) $(FLAGS) timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS) ./main_binaries/clustering_launcher.cpp -o clustering_launcher $(LIBS)
+clustering_launcher-bin: ./main_binaries/clustering_launcher.cpp
+	$(CC) $(FLAGS) $(NVCC_OVERRIDE) ./main_binaries/clustering_launcher.cpp -c $< $(LIBS)
+
+clustering_launcher: yaml_parser clustering_launcher-bin timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS)
+	$(CC) $(FLAGS)  timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS) clustering_launcher.o -o clustering_launcher $(LIBS)
 
 james-bin: ./target_task/james.cpp 
 	$(CC) $(FLAGS) $(NVCC_OVERRIDE) ./target_task/james.cpp -c $< $(LIBS)

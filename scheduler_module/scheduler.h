@@ -107,6 +107,12 @@ class Scheduler{
 
 	//table for storing the combination for unsafe tasks later
 	int* unsafe_table;
+
+	//pointers for cuda memory
+	int* d_task_table;
+	double* d_losses;
+	int* d_final_solution;
+	int* d_uncooperative_tasks;
 	
 public:
 
