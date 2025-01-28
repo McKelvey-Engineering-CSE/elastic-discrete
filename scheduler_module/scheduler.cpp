@@ -69,13 +69,15 @@
 			}
 
 			//assume 1 block of 1024 threads for now
-			for (int k = 0; k < 16; k++){
+			for (int k = 0; k < ceil(((maxCPU + 1) * (NUMGPUS + 1)) / 1024) + 1; k++){
 
 				//w = cpu
-				int w = (threadIdx.x / 128) + (8 * k);
+				int w = (((k * 1024) + threadIdx.x) / (NUMGPUS + 1));
 				
 				//v = gpu
-				int v = (threadIdx.x & 127);
+				int v = (((k * 1024) + threadIdx.x) % (NUMGPUS + 1));
+
+				printf("Thread: %d | w: %d | v: %d\n", threadIdx.x, w, v);
 
 				//init table
 				if (i == 0){
