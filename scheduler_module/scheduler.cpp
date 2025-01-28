@@ -44,16 +44,16 @@
 	}                                                              \
 	} while(0)
 
-	__device__ volatile	double dp_two[25 + 1][128 + 1][128 + 1][3];
-	__device__ volatile int solutions[25][128 + 1][128 + 1][2];
+	__device__ volatile	double dp_two[MAXTASKS + 1][128 + 1][128 + 1][3];
+	__device__ volatile int solutions[MAXTASKS][128 + 1][128 + 1][2];
 
-	__constant__ int constant_task_table[25 * 8 * 2];
+	__constant__ int constant_task_table[MAXTASKS * MAXMODES * 2];
 
-	__constant__ double constant_losses[25 * 8];
+	__constant__ double constant_losses[MAXTASKS * MAXMODES];
 
 	__global__ void set_dp_table(){
 		
-		for (int i = 0; i < 25 + 1; i++)
+		for (int i = 0; i < MAXTASKS + 1; i++)
 			for (int j = 0; j < 128 + 1; j++)
 				for (int k = 0; k < 128 + 1; k++)
 					for (int l = 0; l < 3; l++)
@@ -68,7 +68,7 @@
 
 			//gather task info
 			int j_start = 0;
-			int j_end = 8;
+			int j_end = MAXMODES;
 
 			//check if cooperative
 			if ((uncooperative_tasks[i - 1])){
@@ -95,8 +95,8 @@
 				for (size_t j = j_start; j < j_end; j++) {
 
 					//fetch initial suspected resource values
-					int current_item_sms = constant_task_table[(i - 1) * 8 * 2 + j * 2 + 1];
-					int current_item_cores = constant_task_table[(i - 1) * 8 * 2 + j * 2];
+					int current_item_sms = constant_task_table[(i - 1) * MAXMODES * 2 + j * 2 + 1];
+					int current_item_cores = constant_task_table[(i - 1) * MAXMODES * 2 + j * 2];
 
 					if (current_item_cores == -1 || current_item_sms == -1)
 						continue;
@@ -104,7 +104,7 @@
 					//if item fits in both sacks
 					if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)) {
 
-						double newCPULoss_two = dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] - constant_losses[(i - 1) * 8 + j];
+						double newCPULoss_two = dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] - constant_losses[(i - 1) * MAXMODES + j];
 						
 						//if found solution is better, update
 						if ((newCPULoss_two) > (dp_two[i][w][v][0])) {
@@ -857,9 +857,9 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		#ifdef __NVCC__
 
-			//25 tasks, 4 modes (0-3): cores, sms, cpuLoss
-			int host_task_table[25 * 8 * 2];
-			double host_losses[25 * 8];
+			//MAXTASKS tasks, 4 modes (0-3): cores, sms, cpuLoss
+			int host_task_table[MAXTASKS * MAXMODES * 2];
+			double host_losses[MAXTASKS * MAXMODES];
 
 			//find largest number of modes in the task table
 			int max_modes = 0;
@@ -872,36 +872,36 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 				for (int j = 0; j < (int) task_table.at(i).size(); j++){
 
-					host_task_table[i * 8 * 2 + j * 2 + 0] = task_table.at(i).at(j).cores;
-					host_task_table[i * 8 * 2 + j * 2 + 1] = task_table.at(i).at(j).sms;
-					host_losses[i * 8 + j] = task_table.at(i).at(j).cpuLoss;
+					host_task_table[i * MAXMODES * 2 + j * 2 + 0] = task_table.at(i).at(j).cores;
+					host_task_table[i * MAXMODES * 2 + j * 2 + 1] = task_table.at(i).at(j).sms;
+					host_losses[i * MAXMODES + j] = task_table.at(i).at(j).cpuLoss;
 
 				}
 
 				//if this task had fewer modes than max, pad all the rest with -1
 				for (int j = (int) task_table.at(i).size(); j < max_modes; j++){
 
-					host_task_table[i * 8 * 2 + j * 2 + 0] = -1;
-					host_task_table[i * 8 * 2 + j * 2 + 1] = -1;
-					host_losses[i * 8 + j] = -1;
+					host_task_table[i * MAXMODES * 2 + j * 2 + 0] = -1;
+					host_task_table[i * MAXMODES * 2 + j * 2 + 1] = -1;
+					host_losses[i * MAXMODES + j] = -1;
 
 				}
 
 			}
 
 			//get the symbol on the device
-			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_task_table, sizeof(int) * 25 * 8 * 2));
-			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_uncooperative_tasks, sizeof(int) * 25));
-			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_final_solution, sizeof(int) * 25));
-			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_losses, sizeof(double) * 25 * 8));
+			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_task_table, sizeof(int) * MAXTASKS * MAXMODES * 2));
+			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_uncooperative_tasks, sizeof(int) * MAXTASKS));
+			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_final_solution, sizeof(int) * MAXTASKS));
+			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_losses, sizeof(double) * MAXTASKS * MAXMODES));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_final_loss, sizeof(double)));
 
 			//copy it
-			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_task_table, host_task_table, sizeof(int) * 25 * 8 * 2, cudaMemcpyHostToDevice));
-			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_losses, host_losses, sizeof(double) * 25 * 8, cudaMemcpyHostToDevice));
+			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 2, cudaMemcpyHostToDevice));
+			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_losses, host_losses, sizeof(double) * MAXTASKS * MAXMODES, cudaMemcpyHostToDevice));
 
-			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_task_table, &host_task_table, sizeof(int) * 25 * 8 * 2));
-			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_losses, &host_losses, sizeof(double) * 25 * 8));
+			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_task_table, &host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 2));
+			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_losses, &host_losses, sizeof(double) * MAXTASKS * MAXMODES));
 
 			set_dp_table<<<1, 1>>>();
 
@@ -1022,13 +1022,13 @@ void Scheduler::do_schedule(size_t maxCPU){
 	#ifdef __NVCC__
 
 		//copy over all the uncooperative tasks' selected modes
-		int host_uncooperative[25] = {0};
+		int host_uncooperative[MAXTASKS] = {0};
 		for (int i = 0; i < schedule.count(); i++)
 			if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative())
 				host_uncooperative[i] = (schedule.get_task(i))->get_current_mode();
 
 		//copy the array to the device
-		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, 25 * sizeof(int), cudaMemcpyHostToDevice));
+		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
 
 		//Execute exact solution
 		device_do_schedule<<<1, 1024>>>(N, maxCPU, NUMGPUS, d_task_table, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
@@ -1040,10 +1040,10 @@ void Scheduler::do_schedule(size_t maxCPU){
 		CUDA_NEW_SAFE_CALL(cudaDeviceSynchronize());
 
 		//copy the final_solution array back
-		int host_final[25] = {0};
+		int host_final[MAXTASKS] = {0};
 
 		//copy it 
-		CUDA_NEW_SAFE_CALL(cudaMemcpy(host_final, d_final_solution, 25 * sizeof(int), cudaMemcpyDeviceToHost));
+		CUDA_NEW_SAFE_CALL(cudaMemcpy(host_final, d_final_solution, MAXTASKS * sizeof(int), cudaMemcpyDeviceToHost));
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(&loss, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost));
 
 	#else
@@ -1152,6 +1152,17 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	#endif
 
+	timespec end_time;
+	clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+	//determine ellapsed time in nanoseconds
+	double elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1e9;
+	elapsed_time += (end_time.tv_nsec - start_time.tv_nsec);
+
+	//print out the time taken
+	print_module::print(std::cerr, "Time taken to run just the double knapsack: ", elapsed_time / 1000000, " milliseconds.\n");
+
+
 	//check to see that we got a solution that renders this system schedulable
 	if ((result.size() == 0 || loss == 100001) && first_time){
 
@@ -1171,16 +1182,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	//deal with pessemism negatives
 	auto backup = result;
-
-	timespec end_time;
-	clock_gettime(CLOCK_MONOTONIC, &end_time);
-
-	//determine ellapsed time in nanoseconds
-	double elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1e9;
-	elapsed_time += (end_time.tv_nsec - start_time.tv_nsec);
-
-	//print out the time taken
-	print_module::print(std::cerr, "Time taken to run just the double knapsack: ", elapsed_time / 1000000, " milliseconds.\n");
 
 	//update the tasks
 	std::ostringstream mode_strings;
