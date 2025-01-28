@@ -47,24 +47,30 @@
 	__device__ volatile	double dp_two[25 + 1][128 + 1][128 + 1][3];
 	__device__ volatile int solutions[25][128 + 1][128 + 1][2];
 
+	__global__ void set_dp_table(){
+		
+		for (int i = 0; i < 25 + 1; i++)
+			for (int j = 0; j < 128 + 1; j++)
+				for (int k = 0; k < 128 + 1; k++)
+					for (int l = 0; l < 3; l++)
+						dp_two[i][j][k][l] = 100000;
+					
+	}
+
 	__global__ void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution){
 
 		//loop over all tasks
-		for (int i = 0; i <= (int) num_tasks; i++) {
+		for (int i = 1; i <= (int) num_tasks; i++) {
 
 			//gather task info
 			int j_start = 0;
 			int j_end = 8;
 
 			//check if cooperative
-			if (i != 0){
+			if ((uncooperative_tasks[i - 1])){
 
-				if ((uncooperative_tasks[i - 1])){
-
-					j_start = uncooperative_tasks[i - 1];
-					j_end = j_start + 1;
-
-				}
+				j_start = uncooperative_tasks[i - 1];
+				j_end = j_start + 1;
 
 			}
 
@@ -77,15 +83,6 @@
 				
 				//v = gpu
 				int v = (((k * 1024) + threadIdx.x) % (NUMGPUS + 1));
-
-				//init table
-				if (i == 0){
-
-					dp_two[i][w][v][0] = 100000;
-
-					continue;
-
-				}
 
 				//invalid state
 				dp_two[i][w][v][0] = -1.0;
@@ -898,6 +895,10 @@ void Scheduler::do_schedule(size_t maxCPU){
 			//copy it
 			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_task_table, host_task_table, sizeof(int) * 25 * 8 * 2, cudaMemcpyHostToDevice));
 			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_losses, host_losses, sizeof(double) * 25 * 8, cudaMemcpyHostToDevice));
+
+			set_dp_table<<<1, 1>>>();
+
+			CUDA_NEW_SAFE_CALL(cudaDeviceSynchronize());
 
 		#endif
 
