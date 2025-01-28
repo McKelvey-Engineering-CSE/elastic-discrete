@@ -23,7 +23,7 @@ endif
 # Compiler-specific settings
 ifeq ($(HAS_NVCC),true)
     CC := nvcc $(OMP_LIB)
-    FLAGS := $(COMMON_FLAGS) -arch=native -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -lcuda -lcudart
+    FLAGS := $(COMMON_FLAGS) -arch=native --expt-relaxed-constexpr -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -lcuda -lcudart
     LIBS := $(COMMON_LIBS) -Xcompiler -fopenmp -L./omp_module -Xlinker -rpath,./omp_module
 	NVCC_OVERRIDE := --x=cu
     ifneq (,$(X86_64_ARCH))

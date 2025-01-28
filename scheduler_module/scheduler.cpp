@@ -69,7 +69,8 @@
 			}
 
 			//assume 1 block of 1024 threads for now
-			for (int k = 0; k < ceil(((maxCPU + 1) * (NUMGPUS + 1)) / 1024) + 1; k++){
+			int pass_count = ceil(((maxCPU + 1) * (NUMGPUS + 1)) / 1024) + 1;
+			for (int k = 0; k < pass_count; k++){
 
 				//w = cpu
 				int w = (((k * 1024) + threadIdx.x) / (NUMGPUS + 1));
@@ -77,14 +78,10 @@
 				//v = gpu
 				int v = (((k * 1024) + threadIdx.x) % (NUMGPUS + 1));
 
-				printf("Thread: %d | w: %d | v: %d\n", threadIdx.x, w, v);
-
 				//init table
 				if (i == 0){
 
 					dp_two[i][w][v][0] = 100000;
-
-					__syncthreads();
 
 					continue;
 
@@ -92,8 +89,6 @@
 
 				//invalid state
 				dp_two[i][w][v][0] = -1.0;
-				dp_two[i][w][v][1] = 0.0;
-				dp_two[i][w][v][2] = 0.0;
 
 				//for each item in class
 				for (size_t j = j_start; j < j_end; j++) {
