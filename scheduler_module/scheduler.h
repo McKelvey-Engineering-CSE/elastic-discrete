@@ -35,7 +35,8 @@ Class : shared_mem
 //NVIDIA headers
 #ifdef __NVCC__
 	
-	#include "libsmctrl.h"
+	#include <cuda.h>
+	#include <cuda_runtime.h>
 
 #endif
 
@@ -114,6 +115,16 @@ class Scheduler{
 	double* d_final_loss;
 	int* d_final_solution;
 	int* d_uncooperative_tasks;
+
+	#ifdef __NVCC__
+		
+		CUgreenCtx green_ctx;
+
+		cudaStream_t scheduler_stream;
+
+		void create_scheduler_stream();
+
+	#endif
 	
 public:
 

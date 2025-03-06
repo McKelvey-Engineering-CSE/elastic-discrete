@@ -19,9 +19,6 @@
 
 #ifdef __NVCC__
 
-	#include <cuda.h>
-	#include <cuda_runtime.h>
-
 	#define CUDA_SAFE_CALL(x)                                         \
 	do {                                                              \
 	CUresult result = x;                                           \
@@ -155,8 +152,130 @@
 
 	}
 
+	__global__ void device_do_cautious_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution){
+
+		//loop over all tasks
+		for (int i = 1; i <= (int) num_tasks; i++) {
+
+			//gather task info
+			int j_start = 0;
+			int j_end = MAXMODES;
+
+			//check if cooperative
+			if ((uncooperative_tasks[i - 1])){
+
+				j_start = uncooperative_tasks[i - 1];
+				j_end = j_start + 1;
+
+			}
+
+			//assume 1 block of 1024 threads for now
+			int pass_count = ceil(((maxCPU + 1) * (NUMGPUS + 1)) / 1024) + 1;
+			for (int k = 0; k < pass_count; k++){
+
+				//w = cpu
+				int w = (((k * 1024) + threadIdx.x) / (NUMGPUS + 1));
+				
+				//v = gpu
+				int v = (((k * 1024) + threadIdx.x) % (NUMGPUS + 1));
+
+				//invalid state
+				dp_two[i][w][v][0] = -1.0;
+
+				//for each item in class
+				for (size_t j = j_start; j < j_end; j++) {
+
+					//fetch initial suspected resource values
+					int current_item_sms = constant_task_table[(i - 1) * MAXMODES * 2 + j * 2 + 1];
+					int current_item_cores = constant_task_table[(i - 1) * MAXMODES * 2 + j * 2];
+
+					if (current_item_cores == -1 || current_item_sms == -1)
+						continue;
+
+					//if item fits in both sacks
+					if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)) {
+
+						double newCPULoss_two = dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] - constant_losses[(i - 1) * MAXMODES + j];
+						
+						//if found solution is better, update
+						if ((newCPULoss_two) > (dp_two[i][w][v][0])) {
+
+							dp_two[i][w][v][0] = newCPULoss_two;
+
+							//store j into the corresponding slot of the 1d array in the first position
+							solutions[i][w][v][0] = j;
+
+							//store a pointer to the previous portion of the solution in the second position
+							solutions[i][w][v][1] = ((char)(i - 1) << 16) | ((char)(w - current_item_cores) << 8) | (char)(v - current_item_sms);
+
+						}
+
+					}
+
+				}
+
+				__syncthreads();
+
+			}
+
+		}
+
+		//to get the final answer, start at the end and work backwards, taking the j values
+		if (threadIdx.x < 1){
+
+			int pivot = solutions[num_tasks][maxCPU][NUMGPUS][1];
+			
+			final_solution[num_tasks - 1] = solutions[num_tasks][maxCPU][NUMGPUS][0];
+
+			for (int i = num_tasks - 2; i >= 0; i--){
+
+				//im lazy and bad at math apparently
+				int first = (pivot >> 16) & 0xFF;
+				int second = (pivot >> 8) & 0xFF;
+				int third = pivot & 0xFF;
+
+				pivot = solutions[first][second][third][1];
+				final_solution[i] = solutions[first][second][third][0];
+
+			}
+
+			//print the final loss 
+			*final_loss = 100000 - dp_two[num_tasks][maxCPU][NUMGPUS][0];
+
+		}
+
+	}
+
 #endif
 
+
+#ifdef __NVCC__
+	
+	void Scheduler::create_scheduler_stream(){
+
+		CUdevResource initial_resources;
+		unsigned int partition_num = 2;
+		CUdevResource resources[partition_num];
+
+		//device specs
+		CUdevResourceDesc device_resource_descriptor;
+
+		//fill the initial descriptor
+		CUDA_SAFE_CALL(cuDeviceGetDevResource(0, &initial_resources, CU_DEV_RESOURCE_TYPE_SM));
+
+		//take the previous element above us and split it 
+		//fill the corresponding portions of the matrix as we go
+		CUDA_SAFE_CALL(cuDevSmResourceSplitByCount(resources, &partition_num, &initial_resources, NULL, CU_DEV_SM_RESOURCE_SPLIT_IGNORE_SM_COSCHEDULING, 2));
+
+		//now set aside the first position and make a green context from it
+		CUDA_SAFE_CALL(cuDevResourceGenerateDesc(&device_resource_descriptor, &resources[0], 1));
+		CUDA_SAFE_CALL(cuGreenCtxCreate(&green_ctx, device_resource_descriptor, 0, CU_GREEN_CTX_DEFAULT_STREAM));
+
+		CUDA_SAFE_CALL(cuGreenCtxStreamCreate(&scheduler_stream, green_ctx, CU_STREAM_NON_BLOCKING, 0));
+
+	}
+
+#endif
 
 class Schedule * Scheduler::get_schedule(){
 	return &schedule;
@@ -491,7 +610,7 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 	//(providers are just ignored)
 	bool forward_progress = false;
 
-	while (discovered_providers.size() < (nodes.size() - consumers.size())){
+	while (discovered_providers.size() < (nodes.size() - discovered_consumers.size())){
 
 		//if we have no forward progress, we have a cycle
 		if (!forward_progress){
@@ -685,8 +804,14 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	#ifdef __NVCC__
 
-		if (first_time)
+		//setup cuda side if we have it
+		if (first_time) {
+
 			CUDA_SAFE_CALL(cuInit(0));
+
+			create_scheduler_stream();
+
+		}
 
 	#endif
 
@@ -753,7 +878,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_task_table, &host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 2));
 			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_losses, &host_losses, sizeof(double) * MAXTASKS * MAXMODES));
 
-			set_dp_table<<<1, 1>>>();
+			set_dp_table<<<1, 1, 0, scheduler_stream>>>();
 
 			CUDA_NEW_SAFE_CALL(cudaDeviceSynchronize());
 
@@ -881,20 +1006,31 @@ void Scheduler::do_schedule(size_t maxCPU){
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
 
 		//Execute exact solution
-		device_do_schedule<<<1, 1024>>>(N, maxCPU, NUMGPUS, d_task_table, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
+		device_do_schedule<<<1, 1024, 0, scheduler_stream>>>(N, maxCPU, NUMGPUS, d_task_table, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
 
 		//peek for launch errors
 		CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
 
 		//sync
-		CUDA_NEW_SAFE_CALL(cudaDeviceSynchronize());
+		CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
 
 		//copy the final_solution array back
 		int host_final[MAXTASKS] = {0};
 
 		//copy it 
-		CUDA_NEW_SAFE_CALL(cudaMemcpy(host_final, d_final_solution, MAXTASKS * sizeof(int), cudaMemcpyDeviceToHost));
-		CUDA_NEW_SAFE_CALL(cudaMemcpy(&loss, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost));
+		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(host_final, d_final_solution, MAXTASKS * sizeof(int), cudaMemcpyDeviceToHost, scheduler_stream));
+		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&loss, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, scheduler_stream));
+
+		CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
+
+		//Also, launch up the kernel for the cautious solution
+		//in the worst case we simply don't use the result, 
+		//but if we need it, it can be run while we are
+		//building the RAG for the other solution.
+		device_do_cautious_schedule<<<1, 1024, 0, scheduler_stream>>>(N, maxCPU, NUMGPUS, d_task_table, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
+
+		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(host_final, d_final_solution, MAXTASKS * sizeof(int), cudaMemcpyDeviceToHost, scheduler_stream));
+		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&loss, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, scheduler_stream));
 
 	#else
 
@@ -1430,6 +1566,9 @@ void Scheduler::do_schedule(size_t maxCPU){
 			}
 		}	
 
+		//This will be the position in which we fall back to multiple
+		//mode changes to achieve what we want (as far as we can without
+		//becoming 3 Partition that is)
 		else{
 
 			if (!barrier){
