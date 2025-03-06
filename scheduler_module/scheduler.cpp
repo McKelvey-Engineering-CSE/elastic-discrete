@@ -346,7 +346,18 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 //static vector sizes
 std::vector<std::vector<Scheduler::task_mode>> Scheduler::task_table(100, std::vector<task_mode>(100));
 
-//Returns true if graph was successfully built, false if impossible due to cycles
+/*************************************************************
+
+The problem itself is possibly NP complete, but only for
+specialized cases. The problem is often times very easy
+to solve, and (ignoring combinatorial explosion due to 
+order of transformers) can be solved in the same way
+that we build the solution via the cautious scheduler.
+
+If we cannot find a solution through this method, then 
+we have to use multiple mode changes to achieve it.
+
+*************************************************************/
 bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_pairs, 
                         std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node>& static_nodes) {
     nodes.clear();
@@ -452,35 +463,21 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 	//we discovered the solution
 	std::vector<int> discovered_providers;
 	std::vector<int> discovered_consumers;
-	std::vector<int> discovered_transformers;
 
 	//reserve
 	discovered_providers.reserve(nodes.size());
 	discovered_consumers.reserve(nodes.size());
-	discovered_transformers.reserve(nodes.size());
 
 	//add the free pool to the providers
 	discovered_providers.push_back(nodes.size() - 1);
 
-	//loop and discover all nodes and fix transformers
+	//loop over all find all the providers
 	for (int i = 0; i < (int) nodes.size() - 1; i++){
 
 		Node& node = nodes[i];
 
-		if (node.x == 0 && node.y == 0)
-			continue;
-
-		//if it's a consumer, just add it to the discovered
-		if (node.x <= 0 && node.y <= 0){
-
-			discovered_consumers.push_back(i);
-
-			std::cout << "Consumer: " << i << std::endl;
-
-		}
-
-		//if a pure provider, add it to the list as well
-		else if (node.x >= 0 && node.y >= 0){
+		//if a pure provider, add it to the list
+		if (node.x >= 0 && node.y >= 0){
 
 			discovered_providers.push_back(i);
 
@@ -488,245 +485,97 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 
 		}
 
-		//otherwise, it's a transformer
-		else {
-			
-			discovered_transformers.push_back(i);
+	}
 
-			std::cout << "Transformer: " << i << std::endl;
+	//loop and discover all nodes and fix transformers
+	//(providers are just ignored)
+	bool forward_progress = false;
+
+	while (discovered_providers.size() < (nodes.size() - consumers.size())){
+
+		//if we have no forward progress, we have a cycle
+		if (!forward_progress){
+
+			return false;
+
 		}
 
-	}
+		//reset
+		forward_progress = false;
 
-	//now check if there is a way to solve this
-	//chain of trades
-	std::pair<int, int> resource_pool;
+		//try to resolve more transformers
+		for (int i = 0; i < (int) nodes.size() - 1; i++){
 
-	//add all providers to the resource pool
-	for (int provider_id : discovered_providers){
+			Node& node = nodes[i];
 
-		Node& provider = nodes[provider_id];
-		resource_pool.first += provider.x;
-		resource_pool.second += provider.y;
-
-	}
-
-	//split the transformer pool in 2 based on resources
-	std::vector<int> transformer_pool_x;
-	std::vector<int> transformer_pool_y;
-
-	for (int transformer_id : discovered_transformers){
-
-		Node& transformer = nodes[transformer_id];
-
-		if (transformer.x > 0)
-			transformer_pool_x.push_back(transformer_id);
-
-		if (transformer.y > 0)
-			transformer_pool_y.push_back(transformer_id);
-
-	}
-
-	//now start the small knapsack problems
-	int failed = 0;
-	int cycle = 0;
-
-	//vector to hold which elements we want to process
-	//separated by -1 to indicate chain swap
-	std::vector<int> processing_chain;
-
-	int elements_removed_x = 0;
-	int elements_removed_y = 0;
-
-	while (failed != 2 && (transformer_pool_x.size() != elements_removed_x && transformer_pool_y.size() != elements_removed_y)){
-
-		int transformers_ct = (cycle % 2 == 0) ? transformer_pool_x.size() : transformer_pool_y.size();
-		int processor_ct = (cycle % 2 == 0) ? resource_pool.first : resource_pool.second;
-
-		double dp_two[transformers_ct + 1][processor_ct + 1][3];
-		int solutions[transformers_ct + 1][processor_ct + 1][transformers_ct];
-
-		//memset them all to 0
-		memset(dp_two, 0, sizeof(double) * (transformers_ct + 1) * (processor_ct + 1) * 3);
-		memset(solutions, -1, sizeof(int) * (transformers_ct + 1) * (processor_ct + 1) * transformers_ct);
-
-		int skipped_nodes = 0;
-
-		//Execute exact solution
-		for (int i = 1; i <= transformers_ct; i++) {
-
-			auto node_id = (cycle % 2 == 0) ? transformer_pool_x.at(i - 1) : transformer_pool_y.at(i - 1);
-
-			if (node_id == -1){
-
-				skipped_nodes += 1;
+			if (node.x == 0 && node.y == 0)
 				continue;
 
-			}
+			//if it's a consumer, just add it to the discovered
+			if (node.x <= 0 && node.y <= 0){
 
-			for (int w = 0; w <= processor_ct; w++) {
+				discovered_consumers.push_back(i);
 
-				int item_value;
-				int item_weight;
+				std::cout << "Consumer: " << i << std::endl;
 
-				//fetch correct item
-				if (cycle % 2 == 0){
-					
-					item_value = nodes[node_id].x;
-					item_weight = nodes[node_id].y * -1;
-
-				}
-
-				else {
-
-					item_value = nodes[node_id].y;
-					item_weight = nodes[node_id].x * -1;
-					
-				}
-
-				//if this item is feasible at all 
-				if ((w >= item_weight)){
-
-					double newValue = dp_two[i - 1][w - item_weight][0] + item_value;
-					
-					//if found solution is better, update
-					if ((newValue) > (dp_two[i][w][0])) {
-
-						dp_two[i][w][0] = newValue;
-
-						std::memcpy(solutions[i][w], solutions[i - 1][w - item_weight], num_tasks * sizeof(int));
-
-						solutions[i][w][i - 1] = i;
-
-					}
-
-					else{
-						
-						dp_two[i][w][0] = dp_two[i - 1][w][0];
-
-						std::memcpy(solutions[i][w], solutions[i - 1][w], num_tasks * sizeof(int));
-
-					}
-				}
-			}
-		}
-
-		//check if we have a valid solution
-		std::vector<int> result;
-		double gained_resources = 0;
-
-		for (int i = 0; i < (int) num_tasks; i++)
-			if (solutions[transformers_ct][processor_ct][i] != -1)
-				result.push_back(solutions[transformers_ct][processor_ct][i]);
-
-		gained_resources = dp_two[transformers_ct][processor_ct][0];
-
-		//check to see that we got a solution to progress the problem
-		if ((result.size() == 0 || gained_resources == 0) && (transformers_ct != skipped_nodes)){
-
-			failed += 1;
-
-		}
-
-		else {
-
-			//update that the solution is progressing
-			if (failed > 0)
-				failed -= 1;
-
-			//add the discovered chain to the processing chain
-			if (cycle % 2 == 0)
-				for (int i = 0; i < (int) result.size(); i++)
-					processing_chain.push_back(transformer_pool_x.at(result.at(i)));
-
-			else
-				for (int i = 0; i < (int) result.size(); i++)
-					processing_chain.push_back(transformer_pool_y.at(result.at(i)));
-
-			processing_chain.push_back(-1);
-
-			//now remove these nodes from the transformer pool by setting them to -1
-			for (int i = 0; i < (int) result.size(); i++){
-
-				if (cycle % 2 == 0){
-
-					transformer_pool_x.at(result.at(i)) = -1;
-					elements_removed_x += 1;
-
-				}
-
-				else {
-
-					transformer_pool_y.at(result.at(i)) = -1;
-					elements_removed_y += 1;
-
-				}
+				forward_progress = true;
 
 			}
 
-		}
+			//if a transformer, satisfy it's requirements
+			if ((node.x < 0 && node.y > 0) || (node.y < 0 && node.x > 0)){
 
-	}
+				Node& consumer = nodes[i];
+				int needed_x = -consumer.x;
+				int needed_y = -consumer.y;
 
-	//at the end of this, the processing chain should be filled with the order
-	//of nodes to process. Then we just process the consumers like we did before.
-	//If we fail, we will have to do multiple mode changes to satisfy the requirements
-	if (failed == 2){
-
-		print_module::print(std::cerr, "Error: System is not schedulable in any configuration. Exiting.\n");
-		killpg(process_group, SIGINT);
-		return false;
-
-	}
-
-	//loop and fix transformers in the chain
-	for (int i = 0; i < (int) processing_chain.size(); i++){
-
-		Node& consumer = nodes[processing_chain.at(i)];
-		int needed_x = -consumer.x;
-		int needed_y = -consumer.y;
-
-		for (int provider_id : discovered_providers) {
-		
-			Node& provider = nodes[provider_id];
-			Edge new_edge{i, 0, 0};
-			bool edge_needed = false;
-			
-			//Try to satisfy x resource need
-			if (needed_x > 0 && provider.x > 0) {
-
-				int transfer = std::min(needed_x, provider.x);
-				new_edge.x_amount = transfer;
-				needed_x -= transfer;
-				edge_needed = true;
-
-			}
-			
-			//Try to satisfy y resource need
-			if (needed_y > 0 && provider.y > 0) {
-
-				int transfer = std::min(needed_y, provider.y);
-				new_edge.y_amount = transfer;
-				needed_y -= transfer;
-				edge_needed = true;
-
-			}
-			
-			//If this edge would transfer resources, add it and check for cycles
-			if (edge_needed) {
+				for (int provider_id : discovered_providers) {
 				
-				provider.edges.push_back(new_edge);
+					Node& provider = nodes[provider_id];
+					Edge new_edge{i, 0, 0};
+					bool edge_needed = false;
+					
+					//Try to satisfy x resource need
+					if (needed_x > 0 && provider.x > 0) {
 
-				//Update provider's available resources
-				provider.x -= new_edge.x_amount;
-				provider.y -= new_edge.y_amount;
+						int transfer = std::min(needed_x, provider.x);
+						new_edge.x_amount = transfer;
+						needed_x -= transfer;
+						edge_needed = true;
 
+					}
+					
+					//Try to satisfy y resource need
+					if (needed_y > 0 && provider.y > 0) {
+
+						int transfer = std::min(needed_y, provider.y);
+						new_edge.y_amount = transfer;
+						needed_y -= transfer;
+						edge_needed = true;
+
+					}
+					
+					//If this edge would transfer resources, add it and check for cycles
+					if (edge_needed) {
+						
+						provider.edges.push_back(new_edge);
+
+						//Update provider's available resources
+						provider.x -= new_edge.x_amount;
+						provider.y -= new_edge.y_amount;
+
+					}
+
+				}
+
+				//now this once transformer is a provider
+				discovered_providers.push_back(i);
+				forward_progress = true;
+				
 			}
 
 		}
 
-		//now this once transformer is a provider
-		discovered_providers.push_back(processing_chain.at(i));
 	}
 
 	//now just do the same thing we did for transformers
@@ -781,6 +630,7 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
     return true;
 
 }
+
 
 //convert the print_graph function to use buffered print
 void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes) {
