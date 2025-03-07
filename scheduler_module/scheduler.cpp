@@ -37,26 +37,26 @@
 
 #ifdef __NVCC__
 
-	#define CUDA_SAFE_CALL(x)                                         \
-	do {                                                              \
-	CUresult result = x;                                           \
-	if (result != CUDA_SUCCESS) {                                  \
-		const char *msg;                                            \
-		cuGetErrorName(result, &msg);                               \
-		std::cerr << "\nerror: " #x " failed with error "           \
-					<< msg << '\n';                                   \
-		exit(1);                                                    \
-	}                                                              \
+	#define CUDA_SAFE_CALL(x)                                        	\
+	do {                                                              	\
+	CUresult result = x;                                           		\
+	if (result != CUDA_SUCCESS) {                                  		\
+	const char *msg;                                            		\
+		cuGetErrorName(result, &msg);                               	\
+		std::cerr << "\nerror: " #x " failed with error "           	\
+					<< msg << '\n';                                   	\
+		exit(1);                                                    	\
+	}                                                              		\
 	} while(0)
 
-	#define CUDA_NEW_SAFE_CALL(x)                                     \
-	do {                                                              \
-	cudaError_t result = x;                                        \
-	if (result != cudaSuccess) {                                   \
-		std::cerr << "\nerror: " #x " failed with error "           \
-					<< cudaGetErrorName(result) << '\n';              \
-		exit(1);                                                    \
-	}                                                              \
+	#define CUDA_NEW_SAFE_CALL(x)                                    	\
+	do {                                                              	\
+	cudaError_t result = x;                                        		\
+	if (result != cudaSuccess) {                                   		\
+	std::cerr << "\nerror: " #x " failed with error "           		\
+					<< cudaGetErrorName(result) << '\n';              	\
+		exit(1);                                                    	\
+	}                                                              		\
 	} while(0)
 
 	void Scheduler::create_scheduler_stream(){
@@ -186,7 +186,11 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 			}
 
-			__syncthreads();
+			#ifdef __NVCC__ 
+
+				__syncthreads();
+
+			#endif
 
 		}
 
@@ -300,7 +304,11 @@ HOST_DEVICE_GLOBAL void device_do_cautious_schedule(int num_tasks, int maxCPU, i
 
 			}
 
-			__syncthreads();
+			#ifdef __NVCC__ 
+
+				__syncthreads();
+				
+			#endif
 
 		}
 
@@ -485,7 +493,6 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 		
 		else 
 			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - ((taskData_object->get_work(j) / taskData_object->get_period(j)) + (taskData_object->get_GPU_work(j) / taskData_object->get_period(j))), 2)));
-
 
 		std::cout << "Mode "<< j << " Loss: " << item.cpuLoss << std::endl;
 
@@ -950,8 +957,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 			memcpy(d_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 2);
 			memcpy(d_losses, host_losses, sizeof(double) * MAXTASKS * MAXMODES);
 
-			memcpyToSymbol(constant_task_table, &host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 2);
-			memcpyToSymbol(constant_losses, &host_losses, sizeof(double) * MAXTASKS * MAXMODES);
+			memcpy(constant_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 2);
+			memcpy(constant_losses, host_losses, sizeof(double) * MAXTASKS * MAXMODES);
 
 		#endif
 
@@ -1271,6 +1278,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 				free_cores_A.push_back(i);
 
 			}
+
 			//Now assign TPC units to tasks, same method as before
 			//(don't worry about holding TPC 1) 
 			int next_TPC = 0;
