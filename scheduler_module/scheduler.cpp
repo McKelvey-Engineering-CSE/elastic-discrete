@@ -1147,6 +1147,12 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	#endif
 
+	//return optimal solution
+	std::vector<int> result;
+
+	timespec end_time;
+	double elapsed_time;
+
 	//if normal_and_cautious is 0, we are doing the normal run
 	//if it is 1, we are doing the cautious run
 	for (int normal_and_cautious = 0; normal_and_cautious < 2; normal_and_cautious++){
@@ -1168,8 +1174,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		}
 
-		//return optimal solution
-		std::vector<int> result;
+		result.clear();
 
 		for (int i = 0; i < (int) num_tasks; i++) {
 			
@@ -1188,11 +1193,10 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		}
 
-		timespec end_time;
 		clock_gettime(CLOCK_MONOTONIC, &end_time);
 
 		//determine ellapsed time in nanoseconds
-		double elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1e9;
+		elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1e9;
 		elapsed_time += (end_time.tv_nsec - start_time.tv_nsec);
 
 		//print out the time taken
