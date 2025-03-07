@@ -113,7 +113,9 @@ class Scheduler{
 	int* d_task_table;
 	double* d_losses;
 	double* d_final_loss;
+	double* cautious_d_final_loss;
 	int* d_final_solution;
+	int* cautious_d_final_solution;
 	int* d_uncooperative_tasks;
 
 	#ifdef __NVCC__
@@ -121,6 +123,8 @@ class Scheduler{
 		CUgreenCtx green_ctx;
 
 		cudaStream_t scheduler_stream;
+
+		cudaStream_t cautious_stream;
 
 		void create_scheduler_stream();
 
