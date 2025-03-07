@@ -45,39 +45,20 @@ CLUSTERING_OBJECTS := process_barrier.o generic_barrier.o timespec_functions.o p
 BARRIER_OBJECTS := process_primitives.o generic_barrier.o process_barrier.o thread_barrier.o
 
 ##### Main Targets ##############################################################
-.PHONY: all clean finish clean_libsmctrl libsmctrl
+.PHONY: all clean finish
 
-all: libsmctrl clustering_distribution finish
+all: clustering_distribution finish
 
-finish: libsmctrl clustering_distribution james
+finish: clustering_distribution james
 	mkdir -p ./bin
 	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./yaml_parser ./bin
 
-clean: clean_libsmctrl
+clean:
 	rm -r ./bin *.o *.a $(TARGET_TASK) clustering_launcher yaml_parser synthetic_task || true
 
-##### Conditional Targets and Rules #############################################
-ifeq ($(HAS_NVCC),true)
-clean_libsmctrl:
-	cd ./libsmctrl && make clean && rm libsmctrl.o
-
-libsmctrl:
-	cd ./libsmctrl && make libsmctrl.a
-
-taskData.o: taskData_real.o libsmctrl
-	ld -relocatable taskData_real.o libsmctrl/libsmctrl.o -o taskData.o
-else
-clean_libsmctrl:
-	@echo "Skipping libsmctrl clean (CUDA not available)"
-
-libsmctrl:
-	@echo "Skipping libsmctrl build (CUDA not available)"
-
-taskData.o: taskData_real.o
+taskData.o: taskData_real.o 
 	ld -relocatable taskData_real.o -o taskData.o
-endif
 
-##### Common Object Files ######################################################
 timespec_functions.o: ./timespec_module/timespec_functions.cpp
 	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
