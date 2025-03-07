@@ -122,6 +122,8 @@ class Scheduler{
 		
 		CUgreenCtx green_ctx;
 
+		CUcontext primary_scheduler_context;
+
 		cudaStream_t scheduler_stream;
 
 		cudaStream_t cautious_stream;

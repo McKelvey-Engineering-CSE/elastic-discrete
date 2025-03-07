@@ -25,15 +25,18 @@ bool first_time = true;
 
 #ifdef __NVCC__
 
-   #include "libsmctrl.h"
-   #include <cuda.h>
-   #include <cuda_runtime.h>
+    #include <cuda.h>
+    #include <cuda_runtime.h>
 
-   #include "sm_mapper.cuh"
+    #include "sm_mapper.cuh"
+ 
+    cudaStream_t stream;
 
-   cudaStream_t stream;
+    CUgreenCtx task_green_ctx;
 
-   bool display_sms = true;
+    CUdevResource resources[128];
+
+    bool display_sms = true;
 
 #endif
 
@@ -42,15 +45,44 @@ void update_core_B(__uint128_t mask) {
     //example of how to use core B masks
     #ifdef __NVCC__
 
-        libsmctrl_set_stream_mask(stream, ~mask);
+        //device specs
+        CUdevResourceDesc device_resource_descriptor;
 
-        //if first time, print sms
-        if (display_sms) {
+        //now copy the TPC elements we have been granted
+        unsigned int total_TPCS = __builtin_popcount(mask);
 
-            visualize_sm_partitions_interprocess(stream, 3, "JAMESSM");
-            display_sms = false;
-            
+        std::cerr << "Total TPCS: " << total_TPCS << std::endl;
+
+        if (total_TPCS == 0)
+            return;
+
+        CUdevResource my_resources[total_TPCS];
+        int next = 0;
+
+        for (int i = 0; i < 128; i++){
+
+            if (mask & ((__uint128_t)1 << i)) {
+
+                my_resources[next++] = resources[i];
+
+            }
+
         }
+
+        //now make a green context from all the other resources
+        CUDA_SAFE_CALL(cuDevResourceGenerateDesc(&device_resource_descriptor, my_resources, total_TPCS));
+        CUDA_SAFE_CALL(cuGreenCtxCreate(&task_green_ctx, device_resource_descriptor, 0, CU_GREEN_CTX_DEFAULT_STREAM));
+
+        //make a stream as well
+        CUDA_SAFE_CALL(cuGreenCtxStreamCreate(&stream, task_green_ctx, CU_STREAM_NON_BLOCKING, 0));
+
+    //if first time, print sms
+    if (display_sms) {
+
+        visualize_sm_partitions_interprocess(task_green_ctx, 3, "JAMESSM");
+        display_sms = false;
+        
+    }
 
     #endif
 
@@ -61,7 +93,20 @@ int init(int argc, char *argv[])
 
    #ifdef __NVCC__
 
-       cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+       CUDA_SAFE_CALL(cuInit(0));
+
+        //green context matrix of max split number to hold the green contexts we create as we move
+        CUdevResource initial_resources;
+        unsigned int partition_num;
+
+        //fill the initial descriptor
+        CUDA_SAFE_CALL(cuDeviceGetDevResource(0, &initial_resources, CU_DEV_RESOURCE_TYPE_SM));
+
+        partition_num = initial_resources.sm.smCount / 2;
+
+        //take the previous element above us and split it 
+        //fill the corresponding portions of the matrix as we go
+        CUDA_SAFE_CALL(cuDevSmResourceSplitByCount(resources, &partition_num, &initial_resources, NULL, CU_DEV_SM_RESOURCE_SPLIT_IGNORE_SM_COSCHEDULING, 2));
 
    #endif
 

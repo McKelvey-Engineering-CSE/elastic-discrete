@@ -873,6 +873,11 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 			create_scheduler_stream();
 
+			CUDA_SAFE_CALL(cuCtxFromGreenCtx(&primary_scheduler_context, green_ctx));
+			
+			//set current
+			CUDA_SAFE_CALL(cuCtxSetCurrent(primary_scheduler_context));
+
 		}
 
 	#endif
@@ -1115,9 +1120,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		//peek for launch errors
 		CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
-
-		//sync
-		CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
 
 		//copy the final_solution array back
 		int host_final[MAXTASKS] = {0};
