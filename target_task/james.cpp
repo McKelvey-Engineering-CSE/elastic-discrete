@@ -47,6 +47,17 @@ void update_core_B(__uint128_t mask) {
 
         //device specs
         CUdevResourceDesc device_resource_descriptor;
+        CUdevResource initial_resources;
+        unsigned int partition_num;
+
+        //fill the initial descriptor
+        CUDA_SAFE_CALL(cuDeviceGetDevResource(0, &initial_resources, CU_DEV_RESOURCE_TYPE_SM));
+
+        partition_num = initial_resources.sm.smCount / 2;
+
+        //take the previous element above us and split it 
+        //fill the corresponding portions of the matrix as we go
+        CUDA_SAFE_CALL(cuDevSmResourceSplitByCount(resources, &partition_num, &initial_resources, NULL, CU_DEV_SM_RESOURCE_SPLIT_IGNORE_SM_COSCHEDULING, 2));
 
         //now copy the TPC elements we have been granted
         unsigned int total_TPCS = __builtin_popcount(mask);
@@ -79,7 +90,7 @@ void update_core_B(__uint128_t mask) {
     //if first time, print sms
     if (display_sms) {
 
-        visualize_sm_partitions_interprocess(task_green_ctx, 3, "JAMESSM");
+        visualize_sm_partitions_interprocess(task_green_ctx, 1, "JAMESSM");
         display_sms = false;
         
     }
@@ -94,19 +105,6 @@ int init(int argc, char *argv[])
    #ifdef __NVCC__
 
        CUDA_SAFE_CALL(cuInit(0));
-
-        //green context matrix of max split number to hold the green contexts we create as we move
-        CUdevResource initial_resources;
-        unsigned int partition_num;
-
-        //fill the initial descriptor
-        CUDA_SAFE_CALL(cuDeviceGetDevResource(0, &initial_resources, CU_DEV_RESOURCE_TYPE_SM));
-
-        partition_num = initial_resources.sm.smCount / 2;
-
-        //take the previous element above us and split it 
-        //fill the corresponding portions of the matrix as we go
-        CUDA_SAFE_CALL(cuDevSmResourceSplitByCount(resources, &partition_num, &initial_resources, NULL, CU_DEV_SM_RESOURCE_SPLIT_IGNORE_SM_COSCHEDULING, 2));
 
    #endif
 

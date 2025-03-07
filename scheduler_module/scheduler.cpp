@@ -670,7 +670,7 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 
 	//loop and discover all nodes and fix transformers
 	//(providers are just ignored)
-	bool forward_progress = false;
+	bool forward_progress = true;
 
 	while (discovered_providers.size() < (nodes.size() - discovered_consumers.size())){
 
