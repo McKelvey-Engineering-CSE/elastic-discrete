@@ -1245,14 +1245,19 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		}
 
-		clock_gettime(CLOCK_MONOTONIC, &end_time);
-
 		//determine ellapsed time in nanoseconds
-		elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1e9;
-		elapsed_time += (end_time.tv_nsec - start_time.tv_nsec);
 
-		//print out the time taken
-		print_module::print(std::cerr, "Time taken to run just the double knapsack: ", elapsed_time / 1000000, " milliseconds.\n");
+		if (normal_and_cautious == 0){
+
+			clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+			elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1e9;
+			elapsed_time += (end_time.tv_nsec - start_time.tv_nsec);
+
+			//print out the time taken
+			print_module::print(std::cerr, "Time taken to run just the double knapsack: ", elapsed_time / 1000000, " milliseconds.\n");
+
+		}
 
 
 		//check to see that we got a solution that renders this system schedulable
