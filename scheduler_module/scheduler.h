@@ -115,6 +115,7 @@ class Scheduler{
 	double* d_final_loss;
 	double* cautious_d_final_loss;
 	int* d_final_solution;
+	int* d_current_task_modes;
 	int* cautious_d_final_solution;
 	int* d_uncooperative_tasks;
 

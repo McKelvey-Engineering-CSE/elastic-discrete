@@ -98,8 +98,6 @@ HOST_DEVICE_SCOPE volatile int solutions_cautious[MAXTASKS][128 + 1][128 + 1][2]
 
 HOST_DEVICE_CONSTANT int constant_task_table[MAXTASKS * MAXMODES * 2];
 
-HOST_DEVICE_CONSTANT int current_task_modes[MAXTASKS * 2];
-
 HOST_DEVICE_CONSTANT double constant_losses[MAXTASKS * MAXMODES];
 
 HOST_DEVICE_GLOBAL void set_dp_table(){
@@ -222,7 +220,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 }
 
-HOST_DEVICE_GLOBAL void device_do_cautious_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution){
+HOST_DEVICE_GLOBAL void device_do_cautious_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution, int* current_task_modes){
 
 	//loop over all tasks
 	for (int i = 1; i <= (int) num_tasks; i++) {
@@ -563,7 +561,11 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
     
     for (const auto& [id, node] : nodes) {
 
-		print_module::buffered_print(mode_strings, "Node ", id, " <", node.x, ",", node.y, ">\n");
+		if (id == (int) nodes.size() - 1)
+			print_module::buffered_print(mode_strings, "Free Node <", node.x, ",", node.y, ">\n");
+	
+		else
+			print_module::buffered_print(mode_strings, "Node ", id, " <", node.x, ",", node.y, ">\n");
 
 		if (node.x == 0 && node.y == 0)
 			continue;
@@ -644,6 +646,7 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 	//we discovered the solution
 	std::vector<int> discovered_providers;
 	std::vector<int> discovered_consumers;
+	std::vector<int> discovered_transformers;
 
 	//reserve
 	discovered_providers.reserve(nodes.size());
@@ -652,13 +655,16 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 	//add the free pool to the providers
 	discovered_providers.push_back(nodes.size() - 1);
 
-	//loop over all find all the providers
+	//loop over all nodes and classify them
 	for (int i = 0; i < (int) nodes.size() - 1; i++){
 
 		Node& node = nodes[i];
 
+		if (node.x == 0 && node.y == 0)
+			discovered_consumers.push_back(i);
+
 		//if a pure provider, add it to the list
-		if (node.x >= 0 && node.y >= 0){
+		else if (node.x >= 0 && node.y >= 0){
 
 			discovered_providers.push_back(i);
 
@@ -666,94 +672,121 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 
 		}
 
+		//if it's a consumer, just add it to the discovered
+		else if (node.x <= 0 && node.y <= 0){
+
+			discovered_consumers.push_back(i);
+
+			std::cout << "Consumer: " << i << std::endl;
+
+		}
+
+		//if it's a transformer, add it to the transformer list
+		else if ((node.x < 0 && node.y > 0) || (node.y < 0 && node.x > 0)){
+
+			discovered_transformers.push_back(i);
+
+			std::cout << "Transformer: " << i << std::endl;
+
+		}
+
 	}
 
 	//loop and discover all nodes and fix transformers
 	//(providers are just ignored)
-	bool forward_progress = true;
+	int processed_transformers = 0;
+	int last_recorded_transformers = -1;
 
-	while (discovered_providers.size() < (nodes.size() - discovered_consumers.size())){
+	while (processed_transformers < (int) discovered_transformers.size()){
 
 		//if we have no forward progress, we have a cycle
-		if (!forward_progress){
+		if (last_recorded_transformers == processed_transformers){
 
 			return false;
 
 		}
 
 		//reset
-		forward_progress = false;
+		last_recorded_transformers = processed_transformers;
 
-		//try to resolve more transformers
-		for (int i = 0; i < (int) nodes.size() - 1; i++){
+		//try to resolve the transformers
+		for (int& current_transformer : discovered_transformers){
 
-			Node& node = nodes[i];
-
-			if (node.x == 0 && node.y == 0)
+			if (current_transformer == -1)
 				continue;
 
-			//if it's a consumer, just add it to the discovered
-			if (node.x <= 0 && node.y <= 0){
+			Node& node = nodes[current_transformer];
 
-				discovered_consumers.push_back(i);
+			Node& consumer = nodes[current_transformer];
+			int needed_x = -consumer.x;
+			int needed_y = -consumer.y;
 
-				std::cout << "Consumer: " << i << std::endl;
+			int possible_x = 0;
+			int possible_y = 0;
 
-				forward_progress = true;
+			//check if it's even possible to satisfy the transformer
+			for (int& provider_id : discovered_providers) {
+
+				Node& provider = nodes[provider_id];
+
+				possible_x += provider.x;
+				possible_y += provider.y;
 
 			}
 
-			//if a transformer, satisfy it's requirements
-			if ((node.x < 0 && node.y > 0) || (node.y < 0 && node.x > 0)){
+			//if not, then return
+			if (needed_x > 0 && possible_x < needed_x)
+				continue;
 
-				Node& consumer = nodes[i];
-				int needed_x = -consumer.x;
-				int needed_y = -consumer.y;
+			else if (needed_y > 0 && possible_y < needed_y)
+				continue;
 
-				for (int provider_id : discovered_providers) {
+			//otherwise satisfy the requirements
+			for (int provider_id : discovered_providers) {
+			
+				Node& provider = nodes[provider_id];
+				Edge new_edge{current_transformer, 0, 0};
+				bool edge_needed = false;
 				
-					Node& provider = nodes[provider_id];
-					Edge new_edge{i, 0, 0};
-					bool edge_needed = false;
+				//Try to satisfy x resource need
+				if (needed_x > 0 && provider.x > 0) {
+
+					int transfer = std::min(needed_x, provider.x);
+					new_edge.x_amount = transfer;
+					needed_x -= transfer;
+					edge_needed = true;
+
+				}
+				
+				//Try to satisfy y resource need
+				if (needed_y > 0 && provider.y > 0) {
+
+					int transfer = std::min(needed_y, provider.y);
+					new_edge.y_amount = transfer;
+					needed_y -= transfer;
+					edge_needed = true;
+
+				}
+				
+				//If this edge would transfer resources, add it and check for cycles
+				if (edge_needed) {
 					
-					//Try to satisfy x resource need
-					if (needed_x > 0 && provider.x > 0) {
+					provider.edges.push_back(new_edge);
 
-						int transfer = std::min(needed_x, provider.x);
-						new_edge.x_amount = transfer;
-						needed_x -= transfer;
-						edge_needed = true;
-
-					}
-					
-					//Try to satisfy y resource need
-					if (needed_y > 0 && provider.y > 0) {
-
-						int transfer = std::min(needed_y, provider.y);
-						new_edge.y_amount = transfer;
-						needed_y -= transfer;
-						edge_needed = true;
-
-					}
-					
-					//If this edge would transfer resources, add it and check for cycles
-					if (edge_needed) {
-						
-						provider.edges.push_back(new_edge);
-
-						//Update provider's available resources
-						provider.x -= new_edge.x_amount;
-						provider.y -= new_edge.y_amount;
-
-					}
+					//Update provider's available resources
+					provider.x -= new_edge.x_amount;
+					provider.y -= new_edge.y_amount;
 
 				}
 
-				//now this once transformer is a provider
-				discovered_providers.push_back(i);
-				forward_progress = true;
-				
 			}
+
+			//now this once transformer is a provider
+			discovered_providers.push_back(current_transformer);
+
+			current_transformer = -1;
+
+			processed_transformers += 1;
 
 		}
 
@@ -807,6 +840,8 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 		}
 		
 	}
+
+	std::cerr << "Graph built successfully" << std::endl;
 	
     return true;
 
@@ -937,12 +972,14 @@ void Scheduler::do_schedule(size_t maxCPU){
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_losses, sizeof(double) * MAXTASKS * MAXMODES));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_final_loss, sizeof(double)));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&cautious_d_final_loss, sizeof(double)));
+			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_current_task_modes, sizeof(int) * MAXTASKS * 2));
 
 		#else 
 
 			malloc(d_task_table, sizeof(int) * MAXTASKS * MAXMODES * 2);
 			malloc(d_uncooperative_tasks, sizeof(int) * MAXTASKS);
 			malloc(d_final_solution, sizeof(int) * MAXTASKS);
+			malloc(d_current_task_modes, sizeof(int) * MAXTASKS * 2);
 			malloc(d_losses, sizeof(double) * MAXTASKS * MAXMODES);
 			malloc(d_final_loss, sizeof(double));
 
@@ -1129,17 +1166,30 @@ void Scheduler::do_schedule(size_t maxCPU){
 		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(host_final, d_final_solution, MAXTASKS * sizeof(int), cudaMemcpyDeviceToHost, scheduler_stream));
 		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&loss, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, scheduler_stream));
 
-		CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
-
 		//Also, launch up the kernel for the cautious solution
 		//since we have a single TPC for the scheduler and one core
 		//we can actually hold all 2048 threads at the same time on
 		//any cuda device. So we will just launch the kernel on the same
 		//TPC and let both execute concurrently.
-		device_do_cautious_schedule<<<1, 1024, 0, cautious_stream>>>(N, maxCPU, NUMGPUS, d_task_table, d_losses, cautious_d_final_loss, d_uncooperative_tasks, cautious_d_final_solution);
+
+		//copy all the current modes to the device for the cautious run
+		int current_modes[MAXTASKS * 2] = {0};
+
+		for (int i = 0; i < schedule.count(); i++){
+
+			current_modes[i * 2 + 0] = task_table.at(i).at((schedule.get_task(i))->get_current_mode()).cores;
+			current_modes[i * 2 + 1] = task_table.at(i).at((schedule.get_task(i))->get_current_mode()).sms;
+
+		}
+
+		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(d_current_task_modes, current_modes, MAXTASKS * 2 * sizeof(int), cudaMemcpyHostToDevice, cautious_stream));
+
+		device_do_cautious_schedule<<<1, 1024, 0, cautious_stream>>>(N, maxCPU, NUMGPUS, d_task_table, d_losses, cautious_d_final_loss, d_uncooperative_tasks, cautious_d_final_solution, d_current_task_modes);
 
 		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(cautious_host_final, cautious_d_final_solution, MAXTASKS * sizeof(int), cudaMemcpyDeviceToHost, cautious_stream));
 		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&cautious_loss, cautious_d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, cautious_stream));
+		
+		CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
 
 	#else
 
