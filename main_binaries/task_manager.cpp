@@ -169,6 +169,9 @@ void sigrt1_handler(int signum){
 
 void modify_self(int new_mode){
 
+	if (new_mode == schedule.get_task(task_index)->get_current_mode())
+		return;
+
 	schedule.get_task(task_index)->set_current_mode(new_mode, true);
 	killpg(process_group, SIGRTMIN+0);
 

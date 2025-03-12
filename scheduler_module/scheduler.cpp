@@ -1636,6 +1636,13 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		//greedily give cpus on first run
 		if (first_time) {
+			
+			//there is a variable used to store what the previous
+			//mode that was active on the processor is in the TaskData
+			//structure. Running this function for each task one more time
+			//right at the start ensures that it is set
+			for (int i = 0; i < schedule.count(); i++)
+				(schedule.get_task(i))->set_current_mode(result.at(i), false);
 
 			//update the previous modes to the first ever selected modes
 			for (size_t i = 0; i < result.size(); i++)
