@@ -115,7 +115,15 @@ void scheduler_task()
 
 }
 
-void force_cleanup() {
+void force_cleanup(bool kill_processes = true) {
+
+	if (kill_processes) {
+
+		//kill all children
+		kill(0, SIGTERM);
+		
+	}
+
 	scheduler->setTermination();
 	process_barrier::destroy_barrier(barrier_name);
 	process_barrier::destroy_barrier(barrier_name2);
@@ -127,8 +135,52 @@ void force_cleanup() {
 		process_barrier::destroy_barrier("EX_SYNC");
 	}
 
-	kill(0, SIGKILL);
-	//delete scheduler;
+	int queue_one, queue_two, queue_three;
+	
+	if ((queue_one = msgget(98173, 0666 | IPC_CREAT)) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to create message queue 1.\n");
+		kill(0, SIGTERM);
+
+	}
+
+	//queue 2 is used to signal that a task is giving CPUs to another task
+	if ((queue_two = msgget(98174, 0666 | IPC_CREAT)) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to create message queue 2.\n");
+		kill(0, SIGTERM);
+
+	}
+
+	//queue 3 is used to signal that a task should give up the resources contained in the mask to the task specified
+	if ((queue_three = msgget(98175, 0666 | IPC_CREAT)) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to create message queue 3.\n");
+		kill(0, SIGTERM);
+
+	}
+
+	//remove those message queues
+	if (msgctl(queue_one, IPC_RMID, NULL) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to remove message queue 1.\n");
+		kill(0, SIGTERM);
+
+	}
+
+	if (msgctl(queue_two, IPC_RMID, NULL) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to remove message queue 2.\n");
+		kill(0, SIGTERM);
+
+	}
+
+	if (msgctl(queue_three, IPC_RMID, NULL) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to remove message queue 3.\n");
+		kill(0, SIGTERM);
+
+	}
 }
 
 // User requested to exit
@@ -525,15 +577,7 @@ int main(int argc, char *argv[])
 
 	t.join();
 
-	print_module::print(std::cerr, "All tasks finished.\n");
-
-	if (explicit_sync) {
-		process_barrier::destroy_barrier("EX_SYNC");
-	}
-	
-	scheduler->setTermination();
-	process_barrier::destroy_barrier(barrier_name);
-	process_barrier::destroy_barrier(barrier_name2);
+	force_cleanup(false);
 	
 	return 0;
 }
