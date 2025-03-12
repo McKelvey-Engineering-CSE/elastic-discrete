@@ -280,88 +280,6 @@ void reschedule(){
 	deadline = current_period;
 	percentile = schedule.get_task(task_index)->get_percentage_workload();
 
-	//we check to see if we are just returning resources, returning and gaining, or just gaining
-	int cpu_change = schedule.get_task(task_index)->get_CPUs_change();
-	int gpu_change = schedule.get_task(task_index)->get_GPUs_change();
-
-	//giving cpus
-	if (cpu_change > 0){
-
-		//give up resources immediately and mark our transition
-		for (int i = 0; i < cpu_change; i++){
-			
-			//remove CPUs from our set until we have given up the correct number
-			schedule.get_task(task_index)->pop_back_cpu();
-
-		}
-
-	}
-
-	//giving gpus
-	if (gpu_change > 0){
-
-		//give up resources immediately and mark our transition
-		for (int i = 0; i < gpu_change; i++){
-			
-			//remove GPUs from our set until we have given up the correct number
-			schedule.get_task(task_index)->pop_back_gpu();
-
-		}
-
-	}
-
-	//granted resources
-	auto cpus = schedule.get_task(task_index)->get_cpus_granted_from_other_tasks();
-	auto gpus = schedule.get_task(task_index)->get_gpus_granted_from_other_tasks();
-
-	//gaining cpus
-	if (cpus.size() != 0){
-
-		//collect our CPUs
-		std::vector<int> core_indices;
-
-		for (size_t i = 0; i < cpus.size(); i++)
-			for (size_t j = 0; j < cpus.at(i).second.size(); j++)
-				core_indices.push_back(cpus.at(i).second.at(j));
-		
-		//wake up the corresponding cores
-		for (size_t i = 0; i < core_indices.size(); i++){
-
-			//add them to our set
-			schedule.get_task(task_index)->push_back_cpu(core_indices.at(i));
-
-		}
-		
-	}
-
-	//gaining gpus
-	if (gpus.size() != 0){
-
-		//collect our GPUs
-		std::vector<int> tpc_indices;
-
-		for (size_t i = 0; i < gpus.size(); i++)
-			for (size_t j = 0; j < gpus.at(i).second.size(); j++)
-				tpc_indices.push_back(gpus.at(i).second.at(j));
-		
-		//wake up the corresponding SMs
-		for (size_t i = 0; i < tpc_indices.size(); i++){
-
-			//add them to our set
-			schedule.get_task(task_index)->push_back_gpu(tpc_indices.at(i));
-
-		}
-
-	}
-
-	//clear our allocation amounts
-	schedule.get_task(task_index)->clear_cpus_granted_from_other_tasks();
-	schedule.get_task(task_index)->clear_gpus_granted_from_other_tasks();
-
-	//clear our change amount as well
-	schedule.get_task(task_index)->set_CPUs_change(0);
-	schedule.get_task(task_index)->set_GPUs_change(0);
-
 	//update our cpu mask
 	current_cpu_mask = schedule.get_task(task_index)->get_cpu_mask();
 
@@ -397,6 +315,8 @@ void reschedule(){
 			print_module::buffered_print(reschedule_buffer, gpu_mask.test(i) ? std::to_string(i) + " " : "");
 
 		print_module::buffered_print(reschedule_buffer, "]\n");
+
+		print_module::flush(std::cerr, reschedule_buffer);
 
 	#endif
 
@@ -776,50 +696,36 @@ int main(int argc, char *argv[])
 
 		if (needs_reschedule){
 
-			bool ready = true;
+			//Fetch the mask of tasks which we are waiting on
+			//(safe to call multiple times)
+			schedule.get_task(task_index)->start_transition();
 
-			//Check other tasks to see if this task can transition yet. It can if it is giving up a CPU, or is gaining a CPU that has been given up.
-			auto cpus = schedule.get_task(task_index)->get_cpus_granted_from_other_tasks();
-			auto gpus = schedule.get_task(task_index)->get_gpus_granted_from_other_tasks();
- 
-			//loop over cpus and gpus respectively and check the taskData that is int in the pair to see if 
-			//it has already transitioned and therefore the resources are available
-			for (size_t i = 0; i < cpus.size(); i++)
-				if (cpus.at(i).first != MAXTASKS)
-					if (!schedule.get_task(cpus.at(i).first)->check_mode_transition())
-						ready = false;
-			
-			for (size_t i = 0; i < gpus.size(); i++)
-				if (gpus.at(i).first != MAXTASKS)
-					if (!schedule.get_task(gpus.at(i).first)->check_mode_transition())
-						ready = false;
+			//now fetch any resources which have been granted to us
+			//(will return true when our mask is empty due to all
+			//resources being granted)
+			if (schedule.get_task(task_index)->get_processors_granted_from_other_tasks()){
+				
+				//semantically a bit strange, but we can only give or
+				//take from each pool, so we call this and then call our
+				//giving requirements
 
-			if (ready || explicit_sync){
+				//finalize the transition of resources to us (we now really own them)
+				schedule.get_task(task_index)->acquire_all_processors();
 
-				#ifdef TRACING
-					fprintf(fd, "thread %d: starting reschedule\n", getpid());
-					fflush(fd);
-				#endif
+				//transition any resources we are supposed to be giving up
+				schedule.get_task(task_index)->give_processors_to_other_tasks();
 
+				//call the reschedule procedure
 				reschedule();
-				
-				#ifdef PRETTY_PRINTING
 
-					print_module::flush(std::cerr, reschedule_buffer);
-				
-				#endif
+				//mark our transition as complete
+				schedule.get_task(task_index)->set_mode_transition(true);
+				needs_reschedule = false;
 
-				#ifdef TRACING
-					fprintf(fd, "thread %d: finished reschedule\n", getpid());
-					fflush(fd);
-				#endif
-
+				//update our transition count (debugging)
 				schedule.get_task(task_index)->set_num_adaptations(schedule.get_task(task_index)->get_num_adaptations() + 1);
 				
-				//mark that we transitioned
-				schedule.get_task(task_index)->set_mode_transition(true);
-				
-				needs_reschedule = false;
+
 			}
 
 			else{

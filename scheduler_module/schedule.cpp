@@ -51,7 +51,7 @@ class TaskData * Schedule::get_task(int n)
 }
 
 int Schedule::count(){
-	return underlying_object->next_task;
+	return underlying_object->next_task - 1;
 }
 
 void Schedule::setTermination(){

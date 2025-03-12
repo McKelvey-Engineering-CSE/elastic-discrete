@@ -24,10 +24,32 @@ Class : TaskData
 #include <stdio.h>
 #include <unistd.h>
 #include <vector>
+#include <errno.h>
+#include <string.h>
+#include <sys/msg.h>
 #include <array>
 #include "timespec_functions.h"
 #include "include.h"
 #include "print_module.h"
+
+struct queue_one_message {
+    long    mtype;
+	__uint128_t tasks_giving_processors;
+};
+
+struct queue_two_message {
+	long    mtype;
+	long int   giving_task;
+	long int   processor_type;
+	__uint128_t processors;
+};
+
+struct queue_three_message {
+	long    mtype;
+	long int   task_index;
+	long int   processor_type;
+	long int   processor_ct;
+};
 
 class TaskData{
 
@@ -125,11 +147,26 @@ private:
 	int cpus_granted_from_other_tasks [MAXTASKS + 1][NUMCPUS + 1];
 	int gpus_granted_from_other_tasks [MAXTASKS + 1][NUMGPUS + 1];
 
+	//message queue ids used for resource exchange
+	int queue_one;
+	int queue_two;
+	int queue_three;
+
+	//these structures are used to track the state of the message queues
+	//and messages we have received from other tasks
+	__uint128_t tasks_giving_processors = 0;
+	__uint128_t processors_A_received = 0;
+	__uint128_t processors_B_received = 0;
+
+	int previous_mode = 0;
+
 public:
 
 	TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_);
 
 	TaskData();
+
+	TaskData(bool free_resources);
 
 	~TaskData();
 
@@ -231,9 +268,9 @@ public:
 	std::vector<std::pair<int, std::vector<int>>> get_gpus_granted_from_other_tasks();
 
 	//give CPUs or GPUs to another task
-	void set_cpus_granted_from_other_tasks(std::pair<int, std::vector<int>> entry);
+	void set_cpus_to_send_to_other_processes(std::pair<int, int> entry);
 
-	void set_gpus_granted_from_other_tasks(std::pair<int, std::vector<int>> entry);
+	void set_gpus_to_send_to_other_processes(std::pair<int, int> entry);
 
 	//make a function which clears these vectors like they are cleared in the constructor
 	void clear_cpus_granted_from_other_tasks();
@@ -250,6 +287,21 @@ public:
 	void set_cooperative(bool state);
 
 	bool cooperative();
+
+	//new message based resource passing functions
+	void set_processors_to_send_to_other_processes(int task_to_send_to, int processor_type, int processor_ct);
+
+	void set_tasks_to_wait_on(__uint128_t task_mask);
+
+	void start_transition();
+
+	bool get_processors_granted_from_other_tasks();
+
+	void acquire_all_processors();
+
+	void give_processors_to_other_tasks();
+
+	void reset_mode_to_previous();
 
 };
 

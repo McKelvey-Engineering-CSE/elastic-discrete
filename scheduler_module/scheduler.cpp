@@ -848,6 +848,334 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 }
 
 
+/*************************************************************
+
+If we verified that we can build a RAG, we just run the 
+same algorithm, but this time we just send messages to the 
+tasks via the message queues to engage the exchanges
+
+*************************************************************/
+
+//FIXME: THIS WILL ATTEMPT TO SEND MESSAGES THROUGH THE FREE POOL
+//VIA IT'S INDEX WHICH WILL BE AN OUT OF BOUND READ. IF THE FREE POOL
+//NEEDS TO BE INTERACTED WITH, WE NEED TO USE THE STORED REFERENCE, OR WE
+//NEED TO ADD THE TASK DATA TO THE LIST, BUT THAT REQUIRES MAKING SURE
+//WE DO NOT USE THE SIZE OF THE TASK DATA WHICH SEEMS PROBLEMATIC
+void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int>> resource_pairs, 
+                        std::unordered_map<int, Node>& nodes) {
+    nodes.clear();
+
+	//setup a vector to store the masks of the tasks
+	//which are giving resources to other tasks
+	std::vector<__uint128_t> task_masks;
+    
+    //create all nodes
+    for (size_t i = 0; i < resource_pairs.size(); i++) {
+
+		auto [x, y] = resource_pairs[i];
+		nodes[i] = Node{(int)i, x, y, {}};
+
+		task_masks.push_back(0);
+    
+	}
+    
+    //Legacy code, but nice to see the counts
+    int provider_order = 0;
+    int consumer_order = 0;
+	int transfer_order = 0;
+
+	//if system has barrier, just do it lazily
+	if (barrier){
+
+		for (int consumer_id = 0; consumer_id < (int) nodes.size(); consumer_id++){
+
+			Node& consumer = nodes[consumer_id];
+			int needed_x = -consumer.x;
+			int needed_y = -consumer.y;
+			
+			for (int provider_id = 0; provider_id < (int) nodes.size(); provider_id++) {
+
+				if (provider_id == consumer_id) continue;
+				
+				Node& provider = nodes[provider_id];
+				Edge new_edge{consumer_id, 0, 0};
+				bool edge_needed = false;
+				
+				//Try to satisfy x resource need
+				if (needed_x > 0 && provider.x > 0) {
+
+					int transfer = std::min(needed_x, provider.x);
+					new_edge.x_amount = transfer;
+					needed_x -= transfer;
+					provider.x -= new_edge.x_amount;
+
+					//place message in queue for the task giving up processors
+					if (provider_id != (int) nodes.size() - 1)
+						schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(consumer_id, 0, transfer);
+
+					//store the mask
+					task_masks[consumer_id] |= ((__uint128_t) 1 << provider_id);
+
+				}
+				
+				//Try to satisfy y resource need
+				if (needed_y > 0 && provider.y > 0) {
+
+					int transfer = std::min(needed_y, provider.y);
+					new_edge.y_amount = transfer;
+					needed_y -= transfer;
+					provider.y -= new_edge.y_amount;
+					
+
+					//place message in queue for the task giving up processors
+					if (provider_id != (int) nodes.size() - 1)
+						schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(consumer_id, 1, transfer);
+
+					//store the mask
+					task_masks[consumer_id] |= ((__uint128_t) 1 << provider_id);
+
+				}
+
+			}
+
+		}
+
+		//FIXME: BARRIER VERSION JUST NOT RIGHT AT ALL
+
+	}
+
+	else {
+
+		//Just build the RAG the same way we did when 
+		//we discovered the solution
+		std::vector<int> discovered_providers;
+		std::vector<int> discovered_consumers;
+		std::vector<int> discovered_transformers;
+
+		//reserve
+		discovered_providers.reserve(nodes.size());
+		discovered_consumers.reserve(nodes.size());
+
+		//add the free pool to the providers
+		discovered_providers.push_back(nodes.size() - 1);
+
+		//loop over all nodes and classify them
+		for (int i = 0; i < (int) nodes.size() - 1; i++){
+
+			Node& node = nodes[i];
+
+			if (node.x == 0 && node.y == 0)
+				discovered_consumers.push_back(i);
+
+			//if a pure provider, add it to the list
+			else if (node.x >= 0 && node.y >= 0)
+				discovered_providers.push_back(i);
+
+			//if it's a consumer, just add it to the discovered
+			else if (node.x <= 0 && node.y <= 0)
+				discovered_consumers.push_back(i);
+
+
+			//if it's a transformer, add it to the transformer list
+			else if ((node.x < 0 && node.y > 0) || (node.y < 0 && node.x > 0))
+				discovered_transformers.push_back(i);
+
+		}
+
+		//loop and discover all nodes and fix transformers
+		//(providers are just ignored)
+		int processed_transformers = 0;
+		int last_recorded_transformers = -1;
+
+		while (processed_transformers < (int) discovered_transformers.size()){
+
+			//reset
+			last_recorded_transformers = processed_transformers;
+
+			//try to resolve the transformers
+			for (int& current_transformer : discovered_transformers){
+
+				if (current_transformer == -1)
+					continue;
+
+				Node& node = nodes[current_transformer];
+
+				Node& consumer = nodes[current_transformer];
+				int needed_x = -consumer.x;
+				int needed_y = -consumer.y;
+
+				int possible_x = 0;
+				int possible_y = 0;
+
+				//check if it's even possible to satisfy the transformer
+				for (int& provider_id : discovered_providers) {
+
+					Node& provider = nodes[provider_id];
+
+					possible_x += provider.x;
+					possible_y += provider.y;
+
+				}
+
+				//if not, then return
+				if (needed_x > 0 && possible_x < needed_x)
+					continue;
+
+				else if (needed_y > 0 && possible_y < needed_y)
+					continue;
+
+				//otherwise satisfy the requirements
+				for (int provider_id : discovered_providers) {
+				
+					Node& provider = nodes[provider_id];
+					Edge new_edge{current_transformer, 0, 0};
+					
+					//Try to satisfy x resource need
+					if (needed_x > 0 && provider.x > 0) {
+
+						int transfer = std::min(needed_x, provider.x);
+						new_edge.x_amount = transfer;
+						needed_x -= transfer;
+						provider.x -= new_edge.x_amount;
+
+						//place message in queue for the task giving up processors
+						schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(current_transformer, 0, transfer);
+
+						//std::cerr << "Sending " << transfer << " processors from " << provider_id << " to " << current_transformer << std::endl;
+
+						//store the mask
+						task_masks[current_transformer] |= ((__uint128_t) 1 << provider_id);
+
+					}
+					
+					//Try to satisfy y resource need
+					if (needed_y > 0 && provider.y > 0) {
+
+						int transfer = std::min(needed_y, provider.y);
+						new_edge.y_amount = transfer;
+						needed_y -= transfer;
+						provider.y -= new_edge.y_amount;
+
+						//place message in queue for the task giving up processors
+						schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(current_transformer, 1, transfer);
+
+						//std::cerr << "Sending " << transfer << " processors from " << provider_id << " to " << current_transformer << std::endl;
+
+						//store the mask
+						task_masks[current_transformer] |= ((__uint128_t) 1 << provider_id);
+
+					}
+
+				}
+
+				//now this once transformer is a provider
+				discovered_providers.push_back(current_transformer);
+
+				current_transformer = -1;
+
+				processed_transformers += 1;
+
+			}
+
+		}
+
+		//now just do the same thing we did for transformers
+		//but with the discovered consumers
+		for (int consumer_id : discovered_consumers){
+
+			Node& consumer = nodes[consumer_id];
+			int needed_x = -consumer.x;
+			int needed_y = -consumer.y;
+
+			for (int provider_id : discovered_providers) {
+			
+				Node& provider = nodes[provider_id];
+				Edge new_edge{consumer_id, 0, 0};
+				
+				//Try to satisfy x resource need
+				if (needed_x > 0 && provider.x > 0) {
+
+					int transfer = std::min(needed_x, provider.x);
+					new_edge.x_amount = transfer;
+					needed_x -= transfer;
+					provider.x -= new_edge.x_amount;
+
+					//place message in queue for the task giving up processors
+					schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(consumer_id, 0, transfer);
+
+					//std::cerr << "Sending " << transfer << " processors from " << provider_id << " to " << consumer_id << std::endl;
+
+					//store the mask
+					task_masks[consumer_id] |= ((__uint128_t) 1 << provider_id);
+
+				}
+				
+				//Try to satisfy y resource need
+				if (needed_y > 0 && provider.y > 0) {
+
+					int transfer = std::min(needed_y, provider.y);
+					new_edge.y_amount = transfer;
+					needed_y -= transfer;
+					provider.y -= new_edge.y_amount;
+
+					//place message in queue for the task giving up processors
+					schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(consumer_id, 1, transfer);
+
+					//std::cerr << "Sending " << transfer << " processors from " << provider_id << " to " << consumer_id << std::endl;
+
+					//store the mask
+					task_masks[consumer_id] |= ((__uint128_t) 1 << provider_id);
+
+				}
+
+			}
+			
+		}
+
+		//for all the tasks which are providers and haven't 
+		//transferred all their resources, we need to send 
+		//all the additional resources to the free pool
+		for (int i = 0; i < (int) discovered_providers.size(); i++){
+
+			Node& provider = nodes[discovered_providers[i]];
+
+			if (discovered_providers[i] == (int) nodes.size() - 1)
+				continue;
+
+			if (provider.x > 0){
+
+				//place message in queue for the task giving up processors
+				schedule.get_task(discovered_providers[i])->set_processors_to_send_to_other_processes(nodes.size() - 1, 0, provider.x);
+
+				//std::cerr << "Sending " << provider.x << " processors from " << discovered_providers[i] << " to free pool" << std::endl;
+
+			}
+
+			if (provider.y > 0){
+
+				//place message in queue for the task giving up processors
+				schedule.get_task(discovered_providers[i])->set_processors_to_send_to_other_processes(nodes.size() - 1, 1, provider.y);
+
+				//std::cerr << "Sending " << provider.y << " processors from " << discovered_providers[i] << " to free pool" << std::endl;
+
+			}
+
+		}
+
+	}
+
+
+	//now we need to send messages to the tasks to tell them
+	//what tasks they are waiting on to transition
+	//std::cerr << "TOTAL TASK MASKS PRESENT: " << task_masks.size() << std::endl;
+	for (int i = 0; i < (int) task_masks.size(); i++)
+		schedule.get_task(i)->set_tasks_to_wait_on(task_masks[i]);
+
+	//finally read all the messages for the free pool and send 
+	schedule.get_task(nodes.size() - 1)->give_processors_to_other_tasks();
+}
+
+
 //convert the print_graph function to use buffered print
 void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes) {
 
@@ -919,10 +1247,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	//vector for transitioned tasks
 	std::vector<int> transitioned_tasks;
-
-	//for each run we need to see what resources are left in the pool from the start
-	int starting_CPUs = free_cores_A.size();
-	int starting_GPUs = free_cores_B.size();
 
 	if (first_time) {
 
@@ -1028,6 +1352,11 @@ void Scheduler::do_schedule(size_t maxCPU){
 		int total_cores = 0;
 		int total_gpus = 0;
 
+		//collect all the resources that the free pool was given
+		//via it's data structure
+		schedule.get_task(previous_modes.size())->get_processors_granted_from_other_tasks();
+		schedule.get_task(previous_modes.size())->acquire_all_processors();
+
 		for (int i = 0; i < (int) previous_modes.size(); i++){
 			
 			//fetch this task's current cores
@@ -1061,18 +1390,18 @@ void Scheduler::do_schedule(size_t maxCPU){
 		}
 
 		//check that the total cores in the system - the total found is the free count
-		if (((int) maxCPU - total_cores) != (int) free_cores_A.size()){
+		if (((int) maxCPU - total_cores) != (int) schedule.get_task(previous_modes.size())->get_cpu_owned_by_process().size()){
 
-			std::cout << "CPU Count Mismatch. Total Cores: " << maxCPU << " | Total Found: " << total_cores << " | Free Cores: " << free_cores_A.size() << " | Cannot Continue" << std::endl;
+			std::cout << "CPU Count Mismatch. Total Cores: " << maxCPU << " | Total Found: " << total_cores << " | Free Cores: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_cpu_mask()).count() << " | Cannot Continue" << std::endl;
 			killpg(process_group, SIGINT);
 			return;
 
 		}
 
 		//check that the total gpus in the system - the total found is the free count
-		if (((int) NUMGPUS - total_gpus) != (int) free_cores_B.size()){
+		if (((int) NUMGPUS - total_gpus) != (int) schedule.get_task(previous_modes.size())->get_gpu_owned_by_process().size()){
 
-			std::cout << "GPU Count Mismatch. Total GPUs: " << NUMGPUS << " | Total Found: " << total_gpus << " | Free GPUs: " << free_cores_B.size() << " | Cannot Continue" << std::endl;
+			std::cout << "GPU Count Mismatch. Total GPUs: " << NUMGPUS << " | Total Found: " << total_gpus << " | Free GPUs: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_gpu_mask()).count() << " | Cannot Continue" << std::endl;
 			killpg(process_group, SIGINT);
 			return;
 
@@ -1273,6 +1602,12 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 
 			print_module::print(std::cerr, "Error: System is not schedulable in any configuration with specified constraints. Not updating modes.\n");
+
+			for (int i = 0; i < schedule.count(); i++){
+				(schedule.get_task(i))->reset_mode_to_previous();
+				(schedule.get_task(i))->set_mode_transition(false);
+			}
+
 			return;
 
 		}
@@ -1333,12 +1668,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 			}
 
 			//assign all the unassigned cpus to the scheduler to hold
-			for (int i = next_CPU; i < num_CPUs; i++){
-
-				print_module::print(std::cerr, "CPU ", i, " is free.\n");
-				free_cores_A.push_back(i);
-
-			}
+			for (int i = next_CPU; i < num_CPUs; i++)
+				schedule.get_task(result.size())->push_back_cpu(i);
 
 			//Now assign TPC units to tasks, same method as before
 			//(don't worry about holding TPC 1) 
@@ -1375,7 +1706,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 			//assign all the unassigned gpus to the scheduler to hold
 			for (int i = next_TPC; i < (int)(NUMGPUS); i++)
-				free_cores_B.push_back(i);
+				schedule.get_task(result.size())->push_back_gpu(i);
 
 			normal_and_cautious = 2;
 
@@ -1389,8 +1720,9 @@ void Scheduler::do_schedule(size_t maxCPU){
 		//passing off the GPU SMs.
 		else {
 
-			//for each mode in result, subtract the new mode from the old mode to determine how many resources are being given up or taken
-			//from each task. This will be used to build the RAG.
+			//for each mode in result, subtract the new mode from the 
+			//old mode to determine how many resources are being given up 
+			//or taken from each task. This will be used to build the RAG.
 			std::unordered_map<int, Node> nodes;
 			std::unordered_map<int, Node> static_nodes;
 			std::vector<std::pair<int, int>> dependencies;
@@ -1410,9 +1742,12 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 			}
 
+			//fetch all the resources we are supposed to be putting back into the 
+			//free pool from queue 3
+
 			//for all the free cores of both types, add them to the RAG
 			//via adding a node that gives up that many resources
-			dependencies.push_back({free_cores_A.size(), free_cores_B.size()});
+			dependencies.push_back({std::bitset<128>(schedule.get_task(result.size())->get_cpu_mask()).count(), std::bitset<128>(schedule.get_task(result.size())->get_gpu_mask()).count()});
 
 			//if this returns false, then we have a cycle and only a barrier
 			//can allow the handoff
@@ -1433,251 +1768,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 				}
 
-				//now walk the RAG and see what resources need to be passed
-				//from which tasks to which tasks
-				for (const auto& [id, node] : nodes) {
-
-					int CPUs_given_up = 0;
-					int GPUs_given_up = 0;
-
-					std::vector<int> task_owned_gpus;
-					std::vector<int> task_owned_cpus;
-
-					//fetch the current mode
-					Scheduler::task_mode current_mode;
-
-					//fetch the previous mode
-					Scheduler::task_mode previous_mode;
-
-					//check if the resources are coming from the free pool
-					if (id != ((int) nodes.size() - 1)){
-
-						task_owned_gpus = (schedule.get_task(id))->get_gpu_owned_by_process();
-						task_owned_cpus = (schedule.get_task(id))->get_cpu_owned_by_process();
-
-						current_mode = task_table.at(id).at(result.at(id));
-						previous_mode = previous_modes.at(id);
-
-					}
-					
-					//if only receiving resources, just skip
-					if (node.edges.empty() && id != ((int) nodes.size() - 1)){
-
-						//check that they are not just giving up resources
-						//to the free pool
-						if ((previous_mode.cores - current_mode.cores) > 0){
-
-							if (id != ((int) nodes.size() - 1) && (int) task_owned_cpus.size() < (previous_mode.cores - current_mode.cores)){
-
-								print_module::print(std::cerr, "Error: not enough CPUs to give to task free pool from task ", id, " size gotten: ", task_owned_cpus.size(), " expected: ", (previous_mode.cores - current_mode.cores), ". Exiting.\n");
-								killpg(process_group, SIGINT);
-								return;
-
-							}
-
-							for (int i = 0; i < (previous_mode.cores - current_mode.cores); i++){
-
-								free_cores_A.push_back(task_owned_cpus.at(task_owned_cpus.size() - 1));
-								task_owned_cpus.pop_back();
-							
-							}
-
-							auto change_amount = (schedule.get_task(id))->get_CPUs_change();
-							(schedule.get_task(id))->set_CPUs_change(change_amount + (previous_mode.cores - current_mode.cores));
-							
-
-						}
-
-						if ((previous_mode.sms - current_mode.sms) > 0){
-
-							for (int i = 0; i < (previous_mode.sms - current_mode.sms); i++){
-
-								free_cores_B.push_back(task_owned_gpus.at(task_owned_gpus.size() - 1));
-								task_owned_gpus.pop_back();
-							
-							}
-
-							auto change_amount = (schedule.get_task(id))->get_GPUs_change();
-							(schedule.get_task(id))->set_GPUs_change(change_amount + (previous_mode.sms - current_mode.sms));
-							(schedule.get_task(id))->set_mode_transition(false);
-
-						}
-
-						continue;
-
-					}
-					
-					else {
-
-						for (const Edge& edge : node.edges) {
-
-							int task_being_given_to = edge.to_node;
-
-							//if resource type A
-							if (edge.x_amount > 0) {
-
-								std::vector<int> cpus_being_given;
-
-								if (id != ((int) nodes.size() - 1) && (int) task_owned_cpus.size() < edge.x_amount){
-
-									print_module::print(std::cerr, "Error: not enough CPUs to give to task ", task_being_given_to, " from task ", id, " size gotten: ", task_owned_cpus.size(), " expected: ", edge.x_amount, ". Exiting.\n");
-									killpg(process_group, SIGINT);
-									return;
-
-								}
-
-								else if (id == ((int) nodes.size() - 1) && (int) free_cores_A.size() < edge.x_amount){
-
-									print_module::print(std::cerr, "Error: not enough CPUs to give to task ", task_being_given_to, " from free pool. size gotten: ", free_cores_A.size(), " expected: ", edge.x_amount, ". Exiting.\n");
-									killpg(process_group, SIGINT);
-									return;
-
-								}
-
-								for (int z = 0; z < edge.x_amount; z++){
-
-									if (id != ((int) nodes.size() - 1)){
-
-										cpus_being_given.push_back(task_owned_cpus.at(task_owned_cpus.size() - 1));
-										task_owned_cpus.pop_back();
-									
-									}
-
-									else{
-
-										cpus_being_given.push_back(free_cores_A.at(free_cores_A.size() - 1));
-										free_cores_A.pop_back();
-
-									}
-
-								}
-
-								if (id == ((int) nodes.size() - 1))
-									(schedule.get_task(task_being_given_to))->set_cpus_granted_from_other_tasks({MAXTASKS, cpus_being_given});
-								else
-									(schedule.get_task(task_being_given_to))->set_cpus_granted_from_other_tasks({id, cpus_being_given});
-
-								//update our own
-								CPUs_given_up += edge.x_amount;
-
-								if(id == 10){
-									
-									print_module::print(std::cerr, "Task ", id, " is giving ", edge.x_amount, " CPUs to task ", task_being_given_to, ".\n");
-								}
-
-							}
-
-							//if resource type B
-							if (edge.y_amount > 0) {
-
-								std::vector<int> gpus_being_given;
-
-								if (id != ((int) nodes.size() - 1) && (int) task_owned_gpus.size() < edge.y_amount){
-
-									print_module::print(std::cerr, "Error: not enough GPUs to give to task ", task_being_given_to, " from task ", id, " size gotten: ", task_owned_gpus.size(), " expected: ", edge.y_amount, ". Exiting.\n");
-									killpg(process_group, SIGINT);
-									return;
-
-								}
-
-								else if (id == ((int) nodes.size() - 1) && (int) free_cores_B.size() < edge.y_amount){
-
-									print_module::print(std::cerr, "Error: not enough GPUs to give to task ", task_being_given_to, " from free pool. size gotten: ", free_cores_B.size(), " expected: ", edge.y_amount, ". Exiting.\n");
-									killpg(process_group, SIGINT);
-									return;
-
-								}
-
-								for (int z = 0; z < edge.y_amount; z++){
-
-									if (id != ((int) nodes.size() - 1)){
-
-										gpus_being_given.push_back(task_owned_gpus.at(task_owned_gpus.size() - 1));
-										task_owned_gpus.pop_back();
-
-									}
-
-									else{
-
-										gpus_being_given.push_back(free_cores_B.at(free_cores_B.size() - 1));
-										free_cores_B.pop_back();
-
-									}
-
-								}
-								
-								if (id == ((int) nodes.size() - 1))
-									(schedule.get_task(task_being_given_to))->set_gpus_granted_from_other_tasks({MAXTASKS, gpus_being_given});
-								else
-									(schedule.get_task(task_being_given_to))->set_gpus_granted_from_other_tasks({id, gpus_being_given});
-
-								//update our own
-								GPUs_given_up += edge.y_amount;
-
-							}
-
-						}
-
-					}
-
-					//check if we gave up resource AND we are giving resources to the free pool
-					if (id != ((int) nodes.size() - 1)){ 
-
-						if ((previous_mode.cores - current_mode.cores) > CPUs_given_up){
-
-						
-							if (((previous_mode.cores - current_mode.cores) - CPUs_given_up) > (int) task_owned_cpus.size()){
-
-								print_module::print(std::cerr, "Error: not enough CPUs to give to free pool from task ", id, ". size gotten: ", task_owned_cpus.size(), " expected: ", ((previous_mode.cores - current_mode.cores) - CPUs_given_up), ". Exiting.\n");
-								killpg(process_group, SIGINT);
-								return;
-
-							}
-
-							for (int i = CPUs_given_up; i < (previous_mode.cores - current_mode.cores); i++){
-
-								free_cores_A.push_back(task_owned_cpus.at(task_owned_cpus.size() - 1));
-								task_owned_cpus.pop_back();
-
-								CPUs_given_up++;
-								
-							}
-
-						}
-
-						if ((previous_mode.sms - current_mode.sms) > GPUs_given_up){
-
-						
-							if (((previous_mode.sms - current_mode.sms) - GPUs_given_up) > (int) task_owned_gpus.size()){
-
-								print_module::print(std::cerr, "Error: not enough GPUs to give to free pool from task ", id, ". size gotten: ", task_owned_gpus.size(), " expected: ", ((previous_mode.sms - current_mode.sms) - GPUs_given_up), ". Exiting.\n");
-								killpg(process_group, SIGINT);
-								return;
-
-							}
-
-							for (int i = GPUs_given_up; i < (previous_mode.sms - current_mode.sms); i++){
-
-								free_cores_B.push_back(task_owned_gpus.at(task_owned_gpus.size() - 1));
-
-								task_owned_gpus.pop_back();
-
-								GPUs_given_up++;
-								
-							}
-
-						}
-
-					}
-					
-					//let the task know what it should give up when it can change modes
-					(schedule.get_task(id))->set_CPUs_change(CPUs_given_up);
-					(schedule.get_task(id))->set_GPUs_change(GPUs_given_up);
-
-					//add the task to list of tasks that had to transition
-					transitioned_tasks.push_back(id);
-
-				}
+				//execute the RAG we proved exists
+				execute_resource_allocation_graph(dependencies, nodes);
 
 				//we do not need to check the cautious graph
 				normal_and_cautious = 2;
@@ -1712,6 +1804,12 @@ void Scheduler::do_schedule(size_t maxCPU){
 				else if (!barrier && normal_and_cautious == 1){
 
 					print_module::print(std::cerr, "Error: System was passed a RAG to build a DAG with, but a solution could not be found... skipping.\n");
+
+					for (int i = 0; i < schedule.count(); i++){
+						(schedule.get_task(i))->reset_mode_to_previous();
+						(schedule.get_task(i))->set_mode_transition(false);
+					}
+
 					return;
 
 				}

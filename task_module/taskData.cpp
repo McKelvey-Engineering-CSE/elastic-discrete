@@ -2,6 +2,38 @@
 
 TaskData::TaskData(){}
 
+TaskData::TaskData(bool free_resources){
+
+	//open the 3 message queues which facilitate the process of giving CPUs or GPUs to other tasks
+
+	//queue 1 is used to signal that a task is giving up CPUs
+	if ((queue_one = msgget(98173, 0666 | IPC_CREAT)) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to create message queue 1.\n");
+		kill(0, SIGTERM);
+
+	}
+
+	//queue 2 is used to signal that a task is giving CPUs to another task
+	if ((queue_two = msgget(98174, 0666 | IPC_CREAT)) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to create message queue 2.\n");
+		kill(0, SIGTERM);
+
+	}
+
+	//queue 3 is used to signal that a task should give up the resources contained in the mask to the task specified
+	if ((queue_three = msgget(98175, 0666 | IPC_CREAT)) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to create message queue 3.\n");
+		kill(0, SIGTERM);
+
+	}
+
+	index = counter++;
+
+}
+
 TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, 
 														timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_) : 	
 																													
@@ -166,6 +198,32 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 		}
 	}
+
+	//open the 3 message queues which facilitate the process of giving CPUs or GPUs to other tasks
+
+	//queue 1 is used to signal that a task is giving up CPUs
+	if ((queue_one = msgget(98173, 0666 | IPC_CREAT)) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to create message queue 1.\n");
+		kill(0, SIGTERM);
+
+	}
+
+	//queue 2 is used to signal that a task is giving CPUs to another task
+	if ((queue_two = msgget(98174, 0666 | IPC_CREAT)) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to create message queue 2.\n");
+		kill(0, SIGTERM);
+
+	}
+
+	//queue 3 is used to signal that a task should give up the resources contained in the mask to the task specified
+	if ((queue_three = msgget(98175, 0666 | IPC_CREAT)) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to create message queue 3.\n");
+		kill(0, SIGTERM);
+
+	}
 }
 
 TaskData::~TaskData(){
@@ -293,9 +351,25 @@ int TaskData::get_current_lowest_GPU(){
 	return current_lowest_GPU;
 }
 
+void TaskData::reset_mode_to_previous(){
+
+	current_mode = previous_mode;
+	current_work = work[current_mode];
+	current_span = span[current_mode];
+	current_period = period[current_mode];
+	current_utilization = current_work / current_period;
+	percentage_workload = current_work / max_work;
+	current_CPUs = previous_CPUs;
+	current_GPUs = previous_GPUs;
+
+}
+
 void TaskData::set_current_mode(int new_mode, bool disable)
 {
 	if (new_mode >= 0 && new_mode < num_modes){
+
+		//stash old mode
+		previous_mode = current_mode;
 
 		//update CPU parameters
 		current_mode = new_mode;
@@ -557,23 +631,258 @@ std::vector<std::pair<int, std::vector<int>>> TaskData::get_gpus_granted_from_ot
 }
 
 //give CPUs or GPUs to another task
-void TaskData::set_cpus_granted_from_other_tasks(std::pair<int, std::vector<int>> entry){
 
-	for (size_t i = 0; i < entry.second.size(); i++)
-		cpus_granted_from_other_tasks[entry.first][i+1] = entry.second.at(i);
+/*****************************************************************************************
 
-	cpus_granted_from_other_tasks[entry.first][0] = entry.second.size();
+
+If a task is giving up CPUs, keep track of what tasks it gives to in a table.
+When all tasks have been processed, send a message from the scheduler of type -1 to 
+the first queue with the message id set to the task index in question. 
+
+All other tasks will read from this queue when scheduler signals that it is time to
+transition, and any process which gives up cpus will send a message back into that same
+queue with the message id set to the task index in question.
+
+2 System V Message Queues are used to facilitate this process.
+
+Queue 1: Used to signal that a task is giving up CPUs. The message type is the task index
+
+Queue 2: Id determines process target. Message contents are the CPUs or GPUs to be given by the processor number
+
+Queue 3: Used to to signal that a task should give up the resources contained in the mask to the task specified
+
+struct queue_one_message {
+    long int    mtype;
+	__uint128_t tasks_giving_processors;
+}
+
+struct queue_two_message {
+	long int    mtype;
+	long int   giving_task;
+	long int   processor_type;
+	__uint128_t processors;
+}
+
+struct queue_three_message {
+	long int    mtype;
+	long int   task_index;
+	long int   processor_type;
+	long int   processor_ct;
+}
+
+Structure:
+
+If Time to Reschedule:
+
+	Read From queue 1 for message of id == task_index
+
+		- If message type == -1 : global_variable tasks_to_listen_for = message.tasks_giving_processors
+
+	If all tasks_to_listen_for == 0, then we can transition
+
+		For each read from Queue 2
+
+			If processor_type == CPU : CPU_mask |= processors
+			If processor_type == GPU : TPC_mask |= processors
+
+		OR these values with the current masks
+
+		Read from Queue 3
+
+			If processor_type == CPU : CPU_mask &= ~processors
+			If processor_type == GPU : TPC_mask &= ~processors
+
+			send message to queue 2 with the processors to be given
+
+
+
+		Transition complete
+
+
+******************************************************************************************/
+
+void TaskData::set_processors_to_send_to_other_processes(int task_to_send_to, int processor_type, int processor_ct){
+
+	//send message into queue 3
+	struct queue_three_message message;
+
+	message.mtype = get_index() + 1;
+	message.task_index = task_to_send_to + 1;
+	message.processor_type = processor_type;
+	message.processor_ct = processor_ct;
+
+	//std::cerr<< "Telling task " << get_index() << " to give " << processor_ct << " processors to task " << task_to_send_to << ".\n";
+
+	if (msgsnd(queue_three, &message, sizeof(message) - sizeof(long), 0) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to send a message to queue 3: failed with: ", strerror(errno), " \n");
+		kill(0, SIGTERM);
+
+	}
+	
+}
+
+void TaskData::set_tasks_to_wait_on(__uint128_t task_mask){	
+
+	//send message into queue 1
+	struct queue_one_message message;
+
+	message.mtype = get_index() + 1;
+	message.tasks_giving_processors = task_mask;
+
+	if (msgsnd(queue_one, &message, sizeof(message) - sizeof(long), 0) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to send message to queue 1.\n");
+		kill(0, SIGTERM);
+
+	}
+	
+}
+
+void TaskData::start_transition(){
+
+	//read from queue 1 
+	struct queue_one_message message;
+
+	if (msgrcv(queue_one, &message, sizeof(message) - sizeof(long), get_index() + 1, IPC_NOWAIT) != -1){
+		
+		tasks_giving_processors = message.tasks_giving_processors;
+
+	}
 
 }
 
-void TaskData::set_gpus_granted_from_other_tasks(std::pair<int, std::vector<int>> entry){
+//fetch any processors that have been given to us
+//and returns true when all the resources have been given
+//to us from other processes: NON BLOCKING
+bool TaskData::get_processors_granted_from_other_tasks(){
 
-	for (size_t i = 0; i < entry.second.size(); i++)
-		gpus_granted_from_other_tasks[entry.first][i+1] = entry.second.at(i);
+	//read from queue 2, until we have no messages available
+	struct queue_two_message message;
 
-	gpus_granted_from_other_tasks[entry.first][0] = entry.second.size();
+	while (msgrcv(queue_two, &message, sizeof(message) - sizeof(long), get_index() + 1, IPC_NOWAIT) != -1){
+
+		//if the message is for CPUs
+		if (message.processor_type == 0)
+			processors_A_received |= message.processors;
+
+		//if the message is for GPUs
+		else if (message.processor_type == 1)
+			processors_B_received |= message.processors;
+
+		tasks_giving_processors &= ~((__uint128_t)(1) << message.giving_task);
+
+	}
+
+	//std::cerr<< "Task " << get_index() << " has received " << (unsigned long long) processors_A_received << " CPUs and " << (unsigned long long) processors_B_received << " GPUs.\n";
+
+	//if (tasks_giving_processors != 0)
+		//std::cerr<< "Task " << get_index() << " is still waiting on " << (unsigned long long) tasks_giving_processors << " tasks.\n";
+
+	return tasks_giving_processors == 0;
+
+}
+
+void TaskData::set_cpus_to_send_to_other_processes(std::pair<int, int> entry){
+
+	//send message into queue 2
+	struct queue_two_message message;
+
+	message.mtype = entry.first;
+	message.giving_task = get_index();
+	message.processor_type = 0;
+	message.processors = 0;
+
+	//always grabs from the back of the vector
+	for (int i = 0; i < entry.second; i++){
+
+		int cpus_selected_to_send = pop_back_cpu();
+
+		message.processors |= ((__uint128_t)1 << cpus_selected_to_send);
+	}
+
+	if (msgsnd(queue_two, &message, sizeof(message) - sizeof(long), 0) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to send message to queue 2.\n");
+		kill(0, SIGTERM);
+
+	}
+
+}
+
+void TaskData::set_gpus_to_send_to_other_processes(std::pair<int, int> entry){
+
+	//send message into queue 2
+	struct queue_two_message message;
+
+	message.mtype = entry.first;
+	message.giving_task = get_index();
+	message.processor_type = 1;
+	message.processors = 0;
+
+	//always grabs from the back of the vector
+	for (int i = 0; i < entry.second; i++){
+
+		int gpus_selected_to_send = pop_back_gpu();
+
+		//std::cerr << "Task " << get_index() << " is sending GPU " << gpus_selected_to_send << " to task " << entry.first << ".\n";
+
+		message.processors |= ((__uint128_t)1 << gpus_selected_to_send);
+
+	}
+
+	if (msgsnd(queue_two, &message, sizeof(message) - sizeof(long), 0) == -1){
+
+		print_module::print(std::cerr, "Error: Failed to send message to queue 2.\n");
+		kill(0, SIGTERM);
+
+	}
 
 }	
+
+void TaskData::acquire_all_processors(){
+	
+	//if we have been given processors, then we can acquire them
+	CPU_mask |= processors_A_received;
+	TPC_mask |= processors_B_received;
+
+	//clear the variables
+	processors_A_received = 0;
+	processors_B_received = 0;
+	tasks_giving_processors = 0;
+
+}
+
+void TaskData::give_processors_to_other_tasks(){
+
+	//read from queue 3 until we cant
+	struct queue_three_message message;
+
+	while (msgrcv(queue_three, &message, sizeof(message) - sizeof(long), get_index() + 1, IPC_NOWAIT) != -1){
+
+		//if the message is for CPUs
+		if (message.processor_type == 0){
+
+			set_cpus_to_send_to_other_processes(std::make_pair(message.task_index, message.processor_ct));
+
+			//std::cerr<< "Task " << get_index() << " is giving " << message.processor_ct << " CPUs to task " << message.task_index << ".\n";
+
+		}
+
+		//if the message is for GPUs
+		else if (message.processor_type == 1){
+
+			set_gpus_to_send_to_other_processes(std::make_pair(message.task_index, message.processor_ct));
+
+			//std::cerr<< "Task " << get_index() << " is giving " << message.processor_ct << " GPUs to task " << message.task_index << ".\n";
+
+		}
+
+	}
+
+	//std::cerr<< "Task " << get_index() << " finished giving processors.\n";
+
+}
 
 //make a function which clears these vectors like they are cleared in the constructor
 void TaskData::clear_cpus_granted_from_other_tasks(){

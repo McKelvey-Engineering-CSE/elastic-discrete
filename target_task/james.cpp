@@ -42,6 +42,9 @@ bool first_time = true;
 
 void update_core_B(__uint128_t mask) {
 
+    //for now just pretend
+    return;
+
     //example of how to use core B masks
     #ifdef __NVCC__
 
@@ -88,12 +91,12 @@ void update_core_B(__uint128_t mask) {
         CUDA_SAFE_CALL(cuGreenCtxStreamCreate(&stream, task_green_ctx, CU_STREAM_NON_BLOCKING, 0));
 
     //if first time, print sms
-    if (display_sms) {
+    /*if (display_sms) {
 
         visualize_sm_partitions_interprocess(task_green_ctx, 1, "JAMESSM");
         display_sms = false;
         
-    }
+    }*/
 
     #endif
 

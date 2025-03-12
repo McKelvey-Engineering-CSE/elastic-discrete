@@ -94,7 +94,7 @@ void scheduler_task()
 			killpg(process_group, SIGRTMIN+1);
 
 			//wait for all tasks to actually finish rescheduling
-			for (int i = 0; i < scheduler->get_num_tasks(); i++){
+			for (int i = 0; i < scheduler->get_schedule()->count(); i++){
 
 				while(scheduler->get_schedule()->get_task(i)->check_mode_transition() == false){
 
@@ -492,6 +492,13 @@ int main(int argc, char *argv[])
 			kill(0, SIGTERM);
 			return RT_GOMP_CLUSTERING_LAUNCHER_FORK_EXECV_ERROR;
 		}	
+
+		//add the scheduler itself to the task table at the end
+		if (t == parsed_tasks.size() - 1)
+		{
+			td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), gpu_work.data(), gpu_span.data(), gpu_period.data());
+		}
+
 	}
 
 	//run the table generation for all unsafe task combinations

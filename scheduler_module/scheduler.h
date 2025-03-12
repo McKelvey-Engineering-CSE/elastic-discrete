@@ -106,6 +106,9 @@ class Scheduler{
 	std::vector<int> free_cores_A;
 	std::vector<int> free_cores_B;
 
+	//taskData structure for the free resource pool
+	TaskData free_pool;
+
 	//table for storing the combination for unsafe tasks later
 	int* unsafe_table;
 
@@ -172,6 +175,9 @@ public:
 
 	bool build_resource_graph(std::vector<std::pair<int, int>> resource_pairs, 
                         std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node>& static_nodes);
+
+	void execute_resource_allocation_graph(std::vector<std::pair<int, int>> resource_pairs, 
+                        std::unordered_map<int, Node>& nodes);
 
 	void print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes);
 
