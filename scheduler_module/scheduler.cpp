@@ -1224,12 +1224,20 @@ void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes, std::uno
 	print_module::flush(std::cerr, mode_strings);
 }
 
-//Implement scheduling algorithm
+/*************************************************************
+
+Implements the scheduling algorithm; either runs the knapsack
+algorithm or the cautious scheduler itself or if CUDA is
+enabled, runs the CUDA version of the scheduler. It also builds
+the RAG and executes it if a solution is found
+
+*************************************************************/
 void Scheduler::do_schedule(size_t maxCPU){
 
+	//If we compiled with CUDA enabled, we need 
+	//to initialize the CUDA context and stream
 	#ifdef __NVCC__
 
-		//setup cuda side if we have it
 		if (first_time) {
 
 			CUDA_SAFE_CALL(cuInit(0));
@@ -1245,9 +1253,12 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	#endif
 
-	//vector for transitioned tasks
+	
 	std::vector<int> transitioned_tasks;
 
+	//If this is the first time running the scheduler, we need to
+	//initialize the DP table and the task table both on the host
+	//as well as the device
 	if (first_time) {
 
 		//add an entry for each task into previous modes
@@ -1342,25 +1353,30 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	}
 
-	//dynamic programming table
 	int N = task_table.size();
 	std::vector<int> best_solution;
 
-	//force checks to ensure each task has their core count
+	//This segment is a forced core and sm (core_A or core_B)
+	//check to ensure that all tasks actually have the cores 
+	//that they are supposed to within their TaskData masks.
+	//If they do not, we do not try to recover from whatever
+	//went wrong, we just error out.
 	if (!first_time){
 
 		int total_cores = 0;
 		int total_gpus = 0;
 
 		//collect all the resources that the free pool was given
-		//via it's data structure
+		//via it's TaskData entry in the scheduler
 		schedule.get_task(previous_modes.size())->get_processors_granted_from_other_tasks();
 		schedule.get_task(previous_modes.size())->acquire_all_processors();
 
+		//for each task, check that the number of cores and gpus
+		//that the task has is the same as the number of cores and
+		//gpus that the task is supposed to have
+		//(-1 because we always give one to the scheduler)
 		for (int i = 0; i < (int) previous_modes.size(); i++){
 			
-			//fetch this task's current cores
-			//(-1 because perm core is never returned)
 			auto task_owned_cpus = (schedule.get_task(i))->get_cpu_owned_by_process();
 
 			if (((previous_modes.at(i).cores - 1) != (int) task_owned_cpus.size())){
@@ -1371,8 +1387,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 			}
 			
-			//get sm units
-			//no -1 because no perm gpu
 			auto task_owned_gpus = (schedule.get_task(i))->get_gpu_owned_by_process();
 
 			if ((previous_modes.at(i).sms) != (int) task_owned_gpus.size()){
@@ -1409,54 +1423,21 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	}
 
-	//First time through Make sure we have enough CPUs and GPUs
-	//in the system and determine practical max for each task.	
-	if (first_time) {
-
-		int min_required_cpu = 0;
-		int min_required_gpu = 0;
-
-		//Determine minimum required processors
-		for (int i = 0; i < schedule.count(); i++){
-			
-			//CPU first
-			min_required_cpu += (schedule.get_task(i))->get_min_CPUs();
-			(schedule.get_task(i))->set_CPUs_gained(0);
-
-			//GPU next
-			min_required_gpu += (schedule.get_task(i))->get_min_GPUs();
-			(schedule.get_task(i))->set_GPUs_gained(0);
-
-		}
-
-		//Determine the practical maximum. This is how many are left after each task has been given its minimum.
-		for (int i = 0; i < schedule.count(); i++){
-
-			//CPU
-			if ((NUMCPUS - min_required_cpu + (schedule.get_task(i))->get_min_CPUs()) < (schedule.get_task(i))->get_max_CPUs())
-				(schedule.get_task(i))->set_practical_max_CPUs( NUMCPUS - min_required_cpu + (schedule.get_task(i))->get_min_CPUs());
-
-			else
-				(schedule.get_task(i))->set_practical_max_CPUs((schedule.get_task(i))->get_max_CPUs());
-
-			//GPU
-			if (((int)(NUMGPUS) - min_required_gpu + (schedule.get_task(i))->get_min_GPUs()) < (schedule.get_task(i))->get_max_GPUs())
-				(schedule.get_task(i))->set_practical_max_GPUs( NUMGPUS - min_required_gpu + (schedule.get_task(i))->get_min_GPUs());
-
-			else
-				(schedule.get_task(i))->set_practical_max_GPUs((schedule.get_task(i))->get_max_GPUs());
-
-		}
-	}
-
 	//get current time
-	timespec start_time;
+	timespec start_time, end_time;
 	clock_gettime(CLOCK_MONOTONIC, &start_time);
 
 	double loss;
 	double cautious_loss;
+	double elapsed_time;
 
-	//copy over all the uncooperative tasks' selected modes
+	//loop over all the tasks and determine which
+	//ones are set to be uncooperative. An uncooperative
+	//task is either transitioning or has just permanently
+	//set itself to be uncooperative. Either way, these tasks
+	//are not allowed to change their modes in the knapsack
+	//algorithm. We take note of which tasks are uncooperative
+	//and send them to the device
 	int host_uncooperative[MAXTASKS] = {0};
 	for (int i = 0; i < schedule.count(); i++){
 
@@ -1476,7 +1457,11 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	}
 
-	//copy the array to the device
+	//If CUDA is enabled, copy all the data that we need for
+	//each run of the knapsack algorithm to the device
+	//and actually run the knapsack algorithm on the device
+	//if CUDA is not enabled, just run the knapsack algorithm
+	//on the host
 	#ifdef __NVCC__
 
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
@@ -1528,18 +1513,19 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	#endif
 
-	//return optimal solution
 	std::vector<int> result;
 
-	timespec end_time;
-	double elapsed_time;
-
-	//if normal_and_cautious is 0, we are doing the normal run
-	//if it is 1, we are doing the cautious run
+	//This setup is a bit odd for now, but effectively what we are doing
+	//is running the normal knapsack algorithm and checking if we are capable
+	//of building a resource allocation graph from the nodes that we get 
+	//from the knapsack algorithm. If we can build a resource allocation graph
+	//then normal_and_cautious is set to 2 and the loop only executes once. If
+	//we cannot, the loop executes twice, but when normal_and_cautious is 1, we
+	//run the cautious scheduler and try the same thing
 	for (int normal_and_cautious = 0; normal_and_cautious < 2; normal_and_cautious++){
 
 		//if we are doing a cautious run, copy the 
-		//results
+		//results over to the host
 		if (normal_and_cautious == 1){
 
 			#ifdef __NVCC__
@@ -1583,7 +1569,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 		}
 
 		//determine ellapsed time in nanoseconds
-
 		if (normal_and_cautious == 0){
 
 			clock_gettime(CLOCK_MONOTONIC, &end_time);
@@ -1620,10 +1605,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		}
 
-		//deal with pessemism negatives
-		auto backup = result;
-
-		//update the tasks
+		//print the new schedule layout
 		std::ostringstream mode_strings;
 		print_module::buffered_print(mode_strings, "\n========================= \n", "New Schedule Layout:\n");
 		for (size_t i = 0; i < result.size(); i++)
@@ -1637,8 +1619,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 		print_module::buffered_print(mode_strings, "=========================\n\n");
 		print_module::flush(std::cerr, mode_strings);
 
-		//this changes the number of CPUs each task needs for a given mode
-		//(utilization)
+		//this changes the mode the tasks are currently
+		//set to within their TaskData structure
 		for (int i = 0; i < schedule.count(); i++)
 			(schedule.get_task(i))->set_current_mode(result.at(i), false);
 
@@ -1727,12 +1709,10 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		}
 
-		//Transfer as efficiently as possible.
-		//This portion of code is supposed to allocate
-		//CPUs from tasks that are not active to ones that
-		//should be rescheduling right now... because of this,
-		//it should also be a good candidate algorithm for
-		//passing off the GPU SMs.
+		//If we are not in the first execution, we cannot
+		//do a greedy assignment of resources. We need to
+		//build a resource allocation graph and execute it
+		//only if the graph has no cycles
 		else {
 
 			//for each mode in result, subtract the new mode from the 
@@ -1764,8 +1744,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 			//via adding a node that gives up that many resources
 			dependencies.push_back({std::bitset<128>(schedule.get_task(result.size())->get_cpu_mask()).count(), std::bitset<128>(schedule.get_task(result.size())->get_gpu_mask()).count()});
 
-			//if this returns false, then we have a cycle and only a barrier
-			//can allow the handoff
+			//if the call to build_resource_graph returns false, 
+			//then we have a cycle and only a barrier can allow the handoff
 			if (build_resource_graph(dependencies, nodes, static_nodes)){
 
 				//show the resource graph (debugging)
@@ -1849,7 +1829,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	clock_gettime(CLOCK_MONOTONIC, &end_time);
 
-	//determine ellapsed time in nanoseconds
+	//determine ellapsed time in milliseconds
 	elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1e9;
 	elapsed_time += (end_time.tv_nsec - start_time.tv_nsec);
 

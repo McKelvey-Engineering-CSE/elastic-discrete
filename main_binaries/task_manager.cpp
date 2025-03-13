@@ -81,7 +81,6 @@ unsigned EXEC_PRIORITY = 7;
 int futex_val;
 thread_barrier bar;
 bool missed_dl = false;
-int practical_max_cpus;
 volatile int total_remain __attribute__ (( aligned (64) ));
 double percentile = 1.0;
 
@@ -469,7 +468,6 @@ int main(int argc, char *argv[])
 	print_module::buffered_print(task_info, "	- Current CPUs: ", schedule.get_task(task_index)->get_current_CPUs(), "\n");
 	print_module::buffered_print(task_info, "	- Minimum CPUs: ", schedule.get_task(task_index)->get_min_CPUs(), "\n");
 	print_module::buffered_print(task_info, "	- Maximum CPUs: ", schedule.get_task(task_index)->get_max_CPUs(), "\n");
-	print_module::buffered_print(task_info, "	- Practical Max: ", schedule.get_task(task_index)->get_practical_max_CPUs(), "\n\n");
 
 	//gpu info
 	print_module::buffered_print(task_info, "GPU Metrics: \n");
@@ -477,7 +475,6 @@ int main(int argc, char *argv[])
 	print_module::buffered_print(task_info, "	- Current GPUs: ", schedule.get_task(task_index)->get_current_GPUs(), "\n");
 	print_module::buffered_print(task_info, "	- Minimum GPUs: ", schedule.get_task(task_index)->get_min_GPUs(), "\n");
 	print_module::buffered_print(task_info, "	- Maximum GPUs: ", schedule.get_task(task_index)->get_max_GPUs(), "\n");
-	print_module::buffered_print(task_info, "	- Practical Max: ", schedule.get_task(task_index)->get_practical_max_GPUs(), "\n\n");
 
 	//timing info
 	print_module::buffered_print(task_info, "Timing Metrics: \n");
@@ -491,8 +488,6 @@ int main(int argc, char *argv[])
 
 	if (ret_val != 0)
  		print_module::print(std::cerr,  "WARNING: " , getpid() , " Could not set priority. Returned: " , errno , "  (" , strerror(errno) , ")\n");
-
-	practical_max_cpus = schedule.get_task(task_index)->get_practical_max_CPUs();
 	
 	#ifndef OMP_OVERRIDE
 		omp_set_num_threads(NUMCPUS);
@@ -661,9 +656,6 @@ int main(int argc, char *argv[])
 
 		//when we start doing the work
    		get_time(&actual_period_start);
-
-		// Reset the awaited count of threads before every period
-		__atomic_store_n( &total_remain, practical_max_cpus, __ATOMIC_RELEASE ); //JAMES ORIGINAL 10/3/17
 
 		if (schedule.get_task(task_index))
 			ret_val = task.run(task_argc, task_argv);
