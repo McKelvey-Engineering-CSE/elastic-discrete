@@ -56,7 +56,7 @@ public:
             workers.emplace_back([this]{
                 const int my_index = threadIDs.fetch_add(1);
                 bool first = true;
-                unsigned long long last_job_id = -1;
+                unsigned long long last_job_id = ~(0);
 
                 while (true) {
                     {

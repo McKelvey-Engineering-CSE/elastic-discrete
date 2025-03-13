@@ -206,16 +206,16 @@ void sigrt2_handler(int signum){
 	kill(0, SIGRTMIN+0);	
 }          
 
+//We use this to ensure that the clustering launcher 
+//can see the signals from the tasks requesting a reschedule
 void init_signal_handlers(){
-	//Set up a signal handler for SIGRT0
-	void (*ret_handler)(int);
 
-	if( (ret_handler = signal(SIGRTMIN+0, sigrt0_handler)) == SIG_ERR ){
+	if( (signal(SIGRTMIN+0, sigrt0_handler)) == SIG_ERR ){
 		print_module::print(std::cerr, "ERROR: Call to Signal failed, reason: " , strerror(errno) , "\n");
 		exit(-1);
 	}
 
-	if( (ret_handler = signal(SIGRTMIN+1, sigrt1_handler)) == SIG_ERR ){
+	if( (signal(SIGRTMIN+1, sigrt1_handler)) == SIG_ERR ){
 		print_module::print(std::cerr, "ERROR: Call to Signal failed, reason: " , strerror(errno) , "\n");
 		exit(-1);
 	}
@@ -305,7 +305,7 @@ int main(int argc, char *argv[])
 {
 	process_group = getpgrp();
 	std::vector<std::string> args(argv, argv+argc);
-	int schedulable;
+	//int schedulable;
 	std::vector<parsed_task_info> parsed_tasks;
 	unsigned sec_to_run=0;
 	long nsec_to_run=0;
@@ -359,7 +359,7 @@ int main(int argc, char *argv[])
 	}
 
 	//fetch all the data from the shared memory
-	schedulable = yaml_object->schedulable;
+	//schedulable = yaml_object->schedulable;
 	sec_to_run = yaml_object->sec_to_run;
 	nsec_to_run = yaml_object->nsec_to_run;
 

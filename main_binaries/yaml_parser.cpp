@@ -321,13 +321,13 @@ int main(int argc, char *argv[])
 	yaml_object->nsec_to_run = nsec_to_run;
 	yaml_object->num_tasks_parsed = parsed_tasks.size();
 
-	for (int i = 0; i < parsed_tasks.size(); i++) {
+	for (int i = 0; i < (int) parsed_tasks.size(); i++) {
 
 		yaml_object->parsed_tasks[i] = parsed_tasks[i];
 
 		yaml_object->num_modes_parsed[i] = parsed_tasks[i].modes.size();
 
-		for (int j = 0; j < parsed_tasks[i].modes.size(); j++) {
+		for (int j = 0; j < (int) parsed_tasks[i].modes.size(); j++) {
 
 			yaml_object->parsed_modes[i][j] = parsed_tasks[i].modes[j];
 

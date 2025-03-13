@@ -503,9 +503,9 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 		//check all other modes stored for this task
 		//and if it gains one resource while losing another
 		//mark it as unsafe
-		for (int i = 0; i < task_table.at(task_table.size() - 1).size(); i++){
+		for (int i = 0; i < (int)task_table.at(task_table.size() - 1).size(); i++){
 
-			for (int k = i; k < task_table.at(task_table.size() - 1).size(); k++){
+			for (int k = i; k < (int)task_table.at(task_table.size() - 1).size(); k++){
 
 				if (task_table.at(task_table.size() - 1).at(i).cores < task_table.at(task_table.size() - 1).at(k).cores && task_table.at(task_table.size() - 1).at(i).sms > task_table.at(task_table.size() - 1).at(k).sms)
 					task_table.at(task_table.size() - 1).at(i).unsafe_mode = true;
@@ -878,11 +878,6 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 		task_masks.push_back(0);
     
 	}
-    
-    //Legacy code, but nice to see the counts
-    int provider_order = 0;
-    int consumer_order = 0;
-	int transfer_order = 0;
 
 	//if system has barrier, just do it lazily
 	if (barrier){
@@ -899,7 +894,6 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 				
 				Node& provider = nodes[provider_id];
 				Edge new_edge{consumer_id, 0, 0};
-				bool edge_needed = false;
 				
 				//Try to satisfy x resource need
 				if (needed_x > 0 && provider.x > 0) {
@@ -985,12 +979,8 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 		//loop and discover all nodes and fix transformers
 		//(providers are just ignored)
 		int processed_transformers = 0;
-		int last_recorded_transformers = -1;
 
 		while (processed_transformers < (int) discovered_transformers.size()){
-
-			//reset
-			last_recorded_transformers = processed_transformers;
 
 			//try to resolve the transformers
 			for (int& current_transformer : discovered_transformers){
@@ -1721,8 +1711,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 			std::unordered_map<int, Node> nodes;
 			std::unordered_map<int, Node> static_nodes;
 			std::vector<std::pair<int, int>> dependencies;
-
-			result = backup;
 
 			for (size_t i = 0; i < result.size(); i++){
 
