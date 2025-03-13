@@ -168,8 +168,9 @@ int run(int argc, char *argv[]){
 
     iterations_complete++;
 
-    if (mode_count > 1 && mode_change_interval > 0 && iterations_complete > 0 && (iterations_complete % mode_change_interval == 0)) {
+    if (mode_count > 1 && mode_change_interval > 0 && iterations_complete > 0 && (iterations_complete % mode_change_interval == 0) && mode_change_finished) {
         synth_current_mode = (synth_current_mode + 1) % mode_count;
+        pm::print(std::cerr, "Task ", task_index, " changing mode to ", synth_current_mode, "\n");
         modify_self(synth_current_mode);
     }
 

@@ -68,6 +68,8 @@ extern const int MAXTASKS;
 extern timespec current_period;
 extern timespec current_work;
 
+extern bool mode_change_finished;
+
 // We need a special barrier that understands the mixed-criticality mode
 // transition and the fact that different numbers of threads are expected at
 // the barrier at different times. This provides that, and should be used

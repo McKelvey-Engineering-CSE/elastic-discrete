@@ -98,6 +98,9 @@ bool explicit_sync = false;
 pid_t process_group;
 pid_t mypid;
 
+//variable to track whether or not the mode change we requested as actually finished
+bool mode_change_finished = true;
+
 //buffer to share with james simply for vanity
 std::ostringstream reschedule_buffer;
 
@@ -171,7 +174,8 @@ void modify_self(int new_mode){
 
 	if (new_mode == schedule.get_task(task_index)->get_current_mode())
 		return;
-
+	
+	mode_change_finished = false;
 	schedule.get_task(task_index)->set_current_mode(new_mode, true);
 	killpg(process_group, SIGRTMIN+0);
 
@@ -338,6 +342,9 @@ void reschedule(){
 		}
 
 	}	
+
+	//set the completion bool
+	mode_change_finished = true;
 
 }
 

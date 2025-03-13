@@ -1557,6 +1557,8 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		result.clear();
 
+		bool unschedulable = true;
+
 		for (int i = 0; i < (int) num_tasks; i++) {
 			
 
@@ -1571,6 +1573,12 @@ void Scheduler::do_schedule(size_t maxCPU){
 					result.push_back(d_final_solution[i]);
 
 			#endif
+
+			//if we end up having exclusively the same results
+			//then it means our kernel just gave us
+			//the same result for all tasks that we had before
+			if (previous_modes.at(i).cores != task_table.at(i).at(result.at(i)).cores || previous_modes.at(i).sms != task_table.at(i).at(result.at(i)).sms)
+				unschedulable = false;
 
 		}
 
@@ -1598,7 +1606,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		}
 		
-		else if ((result.size() == 0 || loss == 100001)){
+		else if ((result.size() == 0 || loss == 100001 || unschedulable)){
 
 
 			print_module::print(std::cerr, "Error: System is not schedulable in any configuration with specified constraints. Not updating modes.\n");
