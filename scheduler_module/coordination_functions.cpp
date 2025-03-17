@@ -609,9 +609,29 @@ void Scheduler::do_schedule(size_t maxCPU){
 			//via adding a node that gives up that many resources
 			dependencies.push_back({std::bitset<128>(schedule.get_task(result.size())->get_cpu_mask()).count(), std::bitset<128>(schedule.get_task(result.size())->get_gpu_mask()).count()});
 
+			//build the copy of the results vector that the build resource graph function
+			//needs as well as allocating an equal size vector to hold the lowest modes
+			std::vector<int> task_modes = result;
+
+			//for now just determine which modes dominate the others
+			//for each task and build up the lowest_modes vector here.
+			//FIXME: REPLACE LATER WITH CONSTANT ARRAY
+			std::vector<int> lowest_modes(result.size(), 0);
+
+			for (size_t i = 0; i < result.size(); i++){
+
+				for (size_t j = 0; j < task_table.at(i).size(); j++){
+
+					if (task_table.at(i).at(j).cores <= task_table.at(i).at(lowest_modes.at(i)).cores && task_table.at(i).at(j).sms <= task_table.at(i).at(lowest_modes.at(i)).sms)
+						lowest_modes.at(i) = j;
+
+				}
+
+			}
+
 			//if the call to build_resource_graph returns false, 
 			//then we have a cycle and only a barrier can allow the handoff
-			if (build_resource_graph(dependencies, nodes, static_nodes)){
+			if (build_resource_graph(dependencies, nodes, static_nodes, task_modes, lowest_modes)){
 
 				//show the resource graph (debugging)
 				print_module::print(std::cerr, "\n========================= \n", "New Schedule RAG:\n");
@@ -628,8 +648,72 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 				}
 
+				//we now need to determine whether or not the RAG builder ended up building 
+				//a single transition mode change or multiple mode changes. If it built a single
+				//mode change, we can just execute the RAG. If it built multiple mode changes, we
+				//need to do the first transition and then bring the system back up to the state 
+				//indicated by the original result vector.
+				bool multiple_mode_changes = false;
+				for (int i = 0; i < task_modes.size(); i++)
+					if (task_modes.at(i) != result.at(i))
+						multiple_mode_changes = true;
+
 				//execute the RAG we proved exists
 				execute_resource_allocation_graph(dependencies, nodes);
+
+				//if we have a second mode change to bring the system back to the original state
+				if (multiple_mode_changes){
+
+					print_module::print(std::cerr, "Multiple Mode Changes Detected\n");
+
+					//update the previous modes to the current modes
+					for (size_t i = 0; i < result.size(); i++){
+
+						previous_modes.at(i) = task_table.at(i).at(result.at(i));
+
+						//notify all tasks that they should now transition
+						(schedule.get_task(i))->set_mode_transition(false);
+
+					}
+
+					//signal the child processes
+					pid_t process_group = getpgrp();
+					killpg(process_group, SIGRTMIN+1);
+
+					//wait for all tasks to finish transitioning
+					for (int i = 0; i < schedule.count(); i++)
+						while ((schedule.get_task(i))->get_mode_transition());
+
+					//now we need to rebuild the dependencies vector
+					dependencies.clear();
+
+					for (size_t i = 0; i < result.size(); i++){
+
+						//fetch the current mode
+						auto current_mode = task_table.at(i).at(result.at(i));
+
+						//fetch the previous mode
+						auto previous_mode = previous_modes.at(i);
+
+						//add the new node
+						dependencies.push_back({previous_mode.cores - current_mode.cores, previous_mode.sms - current_mode.sms});
+
+					}
+
+					//if we have multiple mode changes, we need to bring the system back to the original state
+					//should be safe to do this without checking since we are just bringing providers and consumers
+					//back up now????
+					if (!build_resource_graph(dependencies, nodes, static_nodes, result, lowest_modes)){
+
+						std::cerr << "Unexpected error: resource graph could not be built after multiple mode changes.\n";
+						return;
+
+					}
+
+					//execute the RAG we proved exists
+					execute_resource_allocation_graph(dependencies, nodes);
+
+				}
 
 				//we do not need to check the cautious graph
 				normal_and_cautious = 2;

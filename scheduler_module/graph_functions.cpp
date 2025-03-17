@@ -11,7 +11,8 @@ we have to use multiple mode changes to achieve it.
 
 *************************************************************/
 bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_pairs, 
-                        std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node>& static_nodes) {
+                        std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node>& static_nodes, std::vector<int>& task_modes,
+						std::vector<int> lowest_modes) {
     nodes.clear();
     
     //create all nodes
@@ -120,6 +121,7 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 	std::vector<int> discovered_providers;
 	std::vector<int> discovered_consumers;
 	std::vector<int> discovered_transformers;
+	std::vector<int> original_providers_and_consumers;
 
 	//reserve
 	discovered_providers.reserve(nodes.size());
@@ -165,6 +167,11 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 
 	}
 
+	//make note of which providers were the original providers and consumers
+	original_providers_and_consumers.reserve(discovered_providers.size() + discovered_consumers.size());
+	original_providers_and_consumers.insert(original_providers_and_consumers.end(), discovered_providers.begin(), discovered_providers.end());
+	original_providers_and_consumers.insert(original_providers_and_consumers.end(), discovered_consumers.begin(), discovered_consumers.end());
+
 	//loop and discover all nodes and fix transformers
 	//(providers are just ignored)
 	int processed_transformers = 0;
@@ -173,9 +180,59 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 	while (processed_transformers < (int) discovered_transformers.size()){
 
 		//if we have no forward progress, we have a cycle
+		//However, we might be able to break the cycle
+		//by forcing some tasks to go into a lower state.
+		//We do this one at a time, checking each time to see
+		//if we were able to resolve the cycle. If we can't
+		//resolve the cycle, and we have no other tasks to test with,
+		//then we return false
 		if (last_recorded_transformers == processed_transformers){
 
-			return false;
+			//if we can lower just one task, it might be enough to break the cycle
+			//in the graph
+			bool lowered_task = false;
+
+			//try to lower the mode of one of the original
+			//producers or one of the consumers
+			for (int& original_provider_or_consumer : original_providers_and_consumers){
+
+				Node& node = nodes[original_provider_or_consumer];
+
+				//if we can't lower the mode, then we can't use this task
+				if (!schedule.get_task(original_provider_or_consumer)->cooperative() || !schedule.get_task(original_provider_or_consumer)->get_changeable() || (task_modes[original_provider_or_consumer] == lowest_modes[original_provider_or_consumer]))
+					continue;
+
+				else {
+
+					//note that we lowered a task mode
+					lowered_task = true;
+
+					//actually set this task to it's lowest mode
+					task_modes[original_provider_or_consumer] = lowest_modes[original_provider_or_consumer];
+
+					//if the task is a consumer we need to add it to the discovered providers and remove it from the consumers
+					if (node.x == 0 && node.y == 0){
+
+						discovered_providers.push_back(original_provider_or_consumer);
+						discovered_consumers.erase(std::remove(discovered_consumers.begin(), discovered_consumers.end(), original_provider_or_consumer), discovered_consumers.end());
+
+					}
+
+					//update the x and y values of the node
+					//(we subtract the difference between the current mode and the lowest mode
+					//to get the amount of resources we need to add back to the graph)
+					node.x = static_nodes[original_provider_or_consumer].x - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).cores; 
+					node.y = static_nodes[original_provider_or_consumer].y - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).sms;
+
+					//only do one at a time
+					break;
+
+				}
+
+			}
+
+			if (!lowered_task)
+				return false;
 
 		}
 
