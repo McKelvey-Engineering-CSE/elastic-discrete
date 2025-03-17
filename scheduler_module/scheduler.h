@@ -22,7 +22,6 @@ Class : shared_mem
 
 #include <vector>
 #include <algorithm>
-#include "schedule.h"
 #include <sched.h>
 #include <signal.h>
 #include <unistd.h>
@@ -30,7 +29,25 @@ Class : shared_mem
 #include <unordered_map>
 #include <unordered_set>
 #include <functional>
+#include <iostream>
+#include <cmath>
+#include <limits>
+#include <algorithm>
+#include <cerrno>
+#include <float.h>
+#include <map>
+#include <tuple>
+#include <cstring>
+#include <functional>
+#include <unordered_set>
+#include <unordered_map>
+#include <vector>
+#include <stack>
+
+#include "taskData.h"
+#include "print_module.h"
 #include "include.h"
+#include "schedule.h"
 
 //NVIDIA headers
 #ifdef __NVCC__
