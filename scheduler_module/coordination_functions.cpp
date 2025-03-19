@@ -682,7 +682,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 					//wait for all tasks to finish transitioning
 					for (int i = 0; i < schedule.count(); i++)
-						while ((schedule.get_task(i))->get_mode_transition());
+						while (!(schedule.get_task(i))->check_mode_transition());
 
 					//now we need to rebuild the dependencies vector
 					dependencies.clear();

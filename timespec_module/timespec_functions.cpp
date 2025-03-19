@@ -59,6 +59,17 @@ double operator/(const timespec & ts1, const timespec & ts2)
 	return static_cast<double>(ts1_nsecs) / ts2_nsecs;
 }
 
+long get_timespec_in_ns(const timespec ts1)
+{
+	return ts1.tv_nsec + nanosec_in_sec * ts1.tv_sec;
+}
+
+timespec timespec_from_ns(long ns)
+{
+  timespec result = { ns / nanosec_in_sec, ns % nanosec_in_sec };
+  return result;
+}
+
 //Takes the difference between two timespec structs and stores the result in
 //the specified timespec. Does no bounds checking. The result is always
 //a positive time value. 

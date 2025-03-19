@@ -160,6 +160,22 @@ tasks:
         period: {sec: 0, nsec: 149666241}
 
   - program:
+      name : james
+      args : "0 61428571 2 10"
+    elasticity : 5
+    ranges:
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 70578402}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 89082960}
+      - work: {sec: 0, nsec: 58923749}
+        span: {sec: 0, nsec: 37477674}
+        gpu_work: {sec: 0, nsec: 135763773}
+        gpu_span: {sec: 0, nsec: 29890501}
+        period: {sec: 0, nsec: 92187306}
+
+  - program:
       name: james
       args: "0 61428571 2 10"
     elasticity: 3
