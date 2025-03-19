@@ -382,29 +382,3 @@ tasks:
         gpu_work: {sec: 0, nsec: 73614960}
         gpu_span: {sec: 0, nsec: 32995742}
         period: {sec: 0, nsec: 84202435}
-
-  - program:
-      name: james
-      args: "0 61428571 2 10"
-    elasticity: 10
-    modes:
-      - work: {sec: 0, nsec: 48980042}
-        span: {sec: 0, nsec: 28074207}
-        gpu_work: {sec: 0, nsec: 73614960}
-        gpu_span: {sec: 0, nsec: 32995742}
-        period: {sec: 0, nsec: 81333562}
-      - work: {sec: 0, nsec: 59321456}
-        span: {sec: 0, nsec: 28074207}
-        gpu_work: {sec: 0, nsec: 73614960}
-        gpu_span: {sec: 0, nsec: 32995742}
-        period: {sec: 0, nsec: 82289853}
-      - work: {sec: 0, nsec: 69662870}
-        span: {sec: 0, nsec: 28074207}
-        gpu_work: {sec: 0, nsec: 73614960}
-        gpu_span: {sec: 0, nsec: 32995742}
-        period: {sec: 0, nsec: 83246144}
-      - work: {sec: 0, nsec: 80004285}
-        span: {sec: 0, nsec: 28074207}
-        gpu_work: {sec: 0, nsec: 73614960}
-        gpu_span: {sec: 0, nsec: 32995742}
-        period: {sec: 0, nsec: 84202435}
