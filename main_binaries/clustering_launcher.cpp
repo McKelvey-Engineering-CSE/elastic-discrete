@@ -553,9 +553,6 @@ int main(int argc, char *argv[])
 
 	}
 
-	//run the table generation for all unsafe task combinations
-	//scheduler->generate_unsafe_combinations();
-
 	//tell scheduler to calculate schedule for tasks
 	scheduler->do_schedule();
 	
