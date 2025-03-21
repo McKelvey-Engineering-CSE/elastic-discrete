@@ -351,7 +351,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	#else
 
-		device_do_schedule(N, maxCPU, NUMGPUS, d_task_table, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
+		device_do_schedule(N - 1, maxCPU, NUMGPUS, d_task_table, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
 
 		loss = d_final_loss;
 
