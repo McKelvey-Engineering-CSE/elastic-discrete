@@ -334,7 +334,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
 
 		//Execute exact solution
-		device_do_schedule<<<1, 1024, 0, scheduler_stream>>>(N, maxCPU, NUMGPUS, d_task_table, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
+		device_do_schedule<<<1, 1024, 0, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_task_table, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
 
 		//peek for launch errors
 		CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
@@ -347,29 +347,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(host_final, d_final_solution, MAXTASKS * sizeof(int), cudaMemcpyDeviceToHost, scheduler_stream));
 		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&loss, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, scheduler_stream));
 
-		//Also, launch up the kernel for the cautious solution
-		//since we have a single TPC for the scheduler and one core
-		//we can actually hold all 2048 threads at the same time on
-		//any cuda device. So we will just launch the kernel on the same
-		//TPC and let both execute concurrently.
-
-		//copy all the current modes to the device for the cautious run
-		int current_modes[MAXTASKS * 2] = {0};
-
-		for (int i = 0; i < schedule.count(); i++){
-
-			current_modes[i * 2 + 0] = task_table.at(i).at((schedule.get_task(i))->get_current_mode()).cores;
-			current_modes[i * 2 + 1] = task_table.at(i).at((schedule.get_task(i))->get_current_mode()).sms;
-
-		}
-
-		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(d_current_task_modes, current_modes, MAXTASKS * 2 * sizeof(int), cudaMemcpyHostToDevice, cautious_stream));
-
-		device_do_cautious_schedule<<<1, 1024, 0, cautious_stream>>>(N, maxCPU, NUMGPUS, d_task_table, d_losses, cautious_d_final_loss, d_uncooperative_tasks, cautious_d_final_solution, d_current_task_modes);
-
-		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(cautious_host_final, cautious_d_final_solution, MAXTASKS * sizeof(int), cudaMemcpyDeviceToHost, cautious_stream));
-		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&cautious_loss, cautious_d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, cautious_stream));
-		
 		CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
 
 	#else

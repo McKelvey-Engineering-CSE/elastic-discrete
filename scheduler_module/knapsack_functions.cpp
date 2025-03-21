@@ -134,7 +134,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 						solutions[i][w][v][0] = j;
 
 						//store a pointer to the previous portion of the solution in the second position
-						solutions[i][w][v][1] = ((char)(i - 1) << 16) | ((char)(w - current_item_cores) << 8) | (char)(v - current_item_sms);
+						solutions[i][w][v][1] = ((unsigned)(i - 1) << 16) | ((unsigned)(w - current_item_cores) << 8) | (unsigned)(v - current_item_sms);
 
 					}
 

@@ -549,6 +549,7 @@ int main(int argc, char *argv[])
 		if (t == parsed_tasks.size() - 1)
 		{
 			td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), gpu_work.data(), gpu_span.data(), gpu_period.data());
+			print_module::print(std::cerr, "Scheduler added to task table (parameters do not matter)\n");
 		}
 
 	}
