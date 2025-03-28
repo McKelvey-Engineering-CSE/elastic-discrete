@@ -194,6 +194,9 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 
 			//try to lower the mode of one of the original
 			//producers or one of the consumers
+
+			//FIXME: ADD DIFFERENT GREEDY FIT METHODS TO TRY HERE
+			//FIRST-FIT, BEST-FIT, WORST-FIT, ETC.
 			for (int& original_provider_or_consumer : original_providers_and_consumers){
 
 				Node& node = nodes[original_provider_or_consumer];

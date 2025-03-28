@@ -44,7 +44,7 @@
 
 #endif
 
-HOST_DEVICE_SCOPE volatile	double dp_two[MAXTASKS + 1][128 + 1][128 + 1][3];
+HOST_DEVICE_SCOPE volatile	float dp_two[MAXTASKS + 1][128 + 1][128 + 1][3];
 
 HOST_DEVICE_SCOPE volatile	double dp_two_cautious[MAXTASKS + 1][128 + 1][128 + 1][3];
 
@@ -123,7 +123,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 				//if item fits in both sacks
 				if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)) {
 
-					double newCPULoss_two = dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] - constant_losses[(i - 1) * MAXMODES + j];
+					float newCPULoss_two = dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] - (float) constant_losses[(i - 1) * MAXMODES + j];
 					
 					//if found solution is better, update
 					if ((newCPULoss_two) > (dp_two[i][w][v][0])) {
