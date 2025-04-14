@@ -82,6 +82,8 @@ HOST_DEVICE_GLOBAL void set_dp_table(){
 
 HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution){
 
+	__shared__ float shared_dp_two[2][64 + 1][64 + 1];
+
 	//loop over all tasks
 	for (int i = 1; i <= (int) num_tasks; i++) {
 
@@ -107,8 +109,11 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 			//v = gpu
 			int v = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) % (NUMGPUS + 1));
 
+			if (w > maxCPU || v > NUMGPUS)
+				continue;
+
 			//invalid state
-			dp_two[i][w][v][0] = -1.0;
+			shared_dp_two[(i & 1)][w][v] = -1.0;
 
 			//for each item in class
 			for (size_t j = j_start; j < j_end; j++) {
@@ -121,14 +126,22 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 					continue;
 
 				//if item fits in both sacks
-				if ((w >= current_item_cores) && (v >= current_item_sms) && (dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] != -1)) {
+				if ((w < current_item_cores) || (v < current_item_sms))
+					continue;
 
-					float newCPULoss_two = dp_two[i - 1][w - current_item_cores][v - current_item_sms][0] - (float) constant_losses[(i - 1) * MAXMODES + j];
+				float dp_table_loss = shared_dp_two[(i - 1) & 1][w - current_item_cores][v - current_item_sms];
+
+				if (i == 1)
+					dp_table_loss = 100000;
+
+				if ((dp_table_loss != -1)) {
+
+					float newCPULoss_two = dp_table_loss - (float) constant_losses[(i - 1) * MAXMODES + j];
 					
 					//if found solution is better, update
-					if ((newCPULoss_two) > (dp_two[i][w][v][0])) {
+					if ((newCPULoss_two) > (shared_dp_two[i & 1][w][v])) {
 
-						dp_two[i][w][v][0] = newCPULoss_two;
+						shared_dp_two[i & 1][w][v] = newCPULoss_two;
 
 						//store j into the corresponding slot of the 1d array in the first position
 						solutions[i][w][v][0] = j;
@@ -172,7 +185,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 		}
 
 		//print the final loss 
-		*final_loss = 100000 - dp_two[num_tasks][maxCPU][NUMGPUS][0];
+		*final_loss = 100000 - shared_dp_two[num_tasks & 1][maxCPU][NUMGPUS];
 
 	}
 
