@@ -82,7 +82,13 @@ HOST_DEVICE_GLOBAL void set_dp_table(){
 
 HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution){
 
+	//This table will either be stored as shared or global
+	//depending on the needed size and the capability of the
+	//device itself
 	__shared__ float shared_dp_two[2][64 + 1][64 + 1];
+
+	//assume 1 block of 1024 threads for now
+	const int pass_count = ceil(((maxCPU + 1) * (NUMGPUS + 1)) / HOST_DEVICE_BLOCK_DIM) + 1;
 
 	//loop over all tasks
 	for (int i = 1; i <= (int) num_tasks; i++) {
@@ -99,8 +105,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 		}
 
-		//assume 1 block of 1024 threads for now
-		int pass_count = ceil(((maxCPU + 1) * (NUMGPUS + 1)) / HOST_DEVICE_BLOCK_DIM) + 1;
+		//for each pass we are supposed to do
 		for (int k = 0; k < pass_count; k++){
 
 			//w = cpu
