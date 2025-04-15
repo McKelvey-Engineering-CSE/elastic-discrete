@@ -206,18 +206,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		#endif
 
-		#ifdef __NVCC__
-
-			set_dp_table<<<1, 1, 0, scheduler_stream>>>();
-
-			CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
-
-		#else 
-
-			set_dp_table();
-
-		#endif
-
 	}
 
 	int N = task_table.size();
