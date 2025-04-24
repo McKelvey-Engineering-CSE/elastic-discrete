@@ -169,6 +169,9 @@ void sigrt1_handler(int signum){
 	needs_reschedule = true;
 }
 
+//FIXME: THE TASK DOESN'T KNOW WHAT MODE IT ACTUALLY WANTS, IT JUST KNOWS
+//IT NEEDS ONE OF THE MODES WHICH IS DESCRIBED BY THE POSSIBLE MODES WHICH
+//ARE MAPPED TO THAT ONE REAL MODE.
 void modify_self(int new_mode){
 
 	if (new_mode == schedule.get_task(task_index)->get_current_mode())
@@ -177,6 +180,14 @@ void modify_self(int new_mode){
 	mode_change_finished = false;
 	schedule.get_task(task_index)->set_current_mode(new_mode, true);
 	killpg(process_group, SIGRTMIN+0);
+
+}
+
+int get_current_mode(){
+
+	int underlying_mode = schedule.get_task(task_index)->get_current_mode();
+
+	return schedule.get_task(task_index)->get_real_mode(underlying_mode);
 
 }
 
@@ -574,7 +585,7 @@ int main(int argc, char *argv[])
 	//print active vs passive CPUs
 	print_module::buffered_print(task_info, "CPU Core Configuration: \n");
 	print_module::buffered_print(task_info, "	- Active: ", convertToRanges(active_cpu_string), "\n");
-	print_module::buffered_print(task_info, "	- Passive: ", convertToRanges(passive_cpu_string), "\n\n");
+	//print_module::buffered_print(task_info, "	- Passive: ", convertToRanges(passive_cpu_string), "\n\n");
 
 	//command line params
 	print_module::buffered_print(task_info, "Command Line Parameters: \n");

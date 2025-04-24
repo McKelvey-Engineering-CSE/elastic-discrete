@@ -498,7 +498,7 @@ int main(int argc, char *argv[])
 		//Insert the task data into shared memory
 		TaskData * td;
     
-    //FIXME: GPU INFO JUST USES THE CPU PORTION OF THE INFO. REPLACE WITH REAL INFORMATION
+    	//FIXME: GPU INFO JUST USES THE CPU PORTION OF THE INFO. REPLACE WITH REAL INFORMATION
 		td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), gpu_work.data(), gpu_span.data(), gpu_period.data());
 		task_manager_argvector.push_back(std::to_string(td->get_index()));
 		
@@ -523,6 +523,7 @@ int main(int argc, char *argv[])
 		//Null terminate the task manager arg vector as a sentinel
 		task_manager_argv.push_back(NULL);	
 		print_module::print(std::cerr, "Forking and execv-ing task " , std::string(task_info.C_program_name).c_str() , "\n");
+		std::cerr << std::endl;
 		
 		// Fork and execv the task program
 		pid_t pid = fork();

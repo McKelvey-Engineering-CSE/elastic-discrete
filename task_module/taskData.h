@@ -81,6 +81,11 @@ private:
 	timespec GPU_period[MAXMODES];
 	int GPUs[MAXMODES];
 
+	//simple map to assign multiple possible
+	//mode configurations to a single mode
+	int mode_map[MAXMODES];
+	int real_current_mode;
+
 	//These are computed.
 	double max_utilization;
 	int max_CPUs;
@@ -117,6 +122,8 @@ private:
 	timespec max_work;
 
 	bool cooperative_bool = true;
+
+	int number_of_modes = 0;
 
 	//TPC mask
 	__uint128_t TPC_mask = 0;
@@ -178,6 +185,9 @@ public:
 	double get_max_utilization();
 	int get_max_CPUs();
 	int get_min_CPUs();
+
+	int get_real_mode(int mode);
+	int get_number_of_modes();
 
 	int get_practical_max_CPUs();
 	void set_practical_max_CPUs(int new_value);

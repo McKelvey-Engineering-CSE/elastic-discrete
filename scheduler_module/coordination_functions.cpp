@@ -49,7 +49,9 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 
 	std::cout << "Task Losses:" << std::endl; 
 
-	for (int j = 0; j < num_modes_; j++){
+	int total_modes = taskData_object->get_number_of_modes();
+
+	for (int j = 0; j < total_modes; j++){
 
 		task_mode item;
 
@@ -61,7 +63,7 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 		else 
 			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - ((taskData_object->get_work(j) / taskData_object->get_period(j)) + (taskData_object->get_GPU_work(j) / taskData_object->get_period(j))), 2)));
 
-		std::cout << "Mode "<< j << " Loss: " << item.cpuLoss << std::endl;
+		std::cout << "Mode "<< j << " Loss: " << item.cpuLoss << " Cores: " << taskData_object->get_CPUs(j) << " SMS: " << taskData_object->get_GPUs(j) << std::endl;
 
 		item.gpuLoss = 0;
 		item.cores = taskData_object->get_CPUs(j);
@@ -133,7 +135,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 			previous_modes.push_back(task_mode());
 
 		//MAXTASKS tasks, 4 modes (0-3): cores, sms, cpuLoss
-		int host_task_table[MAXTASKS * MAXMODES * 2];
+		int host_task_table[MAXTASKS * MAXMODES * 3];
 		double host_losses[MAXTASKS * MAXMODES];
 
 		//find largest number of modes in the task table
@@ -147,17 +149,22 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 			for (int j = 0; j < (int) task_table.at(i).size(); j++){
 
-				host_task_table[i * MAXMODES * 2 + j * 2 + 0] = task_table.at(i).at(j).cores;
-				host_task_table[i * MAXMODES * 2 + j * 2 + 1] = task_table.at(i).at(j).sms;
+				host_task_table[i * MAXMODES * 3 + j * 3 + 0] = task_table.at(i).at(j).cores;
+				host_task_table[i * MAXMODES * 3 + j * 3 + 1] = task_table.at(i).at(j).sms;
+
+				//set the real mode to the mode number
+				host_task_table[i * MAXMODES * 3 + j * 3 + 2] = (schedule.get_task(i))->get_real_mode(j);
+
 				host_losses[i * MAXMODES + j] = task_table.at(i).at(j).cpuLoss;
 
 			}
 
 			//if this task had fewer modes than max, pad all the rest with -1
-			for (int j = (int) task_table.at(i).size(); j < max_modes; j++){
+			for (int j = (int) task_table.at(i).size(); j < MAXMODES; j++){
 
-				host_task_table[i * MAXMODES * 2 + j * 2 + 0] = -1;
-				host_task_table[i * MAXMODES * 2 + j * 2 + 1] = -1;
+				host_task_table[i * MAXMODES * 3 + j * 3 + 0] = -1;
+				host_task_table[i * MAXMODES * 3 + j * 3 + 1] = -1;
+				host_task_table[i * MAXMODES * 3 + j * 3 + 2] = -1;
 				host_losses[i * MAXMODES + j] = -1;
 
 			}
@@ -167,21 +174,21 @@ void Scheduler::do_schedule(size_t maxCPU){
 		//get the symbol on the device
 		#ifdef __NVCC__
 
-			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_task_table, sizeof(int) * MAXTASKS * MAXMODES * 2));
+			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_uncooperative_tasks, sizeof(int) * MAXTASKS));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_final_solution, sizeof(int) * MAXTASKS));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&cautious_d_final_solution, sizeof(int) * MAXTASKS));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_losses, sizeof(double) * MAXTASKS * MAXMODES));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_final_loss, sizeof(double)));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&cautious_d_final_loss, sizeof(double)));
-			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_current_task_modes, sizeof(int) * MAXTASKS * 2));
+			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_current_task_modes, sizeof(int) * MAXTASKS * 3));
 
 		#else 
 
-			malloc(d_task_table, sizeof(int) * MAXTASKS * MAXMODES * 2);
+			malloc(d_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3);
 			malloc(d_uncooperative_tasks, sizeof(int) * MAXTASKS);
 			malloc(d_final_solution, sizeof(int) * MAXTASKS);
-			malloc(d_current_task_modes, sizeof(int) * MAXTASKS * 2);
+			malloc(d_current_task_modes, sizeof(int) * MAXTASKS * 3);
 			malloc(d_losses, sizeof(double) * MAXTASKS * MAXMODES);
 			malloc(d_final_loss, sizeof(double));
 
@@ -190,18 +197,18 @@ void Scheduler::do_schedule(size_t maxCPU){
 		//copy it
 		#ifdef __NVCC__
 
-			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 2, cudaMemcpyHostToDevice));
+			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3, cudaMemcpyHostToDevice));
 			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_losses, host_losses, sizeof(double) * MAXTASKS * MAXMODES, cudaMemcpyHostToDevice));
 
-			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_task_table, &host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 2));
+			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_task_table, &host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3));
 			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_losses, &host_losses, sizeof(double) * MAXTASKS * MAXMODES));
 
 		#else 
 
-			memcpy(d_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 2);
+			memcpy(d_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3);
 			memcpy(d_losses, host_losses, sizeof(double) * MAXTASKS * MAXMODES);
 
-			memcpy(constant_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 2);
+			memcpy(constant_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3);
 			memcpy(constant_losses, host_losses, sizeof(double) * MAXTASKS * MAXMODES);
 
 		#endif

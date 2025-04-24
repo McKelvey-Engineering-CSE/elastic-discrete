@@ -34,6 +34,54 @@ TaskData::TaskData(bool free_resources){
 
 }
 
+static std::vector<std::pair<int,int>> computeModeResources(double CpA, double L_A,
+   										                    double CpB, double L_B,
+        									                double T){
+
+    // bounds on mA:
+    int mA_min = (CpA == 0 ? 1 : std::ceil((CpA - L_A) / (T - L_A)));
+    int mA_max = (CpA == 0 ? 1 : std::ceil((CpA - L_A) / 1));
+
+	if (mA_max > NUMCPUS)
+		mA_max = NUMCPUS;
+
+    std::vector<std::pair<int,int>> result;
+    
+    for (int mA = mA_min; mA <= mA_max; ++mA) {
+        
+        // actual A-phase finish time
+        double tA = ((CpA - L_A) / mA) + L_A;
+        
+        if (tA < 0) continue;
+        
+        double tB_window = T - tA;
+        if (tB_window <= L_B) continue;
+
+        // cores needed for B
+        int mB = (CpB == 0 ? 0 : std::ceil((CpB - L_B) / (tB_window - L_B)));
+            
+        bool add = true;
+        
+        for (auto res : result){
+            if (res.second == mB && res.first <= mA)
+                add = false;
+        }
+        
+        if (add)
+            result.emplace_back(mA, mB);
+            
+        
+    }
+
+	if (result.empty()){
+		print_module::print(std::cerr, "Error: No valid mode found for task with parameters ", CpA, " ", L_A, " ", CpB, " ", L_B, " ", T, "\n");
+		exit(-1);
+	}
+    
+    return result;
+    
+}
+
 TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, 
 														timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_) : 	
 																													
@@ -54,22 +102,7 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 		print_module::print(std::cerr, "ERROR: No task can have more than ", MAXMODES,  " modes.\n");
 		kill(0, SIGTERM);
 	
-	}
-
-	//read in all the task parameters
-	for (int i = 0; i < num_modes; i++){
-
-		//CPU parameters
-		work[i] = *(work_ + i); 
-		span[i] = *(span_ + i); 
-		period[i] = *(period_ + i); 
-
-		//GPU parameters
-		GPU_work[i] = *(gpu_work_ + i);
-		GPU_span[i] = *(gpu_span_ + i);
-		GPU_period[i] = *(gpu_period_ + i);
-	
-	}			
+	}		
 
 	for (int i = 0; i < num_modes; i++)
 		print_module::print(std::cout, work[i], " ", span[i], " ", period[i], " ", GPU_work[i], " ", GPU_span[i], "\n");	
@@ -77,74 +110,85 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 	timespec numerator;
 	timespec denominator;
 
+	int mode_options = 0;
+	int next_position = 0;
+
 	//determine resources
 	for (int i = 0; i < num_modes; i++){
 
-		//determine if the task is a hybrid task or not
-		if (GPU_work[i] == timespec({0, 0}) &&  GPU_span[i] == timespec({0, 0})){
+		//fetch the mode parameters
+		timespec work_l = *(work_ + i); 
+		timespec span_l = *(span_ + i);
+		timespec period_l = *(period_ + i);
+		timespec GPU_work_l = *(gpu_work_ + i);
+		timespec GPU_span_l = *(gpu_span_ + i);
+		timespec GPU_period_l = *(gpu_period_ + i);
 
-			//CPU resources
-			if (work[i] / period[i] > max_utilization)
-				max_utilization = work[i] / period[i];
+		//fetch each mode parameter as a long
+		double work_long = get_timespec_in_ns(work_l);
+		double span_long = get_timespec_in_ns(span_l);
+		double period_long = get_timespec_in_ns(period_l);
+		double GPU_work_long = get_timespec_in_ns(GPU_work_l);
+		double GPU_span_long = get_timespec_in_ns(GPU_span_l);
 
-			ts_diff(work[i], span[i], numerator);
-			ts_diff(period[i], span[i], denominator);
+		//pass to the computeModeResources function
+		auto resources = computeModeResources(work_long, span_long, GPU_work_long, GPU_span_long, period_long);
+		mode_options += resources.size();
 
-			CPUs[i] = (int)ceil(numerator / denominator);
+		//loop over the resources and store them in the table
+		for (auto res : resources){
 
-			GPUs[i] = 0;
+			//store the CPU and GPU resources
+			CPUs[next_position] = res.first;
+			GPUs[next_position] = res.second;
+
+			//map the mode
+			mode_map[next_position] = i;
+
+			//update the parameters
+			if (CPUs[next_position] > max_CPUs)
+				max_CPUs = CPUs[next_position];
+
+			if (CPUs[next_position] < min_CPUs)
+				min_CPUs = CPUs[next_position];
+
+			if (GPUs[next_position] > max_GPUs)
+				max_GPUs = GPUs[next_position];
+
+			if (GPUs[next_position] < min_GPUs)
+				min_GPUs = GPUs[next_position];
+
+			//set the params for this mode
+			work[next_position] = work_l;
+			span[next_position] = span_l;
+			period[next_position] = period_l;
+			GPU_work[next_position] = GPU_work_l;
+			GPU_span[next_position] = GPU_span_l;
+			GPU_period[next_position] = GPU_period_l;
+
+			//update max utilization
+			if (((work_l / period_l) + (GPU_work_l / period_l)) > max_utilization)
+				max_utilization = ((work_l / period_l) + (GPU_work_l / period_l));
+
+			if (++next_position >= MAXMODES){
+
+				print_module::print(std::cerr, "ERROR: No task can have more than ", MAXMODES, " modes.\n");
+				kill(0, SIGTERM);
+			
+			}
 
 		}
-
-		//if the task is hybrid, the calc has period / 2
-		else {
-
-			//CPU resources
-			if (((work[i] / period[i]) + (GPU_work[i] / period[i])) > max_utilization)
-				max_utilization = ((work[i] / period[i]) + (GPU_work[i] / period[i]));
-
-			//calc the modified period
-			auto modified_period = (period[i] / 2);
-
-			ts_diff(work[i], span[i], numerator);
-			ts_diff(modified_period, span[i], denominator);
-
-			CPUs[i] = (int)ceil(numerator / denominator);
-
-			//isofunctional tasks can have only usage for core B
-			//but since for now, core A is still dominant, we force
-			//it to hold on to it's permanent core regardless of whether
-			//or not it has a use for it
-			if (CPUs[i] == 0)
-				CPUs[i] = 1;
-
-			//GPU resources
-			ts_diff(GPU_work[i], GPU_span[i], numerator);
-			ts_diff(modified_period, GPU_span[i], denominator);
-
-			GPUs[i] = (int)ceil(numerator / denominator);
-
-			is_pure_cpu_task = false;
-
-		}
-
-		//update the parameters
-		if (CPUs[i] > max_CPUs)
-			max_CPUs = CPUs[i];
-
-		if (CPUs[i] < min_CPUs)
-			min_CPUs = CPUs[i];
 
 		if (work[i] > max_work)
 			max_work = work[i];
 
-		if (GPUs[i] > max_GPUs)
-			max_GPUs = GPUs[i];
-
-		if (GPUs[i] < min_GPUs)
-			min_GPUs = GPUs[i];
+		if (GPU_work[i] != timespec({0, 0}) &&  GPU_span[i] != timespec({0, 0}))
+			is_pure_cpu_task = false;
 
 	}
+
+	num_modes = mode_options;
+	number_of_modes = mode_options;
 
 	//loop over all modes, and compare the allocated processor A
 	//and processor B to all other modes in the task. If the task
@@ -233,6 +277,10 @@ int TaskData::counter = 0;
 
 int TaskData::get_index(){
 	return index;
+}
+
+int TaskData::get_number_of_modes(){
+	return number_of_modes;
 }
 
 int TaskData::get_CPUs_gained(){
@@ -351,6 +399,10 @@ int TaskData::get_current_lowest_GPU(){
 	return current_lowest_GPU;
 }
 
+int TaskData::get_real_mode(int mode){
+	return mode_map[mode];
+}
+
 void TaskData::reset_mode_to_previous(){
 
 	current_mode = previous_mode;
@@ -387,6 +439,9 @@ void TaskData::set_current_mode(int new_mode, bool disable)
 
 		//update the changeable flag
 		changeable = (disable) ? false : true;
+
+		//set the current mode notation to something the task actually can use
+		real_current_mode = get_real_mode(current_mode);
 
 	}
 

@@ -44,18 +44,21 @@
 
 #endif
 
+__shared__ float shared_dp_two[2][64 + 1][64 + 1];
+
 HOST_DEVICE_SCOPE volatile int solutions[MAXTASKS][128 + 1][128 + 1][2];
 
-HOST_DEVICE_CONSTANT int constant_task_table[MAXTASKS * MAXMODES * 2];
+HOST_DEVICE_CONSTANT int constant_task_table[MAXTASKS * MAXMODES * 3];
 
 HOST_DEVICE_CONSTANT double constant_losses[MAXTASKS * MAXMODES];
 
 HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution){
 
-	__shared__ float shared_dp_two[2][64 + 1][64 + 1];
-
 	//assume 1 block of 1024 threads for now
 	const int pass_count = ceil(((maxCPU + 1) * (NUMGPUS + 1)) / HOST_DEVICE_BLOCK_DIM) + 1;
+
+	//store the indices we will be using
+	int indices[12][2];
 
 	//loop over all tasks
 	for (int i = 1; i <= (int) num_tasks; i++) {
@@ -64,22 +67,29 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 		int j_start = 0;
 		int j_end = MAXMODES;
 
-		//check if cooperative
-		if ((uncooperative_tasks[i - 1])){
-
-			j_start = uncooperative_tasks[i - 1];
-			j_end = j_start + 1;
-
-		}
+		//check if it is cooperative
+		int desired_state = -1;
+		if (uncooperative_tasks[i - 1])
+			desired_state = uncooperative_tasks[i - 1];
 
 		//for each pass we are supposed to do
 		for (int k = 0; k < pass_count; k++){
 
+			if (i == 1){
+
+				//w = cpu
+				indices[k][0] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) / (NUMGPUS + 1));
+				
+				//v = gpu
+				indices[k][1] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) % (NUMGPUS + 1));
+
+			}
+
 			//w = cpu
-			int w = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) / (NUMGPUS + 1));
-			
+			int w = indices[k][0];
+
 			//v = gpu
-			int v = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) % (NUMGPUS + 1));
+			int v = indices[k][1];
 
 			if (w > maxCPU || v > NUMGPUS)
 				continue;
@@ -91,8 +101,14 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 			for (size_t j = j_start; j < j_end; j++) {
 
 				//fetch initial suspected resource values
-				int current_item_sms = constant_task_table[(i - 1) * MAXMODES * 2 + j * 2 + 1];
-				int current_item_cores = constant_task_table[(i - 1) * MAXMODES * 2 + j * 2];
+				int current_item_sms = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 1];
+				int current_item_cores = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3];
+				int current_item_real_mode = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 2];
+
+				//check if the current task is non cooperative
+				if (desired_state != -1)
+					if (current_item_real_mode != desired_state)
+						continue;
 
 				if (current_item_cores == -1 || current_item_sms == -1)
 					continue;
