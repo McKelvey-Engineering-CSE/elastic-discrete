@@ -104,9 +104,6 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 	
 	}		
 
-	for (int i = 0; i < num_modes; i++)
-		print_module::print(std::cout, work[i], " ", span[i], " ", period[i], " ", GPU_work[i], " ", GPU_span[i], "\n");	
-
 	timespec numerator;
 	timespec denominator;
 
@@ -117,12 +114,12 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 	for (int i = 0; i < num_modes; i++){
 
 		//fetch the mode parameters
-		timespec work_l = *(work_ + i); 
-		timespec span_l = *(span_ + i);
-		timespec period_l = *(period_ + i);
-		timespec GPU_work_l = *(gpu_work_ + i);
-		timespec GPU_span_l = *(gpu_span_ + i);
-		timespec GPU_period_l = *(gpu_period_ + i);
+		timespec work_l = work_[i];
+		timespec span_l = span_[i];
+		timespec period_l = period_[i];
+		timespec GPU_work_l = gpu_work_[i];
+		timespec GPU_span_l = gpu_span_[i];
+		timespec GPU_period_l = gpu_period_[i];
 
 		//fetch each mode parameter as a long
 		double work_long = get_timespec_in_ns(work_l);
@@ -187,6 +184,11 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 	}
 
+	print_module::print(std::cout, "Task ", index, " has ", num_modes, " modes:\n");
+	for (int i = 0; i < num_modes; i++)
+		print_module::print(std::cout, work_[i], " ", span_[i], " ", period_[i], " ", gpu_work_[i], " ", gpu_span_[i], "\n");
+	print_module::print(std::cout, "\n");
+	
 	num_modes = mode_options;
 	number_of_modes = mode_options;
 
