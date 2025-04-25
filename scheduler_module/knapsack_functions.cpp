@@ -63,6 +63,8 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 	#endif
 
+	int modes_skipped = 0;
+
 	//assume 1 block of 1024 threads for now
 	const int pass_count = ceil(((maxCPU + 1) * (NUMGPUS + 1)) / HOST_DEVICE_BLOCK_DIM) + 1;
 
@@ -163,6 +165,13 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 				int current_item_sms = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 1];
 				int current_item_cores = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3];
 				int current_item_real_mode = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 2];
+
+				//check the change in processors
+				int delta_cores = task_table[(i - 1) * 2] - current_item_cores;
+				int delta_sms = task_table[((i - 1) * 2) + 1] - current_item_sms;
+
+				if (delta_cores * delta_sms < 0)
+					continue;
 
 				if (current_item_cores == -1 || current_item_sms == -1)
 					continue;

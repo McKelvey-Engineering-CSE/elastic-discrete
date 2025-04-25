@@ -174,21 +174,21 @@ void Scheduler::do_schedule(size_t maxCPU){
 		//get the symbol on the device
 		#ifdef __NVCC__
 
-			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3));
+			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_task_table, sizeof(int) * MAXTASKS * 2));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_uncooperative_tasks, sizeof(int) * MAXTASKS));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_final_solution, sizeof(int) * MAXTASKS));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&cautious_d_final_solution, sizeof(int) * MAXTASKS));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_losses, sizeof(double) * MAXTASKS * MAXMODES));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_final_loss, sizeof(double)));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&cautious_d_final_loss, sizeof(double)));
-			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_current_task_modes, sizeof(int) * MAXTASKS * 3));
+			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_current_task_modes, sizeof(int) * MAXTASKS * 2));
 
 		#else 
 
-			malloc(d_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3);
+			malloc(d_task_table, sizeof(int) * MAXTASKS * 2);
 			malloc(d_uncooperative_tasks, sizeof(int) * MAXTASKS);
 			malloc(d_final_solution, sizeof(int) * MAXTASKS);
-			malloc(d_current_task_modes, sizeof(int) * MAXTASKS * 3);
+			malloc(d_current_task_modes, sizeof(int) * MAXTASKS * 2);
 			malloc(d_losses, sizeof(double) * MAXTASKS * MAXMODES);
 			malloc(d_final_loss, sizeof(double));
 
@@ -197,7 +197,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 		//copy it
 		#ifdef __NVCC__
 
-			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3, cudaMemcpyHostToDevice));
 			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_losses, host_losses, sizeof(double) * MAXTASKS * MAXMODES, cudaMemcpyHostToDevice));
 
 			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_task_table, &host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3));
@@ -326,10 +325,30 @@ void Scheduler::do_schedule(size_t maxCPU){
 	//on the host
 	#ifdef __NVCC__
 
+		//copy over the current state of the task system
+		int host_current_modes[MAXTASKS * 2] = {0};
+
+		if (!first_time){
+
+			for (int i = 0; i < MAXTASKS; i++){
+
+				//make sure we are not going out of bounds
+				if (i < (int) previous_modes.size()){
+
+					host_current_modes[i * 2] = previous_modes.at(i).cores;
+					host_current_modes[i * 2 + 1] = previous_modes.at(i).sms;
+
+				}
+
+			}
+
+		}
+
+		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, host_current_modes, sizeof(int) * MAXTASKS * 2, cudaMemcpyHostToDevice));
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
 
 		//Execute exact solution
-		device_do_schedule<<<1, 1024, 0, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_task_table, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
+		device_do_schedule<<<1, 1024, 0, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
 
 		//peek for launch errors
 		CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
@@ -346,7 +365,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	#else
 
-		device_do_schedule(N - 1, maxCPU, NUMGPUS, d_task_table, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
+		device_do_schedule(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
 
 		loss = d_final_loss;
 
