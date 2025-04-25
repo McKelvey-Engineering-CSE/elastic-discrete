@@ -65,7 +65,7 @@ void update_core_B(__uint128_t mask) {
         //now copy the TPC elements we have been granted
         unsigned int total_TPCS = __builtin_popcount(mask);
 
-        std::cerr << "Total TPCS: " << total_TPCS << std::endl;
+        //std::cerr << "Total TPCS: " << total_TPCS << std::endl;
 
         if (total_TPCS == 0)
             return;
@@ -133,14 +133,14 @@ int run(int argc, char *argv[]){
 
     std::atomic<int> count = 0;
 
-    print_module::buffered_print(buffer, "\n(", getpid(), ") [", task_index, "] [Threads]: \n");
+    //print_module::buffered_print(buffer, "\n(", getpid(), ") [", task_index, "] [Threads]: \n");
 
     #ifdef OMP_OVERRIDE
 
         omp( pragma_omp_parallel
         {
 
-            pm::buffered_print(buffer, "ompish Thread ", thread_id, " on core ", sched_getcpu(), " of ", team_dim, " threads\n");
+            //pm::buffered_print(buffer, "ompish Thread ", thread_id, " on core ", sched_getcpu(), " of ", team_dim, " threads\n");
 
             count++;
 
@@ -153,7 +153,7 @@ int run(int argc, char *argv[]){
         #pragma omp parallel
         {
 
-            pm::buffered_print(buffer, "omp Thread ", omp_get_thread_num(), " on core ", sched_getcpu(), " of ", omp_get_num_threads(), " threads\n");
+            //pm::buffered_print(buffer, "omp Thread ", omp_get_thread_num(), " on core ", sched_getcpu(), " of ", omp_get_num_threads(), " threads\n");
 
             count++;
 
@@ -163,14 +163,14 @@ int run(int argc, char *argv[]){
 
     #endif
 
-    pm::buffered_print(buffer, "TEST: [", task_index, ",", iterations_complete, "] core count: ", count, "\n");
-    pm::flush(std::cerr, buffer);
+    //pm::buffered_print(buffer, "TEST: [", task_index, ",", iterations_complete, "] core count: ", count, "\n");
+    //pm::flush(std::cerr, buffer);
 
     iterations_complete++;
 
     if (mode_count > 1 && mode_change_interval > 0 && iterations_complete > 0 && (iterations_complete % mode_change_interval == 0) && mode_change_finished) {
         synth_current_mode = (synth_current_mode + 1) % mode_count;
-        pm::print(std::cerr, "Task ", task_index, " changing mode to ", synth_current_mode, "\n");
+        //pm::print(std::cerr, "Task ", task_index, " changing mode to ", synth_current_mode, "\n");
         modify_self(synth_current_mode);
     }
 

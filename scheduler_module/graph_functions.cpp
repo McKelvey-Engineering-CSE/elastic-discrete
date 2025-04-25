@@ -188,6 +188,8 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 		//then we return false
 		if (last_recorded_transformers == processed_transformers){
 
+			return false;
+
 			//if we can lower just one task, it might be enough to break the cycle
 			//in the graph
 			bool lowered_task = false;
@@ -248,11 +250,10 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 			if (current_transformer == -1)
 				continue;
 
-			Node& node = nodes[current_transformer];
+			Node& transformer = nodes[current_transformer];
 
-			Node& consumer = nodes[current_transformer];
-			int needed_x = -consumer.x;
-			int needed_y = -consumer.y;
+			int needed_x = -transformer.x;
+			int needed_y = -transformer.y;
 
 			int possible_x = 0;
 			int possible_y = 0;
@@ -315,6 +316,11 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 			}
 
 			//now this once transformer is a provider
+			if (transformer.x < 0)
+				transformer.x = 0;
+			if (transformer.y < 0)
+				transformer.y = 0;
+
 			discovered_providers.push_back(current_transformer);
 
 			current_transformer = -1;
@@ -521,11 +527,10 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 				if (current_transformer == -1)
 					continue;
 
-				Node& node = nodes[current_transformer];
+				Node& transformer = nodes[current_transformer];
 
-				Node& consumer = nodes[current_transformer];
-				int needed_x = -consumer.x;
-				int needed_y = -consumer.y;
+				int needed_x = -transformer.x;
+				int needed_y = -transformer.y;
 
 				int possible_x = 0;
 				int possible_y = 0;
@@ -592,6 +597,11 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 				}
 
 				//now this once transformer is a provider
+				if (transformer.x < 0)
+					transformer.x = 0;
+				if (transformer.y < 0)
+					transformer.y = 0;
+
 				discovered_providers.push_back(current_transformer);
 
 				current_transformer = -1;

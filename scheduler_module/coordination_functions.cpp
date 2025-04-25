@@ -344,6 +344,12 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		}
 
+		else{
+
+			CUDA_NEW_SAFE_CALL(cudaFuncSetAttribute(device_do_schedule, cudaFuncAttributePreferredSharedMemoryCarveout, 90));
+
+		}
+
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, host_current_modes, sizeof(int) * MAXTASKS * 2, cudaMemcpyHostToDevice));
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
 
