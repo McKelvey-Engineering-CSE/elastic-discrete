@@ -58,10 +58,10 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 		//the loss function is different if the 
 		//task is a pure cpu task or hybrid task
 		if (taskData_object->pure_cpu_task())
-			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - (taskData_object->get_work(j) / taskData_object->get_period(j)), 2)));
+			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - (taskData_object->get_work(j) / taskData_object->get_period(j)), 2)));// * 1000;
 		
 		else 
-			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - ((taskData_object->get_work(j) / taskData_object->get_period(j)) + (taskData_object->get_GPU_work(j) / taskData_object->get_period(j))), 2)));
+			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - ((taskData_object->get_work(j) / taskData_object->get_period(j)) + (taskData_object->get_GPU_work(j) / taskData_object->get_period(j))), 2)));// * 1000;
 
 		std::cout << "Mode "<< j << " Loss: " << item.cpuLoss << " Cores: " << taskData_object->get_CPUs(j) << " SMS: " << taskData_object->get_GPUs(j) << std::endl;
 
@@ -136,7 +136,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		//MAXTASKS tasks, 4 modes (0-3): cores, sms, cpuLoss
 		int host_task_table[MAXTASKS * MAXMODES * 3];
-		double host_losses[MAXTASKS * MAXMODES];
+		float host_losses[MAXTASKS * MAXMODES];
 
 		//find largest number of modes in the task table
 		int max_modes = 0;
@@ -200,7 +200,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_losses, host_losses, sizeof(double) * MAXTASKS * MAXMODES, cudaMemcpyHostToDevice));
 
 			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_task_table, &host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3));
-			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_losses, &host_losses, sizeof(double) * MAXTASKS * MAXMODES));
+			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_losses, &host_losses, sizeof(float) * MAXTASKS * MAXMODES));
 
 		#else 
 
@@ -208,7 +208,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 			memcpy(d_losses, host_losses, sizeof(double) * MAXTASKS * MAXMODES);
 
 			memcpy(constant_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3);
-			memcpy(constant_losses, host_losses, sizeof(double) * MAXTASKS * MAXMODES);
+			memcpy(constant_losses, host_losses, sizeof(float) * MAXTASKS * MAXMODES);
 
 		#endif
 
@@ -344,12 +344,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		}
 
-		else{
-
-			CUDA_NEW_SAFE_CALL(cudaFuncSetAttribute(device_do_schedule, cudaFuncAttributePreferredSharedMemoryCarveout, 90));
-
-		}
-
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, host_current_modes, sizeof(int) * MAXTASKS * 2, cudaMemcpyHostToDevice));
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
 
@@ -381,8 +375,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	result.clear();
 
-	bool unschedulable = true;
-
 	for (int i = 0; i < (int) num_tasks; i++) {
 		
 
@@ -397,12 +389,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 				result.push_back(d_final_solution[i]);
 
 		#endif
-
-		//if we end up having exclusively the same results
-		//then it means our kernel just gave us
-		//the same result for all tasks that we had before
-		if (previous_modes.at(i).cores != task_table.at(i).at(result.at(i)).cores || previous_modes.at(i).sms != task_table.at(i).at(result.at(i)).sms)
-			unschedulable = false;
 
 	}
 
@@ -425,7 +411,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	}
 	
-	else if ((result.size() == 0 || loss == 100001 || unschedulable)){
+	else if ((result.size() == 0 || loss == 100001)){
 
 
 		print_module::print(std::cerr, "Error: System is not schedulable in any configuration with specified constraints. Not updating modes.\n");

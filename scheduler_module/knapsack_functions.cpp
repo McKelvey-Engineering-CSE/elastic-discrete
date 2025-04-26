@@ -46,18 +46,22 @@
 
 __shared__ float shared_dp_two[2][64 + 1][64 + 1];
 
-__device__ volatile char shared_resource_pool[2][64 + 1][64 + 1][2];
-
-__shared__ int start_index;
-__shared__ int end_index;
-
-HOST_DEVICE_SCOPE volatile int solutions[MAXTASKS][128 + 1][128 + 1][2];
+HOST_DEVICE_SCOPE volatile int solutions[MAXTASKS][128 + 1][128 + 1];
 
 HOST_DEVICE_CONSTANT int constant_task_table[MAXTASKS * MAXMODES * 3];
 
-HOST_DEVICE_CONSTANT double constant_losses[MAXTASKS * MAXMODES];
+HOST_DEVICE_CONSTANT float constant_losses[MAXTASKS * MAXMODES];
 
 HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution){
+
+	//shared variables for determining the start and end of 
+	//the indices for uncooperative tasks
+	#ifdef __NVCC__
+
+		__shared__ int start_index;
+		__shared__ int end_index;
+
+	#endif
 
 	int modes_skipped = 0;
 
@@ -69,6 +73,8 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 	//loop over all tasks
 	for (int i = 1; i <= (int) num_tasks; i++) {
+
+		__syncthreads();
 
 		//gather task info
 		int j_start = 0;
@@ -124,6 +130,8 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 		//for each pass we are supposed to do
 		for (int k = 0; k < pass_count; k++){
 
+			__syncthreads();
+
 			if (i == 1){
 
 				//w = cpu
@@ -144,7 +152,8 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 				continue;
 
 			//invalid state
-			shared_dp_two[(i & 1)][w][v] = -1.0;
+			shared_dp_two[(i & 1)][w][v] = 100000;
+			solutions[i][w][v] = -1;
 
 			//for each item in class
 			for (size_t j = j_start; j < j_end; j++) {
@@ -154,7 +163,6 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 					if (desired_state != -1)
 						if (current_item_real_mode != desired_state)
 							continue;
-
 				#endif
 
 				//fetch initial suspected resource values
@@ -166,62 +174,32 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 				int delta_cores = task_table[(i - 1) * 2] - current_item_cores;
 				int delta_sms = task_table[((i - 1) * 2) + 1] - current_item_sms;
 
+				if (delta_cores * delta_sms < 0)
+					continue;
+
 				if (current_item_cores == -1 || current_item_sms == -1)
 					continue;
 
 				//if item fits in both sacks
 				if ((w < current_item_cores) || (v < current_item_sms))
 					continue;
-				
-				//fetch the loss from the previous movement
-				float dp_table_loss = shared_dp_two[(i - 1) & 1][w - current_item_cores][v - current_item_sms];				
 
-				//get the free resources for the tile we are considering
-				int free_resource_cores = shared_resource_pool[(i - 1) & 1][w - current_item_cores][v - current_item_sms][0];
-				int free_resource_sms = shared_resource_pool[(i - 1) & 1][w - current_item_cores][v - current_item_sms][1];
+				float dp_table_loss = shared_dp_two[(i - 1) & 1][w - current_item_cores][v - current_item_sms];
 
-				//shared memory demands we statically handle the first
-				//check
-				if (i == 1){
+				if (i == 1)
+					dp_table_loss = 0;
 
-					free_resource_cores = 0;
-					free_resource_sms = 0;
+				if ((dp_table_loss != 100000)) {
 
-					dp_table_loss = 100000;
-				
-				}
-
-				//if we are giving up resources and taking resources, 
-				//check if the free pool can "cover" the difference of
-				//the task requiring more resources
-				if (delta_cores * delta_sms < 0) {
-
-					//if the free resource pool is not enough to cover the difference
-					if (((delta_cores < 0) && ((free_resource_cores + delta_cores) < 0)) ||
-					    ((delta_sms < 0) && ((free_resource_sms + delta_sms) < 0)))
-						continue;
-
-				}
-
-				if ((dp_table_loss != -1)) {
-
-					float newCPULoss_two = dp_table_loss - (float) constant_losses[(i - 1) * MAXMODES + j];
+					float newCPULoss_two = dp_table_loss + constant_losses[(i - 1) * MAXMODES + j];
 					
 					//if found solution is better, update
-					if ((newCPULoss_two) > (shared_dp_two[i & 1][w][v])) {
-						
-						//store the new loss
+					if ((newCPULoss_two) < (shared_dp_two[i & 1][w][v])) {
+
 						shared_dp_two[i & 1][w][v] = newCPULoss_two;
 
-						//store the new resource pool
-						shared_resource_pool[i & 1][w][v][0] = free_resource_cores + delta_cores;
-						shared_resource_pool[i & 1][w][v][1] = free_resource_sms + delta_sms;
-
 						//store j into the corresponding slot of the 1d array in the first position
-						solutions[i][w][v][0] = j;
-
-						//store a pointer to the previous portion of the solution in the second position
-						solutions[i][w][v][1] = ((unsigned)(i - 1) << 16) | ((unsigned)(w - current_item_cores) << 8) | (unsigned)(v - current_item_sms);
+						solutions[i][w][v] = j;
 
 					}
 
@@ -229,37 +207,55 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 			}
 
-			#ifdef __NVCC__ 
-
-				__syncthreads();
-
-			#endif
-
 		}
 
 	}
 
+	__syncthreads();
+
 	//to get the final answer, start at the end and work backwards, taking the j values
 	if (HOST_DEVICE_THREAD_DIM < 1){
 
-		int pivot = solutions[num_tasks][maxCPU][NUMGPUS][1];
-		
-		final_solution[num_tasks - 1] = solutions[num_tasks][maxCPU][NUMGPUS][0];
+		bool valid_solution = true;
+		int current_w = maxCPU;
+		int current_v = NUMGPUS;
 
-		for (int i = num_tasks - 2; i >= 0; i--){
+		for (int i = num_tasks; i > 0; i--){
 
-			//im lazy and bad at math apparently
-			int first = (pivot >> 16) & 0xFF;
-			int second = (pivot >> 8) & 0xFF;
-			int third = pivot & 0xFF;
+			int current_item = solutions[i][current_w][current_v];
 
-			pivot = solutions[first][second][third][1];
-			final_solution[i] = solutions[first][second][third][0];
+			if (current_item == -1){
+
+				valid_solution = false;
+
+			}
+
+			else {
+
+				//take the core and sm values for the item
+				int current_item_cores = constant_task_table[(i - 1) * MAXMODES * 3 + current_item * 3];
+				int current_item_sms = constant_task_table[(i - 1) * MAXMODES * 3 + current_item * 3 + 1];
+
+				//update the current w and v values
+				current_w = current_w - current_item_cores;
+				current_v = current_v - current_item_sms;
+
+			}
+
+			final_solution[i - 1] = current_item;
 
 		}
 
 		//print the final loss 
-		*final_loss = 100000 - shared_dp_two[num_tasks & 1][maxCPU][NUMGPUS];
+		if (valid_solution){
+
+			*final_loss = shared_dp_two[num_tasks & 1][maxCPU][NUMGPUS];
+
+		} else {
+
+			*final_loss = 100001;
+
+		}
 
 	}
 

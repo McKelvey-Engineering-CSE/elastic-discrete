@@ -65,7 +65,7 @@ void update_core_B(__uint128_t mask) {
         //now copy the TPC elements we have been granted
         unsigned int total_TPCS = __builtin_popcount(mask);
 
-        //std::cerr << "Total TPCS: " << total_TPCS << std::endl;
+        std::cerr << "Total TPCS: " << total_TPCS << std::endl;
 
         if (total_TPCS == 0)
             return;
@@ -169,8 +169,8 @@ int run(int argc, char *argv[]){
     iterations_complete++;
 
     if (mode_count > 1 && mode_change_interval > 0 && iterations_complete > 0 && (iterations_complete % mode_change_interval == 0) && mode_change_finished) {
-        synth_current_mode = (synth_current_mode + 1) % mode_count;
-        //pm::print(std::cerr, "Task ", task_index, " changing mode to ", synth_current_mode, "\n");
+        synth_current_mode = (synth_current_mode + 1) % 4;
+        pm::print(std::cerr, "Task ", task_index, " changing mode to ", synth_current_mode, "\n");
         modify_self(synth_current_mode);
     }
 
