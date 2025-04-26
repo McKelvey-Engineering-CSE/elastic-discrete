@@ -33,6 +33,7 @@
 	#define HOST_DEVICE_SCOPE __device__
 	#define HOST_DEVICE_CONSTANT __constant__
 	#define HOST_DEVICE_GLOBAL __global__
+	#define HOST_DEVICE_SHARED __shared__
 
 #else 
 
@@ -41,10 +42,11 @@
 	#define HOST_DEVICE_SCOPE
 	#define HOST_DEVICE_CONSTANT
 	#define HOST_DEVICE_GLOBAL static
+	#define HOST_DEVICE_SHARED static
 
 #endif
 
-__shared__ float shared_dp_two[2][64 + 1][64 + 1];
+HOST_DEVICE_SHARED float shared_dp_two[2][64 + 1][64 + 1];
 
 HOST_DEVICE_SCOPE volatile int solutions[MAXTASKS][128 + 1][128 + 1];
 
@@ -130,23 +132,42 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 		//for each pass we are supposed to do
 		for (int k = 0; k < pass_count; k++){
 
-			__syncthreads();
+			#ifdef __NVCC__ 
 
-			if (i == 1){
+				__syncthreads();
+
+				if (i == 1){
+
+					//w = cpu
+					indices[k][0] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) / (NUMGPUS + 1));
+					
+					//v = gpu
+					indices[k][1] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) % (NUMGPUS + 1));
+
+				}
 
 				//w = cpu
-				indices[k][0] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) / (NUMGPUS + 1));
-				
+				int w = indices[k][0];
+
 				//v = gpu
-				indices[k][1] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) % (NUMGPUS + 1));
+				int v = indices[k][1];
 
-			}
+			#else
 
-			//w = cpu
-			int w = indices[k][0];
+				if (i == 1){
 
-			//v = gpu
-			int v = indices[k][1];
+					//w = cpu
+					indices[0][0] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) / (NUMGPUS + 1));
+					
+					//v = gpu
+					indices[0][1] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) % (NUMGPUS + 1));
+
+				}
+
+				int w = indices[0][0];
+				int v = indices[0][1];
+
+			#endif
 
 			if (w > maxCPU || v > NUMGPUS)
 				continue;
@@ -158,17 +179,17 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 			//for each item in class
 			for (size_t j = j_start; j < j_end; j++) {
 
+				//fetch initial suspected resource values
+				int current_item_sms = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 1];
+				int current_item_cores = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3];
+				int current_item_real_mode = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 2];
+
 				#ifndef __NVCC__
 
 					if (desired_state != -1)
 						if (current_item_real_mode != desired_state)
 							continue;
 				#endif
-
-				//fetch initial suspected resource values
-				int current_item_sms = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 1];
-				int current_item_cores = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3];
-				int current_item_real_mode = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 2];
 
 				//check the change in processors
 				int delta_cores = task_table[(i - 1) * 2] - current_item_cores;
