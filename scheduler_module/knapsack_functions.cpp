@@ -152,8 +152,8 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 				continue;
 
 			//invalid state
-			shared_dp_two[(i & 1)][w][v] = 100000;
-			solutions[i][w][v] = -1;
+			float best_loss = 100000;
+			int best_item = -1;
 
 			//for each item in class
 			for (size_t j = j_start; j < j_end; j++) {
@@ -194,18 +194,23 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 					float newCPULoss_two = dp_table_loss + constant_losses[(i - 1) * MAXMODES + j];
 					
 					//if found solution is better, update
-					if ((newCPULoss_two) < (shared_dp_two[i & 1][w][v])) {
+					if ((newCPULoss_two) < (best_loss)) {
 
-						shared_dp_two[i & 1][w][v] = newCPULoss_two;
+						best_loss = newCPULoss_two;
 
-						//store j into the corresponding slot of the 1d array in the first position
-						solutions[i][w][v] = j;
+						best_item = j;
 
 					}
 
 				}
 
 			}
+
+			//store the best loss
+			shared_dp_two[i & 1][w][v] = best_loss;
+
+			//store the best item
+			solutions[i][w][v] = best_item;
 
 		}
 
