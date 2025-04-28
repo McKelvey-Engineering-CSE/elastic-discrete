@@ -298,7 +298,12 @@ void Scheduler::do_schedule(size_t maxCPU){
 	//are not allowed to change their modes in the knapsack
 	//algorithm. We take note of which tasks are uncooperative
 	//and send them to the device
-	int host_uncooperative[MAXTASKS] = {0};
+	#ifdef __NVCC__
+
+		int host_uncooperative[MAXTASKS] = {0};
+		
+	#endif
+
 	for (int i = 0; i < schedule.count(); i++){
 
 		if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative()){

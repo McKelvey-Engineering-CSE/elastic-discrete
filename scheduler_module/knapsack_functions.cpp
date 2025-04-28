@@ -39,7 +39,7 @@
 #else 
 
 	#define HOST_DEVICE_BLOCK_DIM 1
-	#define HOST_DEVICE_THREAD_DIM 1
+	#define HOST_DEVICE_THREAD_DIM 0
 	#define HOST_DEVICE_SCOPE
 	#define HOST_DEVICE_CONSTANT
 	#define HOST_DEVICE_GLOBAL static
@@ -215,7 +215,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 			int best_free_sms = 0;
 
 			//for each item in class
-			for (size_t j = j_start; j < j_end; j++) {
+			for (int j = j_start; j < j_end; j++) {
 
 				//fetch initial suspected resource values
 				int current_item_sms = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 1];

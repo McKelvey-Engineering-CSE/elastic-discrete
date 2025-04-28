@@ -250,7 +250,7 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 			if (current_transformer == -1)
 				continue;
 
-			Node& node = nodes[current_transformer];
+			//Node& node = nodes[current_transformer];
 
 			Node& consumer = nodes[current_transformer];
 			int needed_x = -consumer.x;
@@ -528,7 +528,7 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 				if (current_transformer == -1)
 					continue;
 
-				Node& node = nodes[current_transformer];
+				//Node& node = nodes[current_transformer];
 
 				Node& consumer = nodes[current_transformer];
 				int needed_x = -consumer.x;
