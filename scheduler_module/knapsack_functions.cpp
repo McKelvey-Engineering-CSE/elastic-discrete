@@ -1,9 +1,10 @@
 #include <iostream>
 #include <string>
-#include <cuda.h>
-#include <cuda_runtime.h>
 
 #ifdef __NVCC__
+
+	#include <cuda.h>
+	#include <cuda_runtime.h>
 
 	#define CUDA_SAFE_CALL(x)                                        	\
 	do {                                                              	\
@@ -46,9 +47,11 @@
 
 #endif
 
-HOST_DEVICE_SHARED float shared_dp_two[2][64 + 1][64 + 1];
+//HOST_DEVICE_SHARED float shared_dp_two[2][64 + 1][64 + 1];
 
 HOST_DEVICE_SCOPE volatile int solutions[MAXTASKS][128 + 1][128 + 1];
+
+//HOST_DEVICE_SCOPE volatile char free_resource_pool[2][64 + 1][64 + 1][2];
 
 HOST_DEVICE_CONSTANT int constant_task_table[MAXTASKS * MAXMODES * 3];
 
@@ -60,8 +63,37 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 	//the indices for uncooperative tasks
 	#ifdef __NVCC__
 
-		__shared__ int start_index;
-		__shared__ int end_index;
+		// Declare shared memory pointer
+		extern __shared__ char shared_mem[];
+		
+		// Calculate offsets for proper alignment
+		size_t float_align = sizeof(float) > sizeof(void*) ? sizeof(float) : sizeof(void*);
+		size_t char_align = sizeof(char) > sizeof(void*) ? sizeof(char) : sizeof(void*);
+		size_t int_align = sizeof(int) > sizeof(void*) ? sizeof(int) : sizeof(void*);
+		
+		// Set up base pointers
+		float* float_mem = (float*)shared_mem;
+		
+		// Calculate offset for char memory, ensuring proper alignment
+		size_t offset = sizeof(float) * 2 * (64 + 1) * (64 + 1);
+		offset = (offset + char_align - 1) & ~(char_align - 1);
+		char* char_mem = (char*)(shared_mem + offset);
+		
+		// Calculate offset for int variables
+		offset += sizeof(char) * 2 * (64 + 1) * (64 + 1) * 2;
+		offset = (offset + int_align - 1) & ~(int_align - 1);
+		int* int_mem = (int*)(shared_mem + offset);
+		
+		// Create references with the EXACT same names as the original static variables
+		auto& shared_dp_two = *reinterpret_cast<float (*)[2][64 + 1][64 + 1]>(float_mem);
+		auto& free_resource_pool = *reinterpret_cast<char (*)[2][64 + 1][64 + 1][2]>(char_mem);
+		auto& start_index = *int_mem;
+		auto& end_index = *(int_mem + 1);
+
+	#else 
+
+		float shared_dp_two[2][64 + 1][64 + 1];
+		char free_resource_pool[2][64 + 1][64 + 1][2];
 
 	#endif
 
@@ -176,6 +208,10 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 			float best_loss = 100000;
 			int best_item = -1;
 
+			//free resource pool candiates
+			int best_free_cores = 0;
+			int best_free_sms = 0;
+
 			//for each item in class
 			for (size_t j = j_start; j < j_end; j++) {
 
@@ -195,9 +231,6 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 				int delta_cores = task_table[(i - 1) * 2] - current_item_cores;
 				int delta_sms = task_table[((i - 1) * 2) + 1] - current_item_sms;
 
-				if (delta_cores * delta_sms < 0)
-					continue;
-
 				if (current_item_cores == -1 || current_item_sms == -1)
 					continue;
 
@@ -207,8 +240,42 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 				float dp_table_loss = shared_dp_two[(i - 1) & 1][w - current_item_cores][v - current_item_sms];
 
-				if (i == 1)
+				//fetch the free cores and sms
+				int free_cores = free_resource_pool[(i - 1) & 1][w - current_item_cores][v - current_item_sms][0];
+				int free_sms = free_resource_pool[(i - 1) & 1][w - current_item_cores][v - current_item_sms][1];
+
+				//if we are on first pass, table is inaccurate
+				if (i == 1){
+
 					dp_table_loss = 0;
+
+					free_cores = 0;
+					free_sms = 0;
+
+				}
+
+				//check if our resource constrains are maintained
+				if (delta_cores * delta_sms < 0){
+
+					//if cores is negative, make sure we have enough
+					//free cores to cover it
+					if (delta_cores < 0){
+
+						if (free_cores + delta_cores < 0)
+							continue;
+
+					}
+
+					//if sms is negative, make sure we have enough
+					//free sms to cover it
+					if (delta_sms < 0){
+
+						if (free_sms + delta_sms < 0)
+							continue;
+
+					}
+
+				}
 
 				if ((dp_table_loss != 100000)) {
 
@@ -221,6 +288,10 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 						best_item = j;
 
+						best_free_cores = free_cores + delta_cores;
+
+						best_free_sms = free_sms + delta_sms;
+
 					}
 
 				}
@@ -232,6 +303,10 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 			//store the best item
 			solutions[i][w][v] = best_item;
+
+			//store the best free cores and sms
+			free_resource_pool[i & 1][w][v][0] = best_free_cores;
+			free_resource_pool[i & 1][w][v][1] = best_free_sms;
 
 		}
 
