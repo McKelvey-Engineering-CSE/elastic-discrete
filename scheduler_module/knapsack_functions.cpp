@@ -188,18 +188,11 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 			#else
 
-				if (i == 1){
-
-					//w = cpu
-					indices[0][0] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) / (NUMGPUS + 1));
-					
-					//v = gpu
-					indices[0][1] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) % (NUMGPUS + 1));
-
-				}
-
-				int w = indices[0][0];
-				int v = indices[0][1];
+				//w = cpu
+				int w = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) / (NUMGPUS + 1));
+				
+				//v = gpu
+				int v = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) % (NUMGPUS + 1));
 
 			#endif
 
@@ -348,7 +341,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 				//update the current w and v values
 				current_w = current_w - current_item_cores;
 				current_v = current_v - current_item_sms;
-
+				
 			}
 
 			final_solution[i - 1] = current_item;
