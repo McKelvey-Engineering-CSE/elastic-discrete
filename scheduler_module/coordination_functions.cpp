@@ -185,12 +185,12 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		#else 
 
-			malloc(d_task_table, sizeof(int) * MAXTASKS * 2);
-			malloc(d_uncooperative_tasks, sizeof(int) * MAXTASKS);
-			malloc(d_final_solution, sizeof(int) * MAXTASKS);
-			malloc(d_current_task_modes, sizeof(int) * MAXTASKS * 2);
-			malloc(d_losses, sizeof(double) * MAXTASKS * MAXMODES);
-			malloc(d_final_loss, sizeof(double));
+			d_task_table = (int*)malloc(sizeof(int) * MAXTASKS * 2);
+			d_uncooperative_tasks = (int*)malloc(sizeof(int) * MAXTASKS);
+			d_final_solution = (int*)malloc(sizeof(int) * MAXTASKS);
+			d_current_task_modes = (int*)malloc(sizeof(int) * MAXTASKS * 2);
+			d_losses = (double*)malloc(sizeof(double) * MAXTASKS * MAXMODES);
+			d_final_loss = (double*)malloc(sizeof(double));
 
 		#endif
 
@@ -375,7 +375,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		device_do_schedule(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
 
-		loss = d_final_loss;
+		loss = *d_final_loss;
 
 	#endif
 

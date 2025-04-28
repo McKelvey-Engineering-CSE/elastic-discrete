@@ -97,8 +97,6 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 	#endif
 
-	int modes_skipped = 0;
-
 	//assume 1 block of 1024 threads for now
 	const int pass_count = ceil(((maxCPU + 1) * (NUMGPUS + 1)) / HOST_DEVICE_BLOCK_DIM) + 1;
 
@@ -108,7 +106,12 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 	//loop over all tasks
 	for (int i = 1; i <= (int) num_tasks; i++) {
 
-		__syncthreads();
+
+		#ifdef __NVCC__
+
+			__syncthreads();
+			
+		#endif
 
 		//gather task info
 		int j_start = 0;
@@ -312,7 +315,11 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 	}
 
-	__syncthreads();
+	#ifdef __NVCC__
+
+		__syncthreads();
+
+	#endif
 
 	//to get the final answer, start at the end and work backwards, taking the j values
 	if (HOST_DEVICE_THREAD_DIM < 1){
