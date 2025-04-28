@@ -554,7 +554,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 					//now loop over all the candidate values and detemrine which ones 
 					//are unique. Any that are not we do not keep
 					std::vector<std::pair<int, int>> unique_modes;
-					for (int i = 0; i < nanosecond_periods.size(); i++){
+					for (size_t i = 0; i < nanosecond_periods.size(); i++){
 
 						auto modified_period = timespec_from_ns(nanosecond_periods.at(i));
 
@@ -574,7 +574,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 
 						//check if this mode is unique
 						bool is_unique = true;
-						for(int j = 0; j < unique_modes.size(); j++){
+						for(size_t j = 0; j < unique_modes.size(); j++){
 
 							if (unique_modes[j].first == CPUs && unique_modes[j].second == GPUs)
 								is_unique = false;
@@ -777,9 +777,9 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 
 					//now loop over all the candidate pairs, and combine them into
 					//unqiue modes
-					for (int i = 0; i < allocations_and_work_cpu.size(); i++){
+					for (size_t i = 0; i < allocations_and_work_cpu.size(); i++){
 
-						for (int j = 0; j < allocations_and_work_gpu.size(); j++){
+						for (size_t j = 0; j < allocations_and_work_gpu.size(); j++){
 
 							struct parsed_task_mode_info mode_info;
 

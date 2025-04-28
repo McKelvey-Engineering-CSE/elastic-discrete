@@ -197,7 +197,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 		//copy it
 		#ifdef __NVCC__
 
-			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_losses, host_losses, sizeof(double) * MAXTASKS * MAXMODES, cudaMemcpyHostToDevice));
+			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_losses, host_losses, sizeof(float) * MAXTASKS * MAXMODES, cudaMemcpyHostToDevice));
 
 			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_task_table, &host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3));
 			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_losses, &host_losses, sizeof(float) * MAXTASKS * MAXMODES));
@@ -205,7 +205,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 		#else 
 
 			memcpy(d_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3);
-			memcpy(d_losses, host_losses, sizeof(double) * MAXTASKS * MAXMODES);
+			memcpy(d_losses, host_losses, sizeof(float) * MAXTASKS * MAXMODES);
 
 			memcpy(constant_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3);
 			memcpy(constant_losses, host_losses, sizeof(float) * MAXTASKS * MAXMODES);
@@ -289,7 +289,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 	clock_gettime(CLOCK_MONOTONIC, &start_time);
 
 	double loss;
-	double cautious_loss;
 	double elapsed_time;
 
 	//loop over all the tasks and determine which
@@ -363,7 +362,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		//copy the final_solution array back
 		int host_final[MAXTASKS] = {0};
-		int cautious_host_final[MAXTASKS] = {0};
 
 		//copy it 
 		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(host_final, d_final_solution, MAXTASKS * sizeof(int), cudaMemcpyDeviceToHost, scheduler_stream));
@@ -613,7 +611,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 			//need to do the first transition and then bring the system back up to the state 
 			//indicated by the original result vector.
 			bool multiple_mode_changes = false;
-			for (int i = 0; i < task_modes.size(); i++)
+			for (int i = 0; i < (int)task_modes.size(); i++)
 				if (task_modes.at(i) != result.at(i))
 					multiple_mode_changes = true;
 

@@ -104,9 +104,6 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 	
 	}		
 
-	timespec numerator;
-	timespec denominator;
-
 	int mode_options = 0;
 	int next_position = 0;
 

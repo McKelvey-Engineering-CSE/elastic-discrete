@@ -67,7 +67,6 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 		extern __shared__ char shared_mem[];
 		
 		// Calculate offsets for proper alignment
-		size_t float_align = sizeof(float) > sizeof(void*) ? sizeof(float) : sizeof(void*);
 		size_t char_align = sizeof(char) > sizeof(void*) ? sizeof(char) : sizeof(void*);
 		size_t int_align = sizeof(int) > sizeof(void*) ? sizeof(int) : sizeof(void*);
 		
@@ -110,7 +109,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 		#ifdef __NVCC__
 
 			__syncthreads();
-			
+
 		#endif
 
 		//gather task info
@@ -221,9 +220,11 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 				//fetch initial suspected resource values
 				int current_item_sms = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 1];
 				int current_item_cores = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3];
-				int current_item_real_mode = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 2];
+				
 
 				#ifndef __NVCC__
+
+					int current_item_real_mode = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 2];
 
 					if (desired_state != -1)
 						if (current_item_real_mode != desired_state)
