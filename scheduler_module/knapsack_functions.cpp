@@ -158,8 +158,9 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 		#else 
 
 			int desired_state = -1;
-			if (uncooperative_tasks[i - 1])
+			if (uncooperative_tasks[i - 1]){
 				desired_state = uncooperative_tasks[i - 1];
+			}
 		
 		#endif	
 
@@ -220,8 +221,10 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 					int current_item_real_mode = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 2];
 
 					if (desired_state != -1)
-						if (current_item_real_mode != desired_state)
+						if (current_item_real_mode != desired_state){
 							continue;
+						}
+
 				#endif
 
 				//check the change in processors

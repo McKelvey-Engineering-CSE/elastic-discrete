@@ -174,7 +174,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 		//get the symbol on the device
 		#ifdef __NVCC__
 
-			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_task_table, sizeof(int) * MAXTASKS * 2));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_uncooperative_tasks, sizeof(int) * MAXTASKS));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_final_solution, sizeof(int) * MAXTASKS));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&cautious_d_final_solution, sizeof(int) * MAXTASKS));
@@ -185,7 +184,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		#else 
 
-			d_task_table = (int*)malloc(sizeof(int) * MAXTASKS * 2);
 			d_uncooperative_tasks = (int*)malloc(sizeof(int) * MAXTASKS);
 			d_final_solution = (int*)malloc(sizeof(int) * MAXTASKS);
 			d_current_task_modes = (int*)malloc(sizeof(int) * MAXTASKS * 2);
@@ -204,7 +202,6 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		#else 
 
-			memcpy(d_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3);
 			memcpy(d_losses, host_losses, sizeof(float) * MAXTASKS * MAXMODES);
 
 			memcpy(constant_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3);
@@ -298,25 +295,36 @@ void Scheduler::do_schedule(size_t maxCPU){
 	//are not allowed to change their modes in the knapsack
 	//algorithm. We take note of which tasks are uncooperative
 	//and send them to the device
-	#ifdef __NVCC__
+	int host_uncooperative[MAXTASKS] = {0};
 
-		int host_uncooperative[MAXTASKS] = {0};
-		
-	#endif
+	if (!first_time){
 
-	for (int i = 0; i < schedule.count(); i++){
+		for (int i = 0; i < schedule.count(); i++){
 
-		if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative()){
-			
-			#ifdef __NVCC__
-				
+			if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative()){
+					
 				host_uncooperative[i] = (schedule.get_task(i))->get_current_mode();
 
-			#else
+			}
 
-				d_uncooperative_tasks[i] = (schedule.get_task(i))->get_current_mode();
+		}
 
-			#endif
+	}
+
+	//copy over the current state of the task system
+	int host_current_modes[MAXTASKS * 2] = {0};
+
+	if (!first_time){
+
+		for (int i = 0; i < MAXTASKS; i++){
+
+			//make sure we are not going out of bounds
+			if (i < (int) previous_modes.size()){
+
+				host_current_modes[i * 2] = previous_modes.at(i).cores;
+				host_current_modes[i * 2 + 1] = previous_modes.at(i).sms;
+
+			}
 
 		}
 
@@ -329,26 +337,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 	//on the host
 	#ifdef __NVCC__
 
-		//copy over the current state of the task system
-		int host_current_modes[MAXTASKS * 2] = {0};
-
-		if (!first_time){
-
-			for (int i = 0; i < MAXTASKS; i++){
-
-				//make sure we are not going out of bounds
-				if (i < (int) previous_modes.size()){
-
-					host_current_modes[i * 2] = previous_modes.at(i).cores;
-					host_current_modes[i * 2 + 1] = previous_modes.at(i).sms;
-
-				}
-
-			}
-
-		}
-
-		else {
+		if (first_time) {
 			
 			CUDA_NEW_SAFE_CALL(cudaFuncSetAttribute(device_do_schedule,
 							cudaFuncAttributeMaxDynamicSharedMemorySize,
@@ -376,7 +365,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	#else
 
-		device_do_schedule(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
+		device_do_schedule(N - 1, maxCPU, NUMGPUS, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution);
 
 		loss = *d_final_loss;
 
