@@ -39,11 +39,11 @@ int Scheduler::get_num_tasks(){
 
 void Scheduler::generate_unsafe_combinations(size_t maxCPU){}
 
-TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_){
+TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, bool safe){
 
 	//add the task to the legacy schedule object, but also add to vector
 	//to make the scheduler much easier to read and work with.
-	auto taskData_object = schedule.add_task(elasticity_, num_modes_, work_, span_, period_, gpu_work_, gpu_span_, gpu_period_);
+	auto taskData_object = schedule.add_task(elasticity_, num_modes_, work_, span_, period_, gpu_work_, gpu_span_, gpu_period_, safe);
 
 	task_table.push_back(std::vector<task_mode>());
 

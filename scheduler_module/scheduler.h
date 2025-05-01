@@ -198,7 +198,7 @@ public:
 
 	void print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes);
 
-	TaskData * add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_);
+	TaskData * add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, bool safe);
 };
 
 

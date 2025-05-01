@@ -81,6 +81,8 @@ private:
 	timespec GPU_period[MAXMODES];
 	int GPUs[MAXMODES];
 
+	int owning_modes[MAXMODES];
+
 	//simple map to assign multiple possible
 	//mode configurations to a single mode
 	int mode_map[MAXMODES];
@@ -169,7 +171,7 @@ private:
 
 public:
 
-	TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_);
+	TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, bool safe);
 
 	TaskData();
 

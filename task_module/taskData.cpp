@@ -83,7 +83,7 @@ static std::vector<std::pair<int,int>> computeModeResources(double CpA, double L
 }
 
 TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, 
-														timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_) : 	
+														timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, bool safe) : 	
 																													
 																													index(counter++), changeable(true), 
 																													can_reschedule(false), num_adaptations(0),  
@@ -160,6 +160,9 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 			GPU_span[next_position] = GPU_span_l;
 			GPU_period[next_position] = GPU_period_l;
 
+			//note which mode this came from
+			owning_modes[next_position] = i;
+
 			//update max utilization
 			if (((work_l / period_l) + (GPU_work_l / period_l)) > max_utilization)
 				max_utilization = ((work_l / period_l) + (GPU_work_l / period_l));
@@ -186,8 +189,100 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 		print_module::print(std::cout, work_[i], " ", span_[i], " ", period_[i], " ", gpu_work_[i], " ", gpu_span_[i], "\n");
 	print_module::print(std::cout, "\n");
 	
+	int modes_originally_passed = num_modes;
+
 	num_modes = mode_options;
 	number_of_modes = mode_options;
+
+	//check if we should be making this task safe from false negatives
+	if (safe){
+
+		//look through the lowest mode and for each possible state 
+		//select a mode which represents the lowest possible state
+		//and look through all the other mode_options, and count the
+		//number of mode options which are stricly larger
+		//than the current mode option. Ensure at least one candidate mode is present
+		//from each mode transition possible
+
+		int best_base_mode = 0;
+		int best_base_mode_seen = 0;
+
+		for (int i = 0; i < num_modes; i++){
+
+			int current_cpu = CPUs[i];
+			int current_gpu = GPUs[i];
+
+			int distinct_modes_seen = 0;
+			int seen_modes_utilizations[modes_originally_passed] = {0};
+
+			//set the first seen mode as itself
+			seen_modes_utilizations[owning_modes[i]] = 1;
+
+			for (int j = 0; j < num_modes; j++){
+
+				if (i != j){
+
+					if (CPUs[j] >= current_cpu && GPUs[j] >= current_gpu){
+
+						distinct_modes_seen++;
+						seen_modes_utilizations[owning_modes[j]] += 1;
+
+					}
+
+				}
+
+			}
+
+			if (best_base_mode_seen < distinct_modes_seen){
+
+				bool candidate_mode = true;
+				for (int i = 0; i < modes_originally_passed; i++){
+
+					if (seen_modes_utilizations[i] == 0)
+						candidate_mode = false;
+
+				}
+
+				if (candidate_mode){
+
+					best_base_mode = i;
+					best_base_mode_seen = distinct_modes_seen;
+
+				}
+
+			}
+
+		}
+
+
+		//if we have a best base mode set, we can use that as
+		//the standard by which we forcibly inflate all other 
+		//modes
+		if (best_base_mode_seen > 0){
+
+			for (int i = 0; i < num_modes; i++){
+
+				if (CPUs[i] < CPUs[best_base_mode])
+					CPUs[i] = CPUs[best_base_mode];
+
+				if (GPUs[i] < GPUs[best_base_mode])
+					GPUs[i] = GPUs[best_base_mode];
+
+			}
+
+			print_module::print(std::cout, "Task ", index, " has been forced to inflate to mode ", best_base_mode, "\n");
+
+		}
+
+		else {
+
+			print_module::print(std::cout, "Task ", index, " has no base mode to inflate to. The system cannot be safely scheduled.\n");
+			exit(-1);
+
+		}
+
+
+	}
 
 	//loop over all modes, and compare the allocated processor A
 	//and processor B to all other modes in the task. If the task

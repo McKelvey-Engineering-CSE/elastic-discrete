@@ -47,6 +47,9 @@ TaskData * last_task;
 //bool which controls whether or not we are running with explicit syncronization
 bool explicit_sync = false;
 
+//bool to control whether or not to force the scheduler to be safe
+bool safe_calculation = false;
+
 /************************************************************************************
 Objects
 *************************************************************************************/
@@ -358,6 +361,37 @@ int main(int argc, char *argv[])
 
 	}
 
+	//open the schedule file
+	if (get_scheduling_file(args[1], ifs) != 0)
+	{
+		print_module::print(std::cerr, "ERROR: Cannot open schedule file.\n");
+		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
+	}
+
+	//read through it until we see "explicit_sync:"
+	//then record the value after it
+	std::string tmp_line;
+	while (std::getline(ifs, tmp_line))
+	{
+		if (tmp_line.find("explicit_sync:") != std::string::npos)
+		{
+			//record if it is "true" or "false"
+			if (tmp_line.find("true") != std::string::npos)
+			{
+				safe_calculation = true;
+			}
+			else if (tmp_line.find("false") != std::string::npos)
+			{
+				safe_calculation = false;
+			}
+			else
+			{
+				print_module::print(std::cerr, "ERROR: Invalid value for explicit_sync. Must be 'true' or 'false'.\n");
+				return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
+			}
+		}
+	}
+
 	//fetch all the data from the shared memory
 	//schedulable = yaml_object->schedulable;
 	sec_to_run = yaml_object->sec_to_run;
@@ -498,8 +532,7 @@ int main(int argc, char *argv[])
 		//Insert the task data into shared memory
 		TaskData * td;
     
-    	//FIXME: GPU INFO JUST USES THE CPU PORTION OF THE INFO. REPLACE WITH REAL INFORMATION
-		td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), gpu_work.data(), gpu_span.data(), gpu_period.data());
+		td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), gpu_work.data(), gpu_span.data(), gpu_period.data(), safe_calculation);
 		task_manager_argvector.push_back(std::to_string(td->get_index()));
 		
 		// Add the barrier name to the argument vector
@@ -549,7 +582,7 @@ int main(int argc, char *argv[])
 		//add the scheduler itself to the task table at the end
 		if (t == parsed_tasks.size() - 1)
 		{
-			td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), gpu_work.data(), gpu_span.data(), gpu_period.data());
+			td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), gpu_work.data(), gpu_span.data(), gpu_period.data(), false);
 			print_module::print(std::cerr, "Scheduler added to task table (parameters do not matter)\n");
 		}
 
