@@ -901,8 +901,6 @@ void TaskData::start_transition(){
 		
 		tasks_giving_processors = message.tasks_giving_processors;
 
-		std::cerr << "I am task " << get_index() << " and I am waiting on " << (unsigned long long) tasks_giving_processors << " tasks.\n";
-
 	}
 
 }
