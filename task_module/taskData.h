@@ -169,6 +169,8 @@ private:
 
 	int previous_mode = 0;
 
+	int modes_originally_passed;
+
 public:
 
 	TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, bool safe);
@@ -258,6 +260,8 @@ public:
 	bool check_mode_transition();
 
 	void set_mode_transition(bool state);
+
+	int get_original_modes_passed();
 
 	//functions to work with static vector of CPU indices
 	int pop_back_cpu();

@@ -703,7 +703,7 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 	//now we need to send messages to the tasks to tell them
 	//what tasks they are waiting on to transition
 	//std::cerr << "TOTAL TASK MASKS PRESENT: " << task_masks.size() << std::endl;
-	for (int i = 0; i < (int) task_masks.size(); i++)
+	for (int i = 0; i < (int) task_masks.size() - 1; i++)
 		schedule.get_task(i)->set_tasks_to_wait_on(task_masks[i]);
 
 	//finally read all the messages for the free pool and send 

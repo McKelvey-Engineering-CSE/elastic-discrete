@@ -189,7 +189,7 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 		print_module::print(std::cout, work_[i], " ", span_[i], " ", period_[i], " ", gpu_work_[i], " ", gpu_span_[i], "\n");
 	print_module::print(std::cout, "\n");
 	
-	int modes_originally_passed = num_modes;
+	modes_originally_passed = num_modes;
 
 	num_modes = mode_options;
 	number_of_modes = mode_options;
@@ -588,6 +588,10 @@ bool TaskData::pure_cpu_task(){
 	return is_pure_cpu_task;
 }
 
+int TaskData::get_original_modes_passed(){
+	return modes_originally_passed;
+}
+
 void TaskData::set_CPUs_change(int num_cpus_to_return){
 	cpus_to_return = num_cpus_to_return;
 }
@@ -896,6 +900,8 @@ void TaskData::start_transition(){
 	if (msgrcv(queue_one, &message, sizeof(message) - sizeof(long), get_index() + 1, IPC_NOWAIT) != -1){
 		
 		tasks_giving_processors = message.tasks_giving_processors;
+
+		std::cerr << "I am task " << get_index() << " and I am waiting on " << (unsigned long long) tasks_giving_processors << " tasks.\n";
 
 	}
 
