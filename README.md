@@ -6,15 +6,27 @@ Readme last updated: 24 February 2024 by Tyler Martin
 This is a runtime system to run parallel elastic tasks with discrete candidate values of period T OR work C. 
 Each task Tau has a constant span L, variable T or C, Elasticity coefficient E, and a finite set of discrete values of C or T
 
+The scheduler implements the new heterogeneous discrete elastic framework, which is optimized for use with a CPU and NVIDIA GPU hybrid 
+system. When calling the make file, if nvcc is installed, it will compile for use with the NVIDIA GPU. If nvcc is not found, it will compile
+with g++. 
+
+There are two versions of the core scheduler as well: one written in CUDA and one in standard C++. They are both contained within the same code, 
+activated by macros at compile time. The scheduler is embarassingly parallel, and thus having a GPU in the system (even a terrible, 20$ one) is likely to
+be faster than any CPU you pair with the system. 
+
+Final note is that the scheduler can run in real or simulated modes. When in real mode, all tasks are unique processes and do some work as defined
+by you. In simulated mode, the task file provided to the scheduler will be read in as usual, but the tasks associated with the parameters will never
+be spawned. Instead the scheduler will pretend to be each task and do a fixed number of iterations, making reschedule requests just as they would. 
+This exists so that you can test huge numbers of mode changes in one shot without having to wait for each task to actually do work. This is 
+incredibly useful for debugging and extending the core scheduler behavior. To activate this mode, see below in the "Usage" section.
+
 ## Important Details
 All classes implemented for thread/process management are all based on the implemented "generic_barrier" class, which is an process and thread safe recreation of the std::barrier/std::generic_barrier. This custom type enables us to keep to C++ 11/C++14 without issue as well as giving us fine-grained control over the abilities of the generic_barrier/barrier. Currently, the generic_barrier can take in a function poiner for the exiting processes or threads to execute when they leave the barrier. 
-
-All barriers currently spin on the value associated with processes that have entered the barrier. This will be exchanged for a pthread condition variable once a better way to integrate it has been designed.
 
 Priting is all controlled by a custom print function notated print_module::print(stream | buffer name | buffer name set, message/variables, ...)
 (See section below for breakdown of printing module)
 
-All code is currently being rewritten to ensure only C++11/C++14 idioms are used, and that we do not have any issues with OpenMP and the more modern C++ versions (there have been no issues so far).
+OpenMP can be used but is not strictly supported. There is a custom library in the omp_module which replaces the openMP library. Looking at the header file contained within should give enough insight to figure out how to use OMP-like semantics. If you must use OMP, it can be compiled with OMP support. However, thread pinning is up to you to do. You can access the cores granted to a task through the TaskData structures and pin threads yourself. 
 
 As I continue working, this readme will be updated with more information
 
@@ -139,6 +151,19 @@ A task will run until either it reaches the maximum number of iterations, or the
 To emulate the behavior of the old clustering launcher, set `elasticity: 1` for every task.
 
 `priority` controls the priority given to the kernel (under the SCHED_RR scheduler). If no priority is set, `7` is used as the default. Note that during task sleep and finalization, the set priority is ignored.
+
+Finally, to run it, navigate to the "bin" directory and call
+
+```
+./clustering_launcher ./<input_file_name>.yaml
+```
+
+and to run it in simulated mode
+
+```
+./clustering_launcher ./<input_file_name>.yaml SIM
+```
+
 
 ## Elastic Discrete Legacy Description
 ```
