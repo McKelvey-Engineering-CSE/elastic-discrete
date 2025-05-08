@@ -959,12 +959,14 @@ int main(int argc, char *argv[])
 
 						int task_current_mode = td->get_real_mode(td->get_current_mode());
 
+						int mode_moving_to = ((task_current_mode + 1) % td->get_original_modes_passed());
+
 						//print what mode we are trying to switch to
-						std::cout << "Task " << i << " is instigating a reschedule to mode " << (task_current_mode + 1) % td->get_original_modes_passed() << " from mode " << task_current_mode << std::endl;
+						std::cout << "Task " << i << " is instigating a reschedule to mode " << mode_moving_to << " from mode " << task_current_mode << std::endl;
 
 						//set the mode this task should be moving into 
 						//(for now just cycle through all modes)
-						td->set_current_mode((task_current_mode + 1) % td->get_original_modes_passed(), true);
+						td->set_real_current_mode(mode_moving_to, true);
 
 					}
 

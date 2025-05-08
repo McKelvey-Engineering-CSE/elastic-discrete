@@ -304,7 +304,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative()){
 					
-				host_uncooperative[i] = (schedule.get_task(i))->get_current_mode();
+				host_uncooperative[i] = schedule.get_task(i)->get_real_current_mode();
 
 			}
 
@@ -470,9 +470,9 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	//print the new schedule layout
 	std::ostringstream mode_strings;
-	print_module::buffered_print(mode_strings, "\n========================= \n", "New Schedule Layout:\n");
+	print_module::buffered_print(mode_strings, "\n========================= \n", "New Schedule Layout (real | virtual):\n");
 	for (size_t i = 0; i < result.size(); i++)
-		print_module::buffered_print(mode_strings, "Task ", i, " is now in mode: ", result.at(i), " | ", schedule.get_task(i)->get_real_mode(result.at(i)), "\n");
+		print_module::buffered_print(mode_strings, "Task ", i, " is now in mode: (", result.at(i), " | ", schedule.get_task(i)->get_real_mode(result.at(i)), ")\n");
 	print_module::buffered_print(mode_strings, "Total Loss from Mode Change: ", loss, "\n=========================\n\n");
 
 	//print resources now held by each task

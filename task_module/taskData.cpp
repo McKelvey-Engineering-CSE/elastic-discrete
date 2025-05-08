@@ -1052,6 +1052,31 @@ void TaskData::clear_gpus_granted_from_other_tasks(){
 
 }
 
+int TaskData::get_real_current_mode(){
+
+	//return the real current mode
+	return real_current_mode;
+
+}
+
+void TaskData::set_real_current_mode(int new_mode, bool disable){
+
+	if (new_mode >= 0 && new_mode < modes_originally_passed){
+
+		//update the changeable flag
+		changeable = (disable) ? false : true;
+
+		//set the current mode notation to something the task actually can use
+		real_current_mode = new_mode;
+
+	}
+
+	else{
+		print_module::print(std::cerr, "Error: Task ", get_index(), " was told to go to invalid mode ", new_mode, ". Ignoring.\n");
+	}
+
+}
+
 __uint128_t TaskData::get_cpu_mask() {
 	
 	return CPU_mask;

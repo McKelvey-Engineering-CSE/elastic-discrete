@@ -174,20 +174,18 @@ void sigrt1_handler(int signum){
 //ARE MAPPED TO THAT ONE REAL MODE.
 void modify_self(int new_mode){
 
-	if (new_mode == schedule.get_task(task_index)->get_current_mode())
+	if (new_mode == schedule.get_task(task_index)->get_real_current_mode())
 		return;
 	
 	mode_change_finished = false;
-	schedule.get_task(task_index)->set_current_mode(new_mode, true);
+	schedule.get_task(task_index)->set_real_current_mode(new_mode, true);
 	killpg(process_group, SIGRTMIN+0);
 
 }
 
 int get_current_mode(){
 
-	int underlying_mode = schedule.get_task(task_index)->get_current_mode();
-
-	return schedule.get_task(task_index)->get_real_mode(underlying_mode);
+	return schedule.get_task(task_index)->get_real_current_mode();
 
 }
 

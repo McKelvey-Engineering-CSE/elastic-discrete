@@ -120,8 +120,10 @@ private:
 
 	int permanent_CPU;
 
-	int current_mode;
+	int current_logical_mode;
 	timespec max_work;
+
+	int current_mode;
 
 	bool cooperative_bool = true;
 
@@ -254,6 +256,10 @@ public:
 	int get_CPUs_change();
 
 	int get_GPUs_change();
+
+	int get_real_current_mode();
+	
+	void set_real_current_mode(int new_mode, bool disable);
 
 	//function to check if this task has transitioned
 	//to a new mode yet
