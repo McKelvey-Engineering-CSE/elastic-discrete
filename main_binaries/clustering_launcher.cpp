@@ -75,7 +75,7 @@ Functions
 void simulated_scheduler()
 {
 	
-	scheduler->do_schedule();
+	scheduler->do_schedule(NUMCPUS - 1);
 
 }
 
@@ -301,7 +301,7 @@ void scheduler_task()
 
 		if(needs_scheduling)
 		{
-			scheduler->do_schedule();
+			scheduler->do_schedule(NUMCPUS - 1);
 			needs_scheduling = false;
 			killpg(process_group, SIGRTMIN+1);
 
@@ -814,7 +814,7 @@ int main(int argc, char *argv[])
 	}
 
 	//tell scheduler to calculate schedule for tasks
-	scheduler->do_schedule();
+	scheduler->do_schedule(NUMCPUS - 1);
 
 	//if we are not simulating the run
 	if (!simulated_task_mode){

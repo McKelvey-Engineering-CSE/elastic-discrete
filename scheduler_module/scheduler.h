@@ -175,7 +175,7 @@ public:
 
 	void generate_unsafe_combinations(size_t maxCPU = NUMCPUS - 1);
 
-	void do_schedule(size_t maxCPU = NUMCPUS - 1);
+	void do_schedule(size_t maxCPU, bool check_max_possible = false);
 
 	std::vector<int> sort_classes(std::vector<int> items_in_candidate);
 

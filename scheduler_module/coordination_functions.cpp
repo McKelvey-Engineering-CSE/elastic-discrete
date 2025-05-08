@@ -101,7 +101,7 @@ enabled, runs the CUDA version of the scheduler. It also builds
 the RAG and executes it if a solution is found
 
 *************************************************************/
-void Scheduler::do_schedule(size_t maxCPU){
+void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	//If we compiled with CUDA enabled, we need 
 	//to initialize the CUDA context and stream
@@ -383,6 +383,24 @@ void Scheduler::do_schedule(size_t maxCPU){
 		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&loss, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, scheduler_stream));
 
 		CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
+
+		//if we are running the scheduler twice to compare 
+		//against maximum possible value for a given transition
+		if (check_max_possible){
+
+			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B);
+
+			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
+
+			//copy the error
+			double max_possible_value = 0;
+			CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&max_possible_value, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, cautious_stream));
+			CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(cautious_stream));
+
+			//print the difference 
+			pm::print(std::cerr, "Difference between optimal and obtained: ", max_possible_value - loss, "\n");
+			
+		}
 
 	#else
 
