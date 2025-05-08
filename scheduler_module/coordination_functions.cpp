@@ -362,8 +362,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	}
 
-	std::cerr << "Current Slack A: " << slack_A << " Current Slack B: " << slack_B << std::endl;
-
+	pm::print(std::cerr, "[Starting Slack] Slack A: ", slack_A, " Slack B: ", slack_B, "\n");
 
 	#ifdef __NVCC__
 
