@@ -883,7 +883,7 @@ int main(int argc, char *argv[])
 
 		//for a simulation time of x iterations
 		//(time simulated changes based on task parameters)
-		while(iter++ < 100){
+		while(iter++ < 1500){
 
 			std::cout << "\nStarting Simulated Iteration: " << iter << "\n" << std::endl;
 

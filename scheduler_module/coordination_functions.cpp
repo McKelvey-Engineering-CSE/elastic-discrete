@@ -335,21 +335,43 @@ void Scheduler::do_schedule(size_t maxCPU){
 	//and actually run the knapsack algorithm on the device
 	//if CUDA is not enabled, just run the knapsack algorithm
 	//on the host
-	#ifdef __NVCC__
 
-		if (first_time) {
+	int slack_A = maxCPU;
+	int slack_B = NUMGPUS;
+
+	if (first_time) {
+		
+		#ifdef __NVCC__
+
+		CUDA_NEW_SAFE_CALL(cudaFuncSetAttribute(device_do_schedule,
+						cudaFuncAttributeMaxDynamicSharedMemorySize,
+						66 * 65 * 3 * 4));
+
+		#endif
+	
+	}
+
+	else {
+
+		for (int i = 0; i < (int) previous_modes.size() * 2; i += 2){
 			
-			CUDA_NEW_SAFE_CALL(cudaFuncSetAttribute(device_do_schedule,
-							cudaFuncAttributeMaxDynamicSharedMemorySize,
-							66 * 65 * 3 * 4));
+			slack_A -= host_current_modes[i];
+			slack_B -= host_current_modes[i + 1];
 
 		}
+
+	}
+
+	std::cerr << "Current Slack A: " << slack_A << " Current Slack B: " << slack_B << std::endl;
+
+
+	#ifdef __NVCC__
 
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, host_current_modes, sizeof(int) * MAXTASKS * 2, cudaMemcpyHostToDevice));
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
 
 		//Execute exact solution
-		device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
+		device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B);
 
 		//peek for launch errors
 		CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
