@@ -1,6 +1,6 @@
 # Elastic-Discrete Scheduler
 
-Readme last updated: 6 May 2025 by Tyler Martin
+Readme last updated: 8 May 2025 by Tyler Martin
 
 ## Description
 This is a runtime system to run parallel elastic tasks with discrete candidate values of period T OR work C. 
@@ -163,6 +163,52 @@ and to run it in simulated mode
 ```
 ./clustering_launcher ./<input_file_name>.yaml SIM
 ```
+
+## Functions You Can Access From A Task
+
+Each task has a few different functions it can call do affect or check various things in the system.
+These functions are as follows:
+
+```
+void modify_self(int);
+```
+Allows a task to modify the mode it is currently running in and request a full system reschedule. 
+Pass in the number of the mode you would like to transition to and the scheduler will immediately 
+calculate and execute a new system schedule. If there is no way to get the task to that mode, 
+the task will be rescheduled in its current mode.
+
+```
+int get_current_mode();
+```
+Call to check what mode the task is currently executing in.
+
+```
+void set_cooperative(bool);
+```
+Allows setting of whether or not the task is cooperative. If a task is cooperative, then the task
+will allow itself to be changed to a different mode upon system reschedules to help the rest of the system
+achieve the new running state. If set to false. then the system will not force this task to change modes unless
+the task requests a mode change.
+
+```
+void allow_change();
+```
+To be used after set_coopertative is run if you desire the system to calculate a new schedule with the task
+in question now being allowed to cooperate and have its mode changed. 
+
+## Useful Variables You Can Access From A Task
+
+Each task also has different variables that they own which reflect different parts of their current 
+execution scheme and operating mode. Two specifically useful ones are:
+
+```
+__uint128_t current_cpu_mask;
+__uint128_t current_gpu_mask;
+```
+
+These two can be called from anywhere and will always contain the current CPU and GPU (similarly processor A / B) 
+mask which details which processor cores this task currently has owned by it. Least signiicant bit is core 0 up to core
+128 in the most significant bit.
 
 
 ## Elastic Discrete Legacy Description (For Use With Legacy Cybermech)
