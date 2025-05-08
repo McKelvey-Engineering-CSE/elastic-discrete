@@ -853,10 +853,8 @@ int main(int argc, char *argv[])
 		//arrays to store each task that is being simulated
 		timespec current_period[parsed_tasks.size()];
 		timespec current_work[parsed_tasks.size()];
-		timespec current_span[parsed_tasks.size()];
 		timespec deadline[parsed_tasks.size()];
 
-		int task_index[parsed_tasks.size()];
 		int current_mode[parsed_tasks.size()];
 
 		int percentile[parsed_tasks.size()];
@@ -891,7 +889,7 @@ int main(int argc, char *argv[])
 
 		//print the instigating tasks
 		std::cout << "Instigating Task array layout: " << std::endl;
-		for (int i = 0; i < parsed_tasks.size(); i++){
+		for (size_t i = 0; i < parsed_tasks.size(); i++){
 
 			std::cout << "Task " << i << ": " << instigating_tasks[i] << std::endl;
 
@@ -901,7 +899,7 @@ int main(int argc, char *argv[])
 		bool needs_scheduling = false;
 
 		//start each of the simulated tasks
-		for (int i = 0; i < parsed_tasks.size(); i++){
+		for (size_t i = 0; i < parsed_tasks.size(); i++){
 
 			//call the simulated task start
 			simulated_task_start(i, &current_period[i], &current_work[i], &current_mode[i], &deadline[i], &percentile[i], &current_cpu_mask[i], &current_gpu_mask[i], scheduler->get_schedule());
@@ -928,7 +926,7 @@ int main(int argc, char *argv[])
 
 					continue_processing_reschedule = true;
 
-					for (int i = 0; i < parsed_tasks.size(); i++){
+					for (size_t i = 0; i < parsed_tasks.size(); i++){
 
 						//call the simulated reschedule
 						continue_processing_reschedule &= simulated_reschedule(i, &current_period[i], &current_work[i], &current_mode[i], &deadline[i], &percentile[i], &current_cpu_mask[i], &current_gpu_mask[i], scheduler->get_schedule());
@@ -944,7 +942,7 @@ int main(int argc, char *argv[])
 			needs_scheduling = false;
 
 			//for each task, we execute one "loop" of it's work
-			for (int i = 0; i < parsed_tasks.size(); i++){
+			for (size_t i = 0; i < parsed_tasks.size(); i++){
 
 				//get the task
 				TaskData * td = scheduler->get_schedule()->get_task(i);

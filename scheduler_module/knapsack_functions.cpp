@@ -86,8 +86,6 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 		// Create references with the EXACT same names as the original static variables
 		auto& shared_dp_two = *reinterpret_cast<float (*)[2][64 + 1][64 + 1]>(float_mem);
 		auto& free_resource_pool = *reinterpret_cast<char (*)[2][64 + 1][64 + 1][2]>(char_mem);
-		auto& start_index = *int_mem;
-		auto& end_index = *(int_mem + 1);
 
 	#else 
 
@@ -118,7 +116,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 		//check if it is cooperative
 		int desired_state = -1;
-		
+
 		if (uncooperative_tasks[i - 1] != -1)
 			desired_state = uncooperative_tasks[i - 1];
 	

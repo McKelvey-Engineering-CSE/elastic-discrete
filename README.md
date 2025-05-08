@@ -202,22 +202,22 @@ print_module::bufferSet(std::string buffer_name_one, std::string buffer_name_two
 Functions Provided:
 ```
 template <typename Arg, typename... Args>
-static void buffered_print(std::ostringstream& out, Arg&& arg, Args&&... args);
+void buffered_print(std::ostringstream& out, Arg&& arg, Args&&... args);
 
 template <typename Arg, typename... Args>
-static void print(std::ostream& out, Arg&& arg, Args&&... args);
+void print(std::ostream& out, Arg&& arg, Args&&... args);
 
 template <typename Arg, typename... Args>
-static void task_print(std::ostream& out, Arg&& arg, Args&&... args);
+void task_print(std::ostream& out, Arg&& arg, Args&&... args);
 
 template <typename... Args>
-static void flush(std::ostream& out, std::ostringstream& buff, Args&&... args);
+void flush(std::ostream& out, std::ostringstream& buff, Args&&... args);
 
 template <typename Arg, typename... Args>
-static void print(const char bufferChar[], Arg&& arg, Args&&... args);
+void print(const char bufferChar[], Arg&& arg, Args&&... args);
 
 template <typename Arg, typename... Args>
-static void print(buffer_set bufferNames, Arg&& arg, Args&&... args);
+void print(buffer_set bufferNames, Arg&& arg, Args&&... args);
 ```
 
 This printing method can be imported into any object in the system and used. It ensures a process-safe and thread-ready method for printing which 

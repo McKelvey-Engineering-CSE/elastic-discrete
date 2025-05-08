@@ -46,7 +46,7 @@ namespace print_module {
     #if __cplusplus > 201703L
 
         template <typename Arg, typename... Args>
-        static void buffered_print(std::ostringstream& out, Arg&& arg, Args&&... args){   
+        void buffered_print(std::ostringstream& out, Arg&& arg, Args&&... args){   
 
             std::basic_osyncstream oss(out);
             
@@ -58,7 +58,7 @@ namespace print_module {
         }
 
         template <typename Arg, typename... Args>
-        static void print(std::ostream& out, Arg&& arg, Args&&... args){   
+        void print(std::ostream& out, Arg&& arg, Args&&... args){   
             
             //basic_osyncstream if we support it
             std::basic_osyncstream oss(out);
@@ -71,7 +71,7 @@ namespace print_module {
         }
 
         template <typename Arg, typename... Args>
-        static void task_print(std::ostream& out, Arg&& arg, Args&&... args){   
+        void task_print(std::ostream& out, Arg&& arg, Args&&... args){   
             
             //basic_osyncstream if we support it
             std::basic_osyncstream oss(out);
@@ -87,7 +87,7 @@ namespace print_module {
         }
 
         template <typename... Args>
-        static void flush(std::ostream& out, std::ostringstream& buff, Args&&... args){
+        void flush(std::ostream& out, std::ostringstream& buff, Args&&... args){
             
             //basic_osyncstream if we support it
             std::basic_osyncstream oss(out);
@@ -104,7 +104,7 @@ namespace print_module {
         }
 
         template <typename Arg, typename... Args>
-        static void print(const char bufferChar[], Arg&& arg, Args&&... args){
+        void print(const char bufferChar[], Arg&& arg, Args&&... args){
 
             //char to string
             std::string bufferName(bufferChar);
@@ -127,7 +127,7 @@ namespace print_module {
         }
 
         template <typename Arg, typename... Args>
-        static void print(buffer_set bufferNames, Arg&& arg, Args&&... args){
+        void print(buffer_set bufferNames, Arg&& arg, Args&&... args){
 
             //loop over all the handles in the buffer
             for (std::string name : bufferNames.fetch()){
@@ -153,7 +153,7 @@ namespace print_module {
     #else
 
         template <typename Arg, typename... Args>
-        static void buffered_print(std::ostringstream& oss, Arg&& arg, Args&&... args){   
+        void buffered_print(std::ostringstream& oss, Arg&& arg, Args&&... args){   
             
             //expander boilerplate
             oss << std::forward<Arg>(arg);
@@ -163,7 +163,7 @@ namespace print_module {
         }
 
         template <typename Arg, typename... Args>
-        static void print(std::ostream& out, Arg&& arg, Args&&... args){   
+        void print(std::ostream& out, Arg&& arg, Args&&... args){   
             
             //ostringstream seems to have lowest possible 
             //overhead
@@ -179,7 +179,7 @@ namespace print_module {
         }
 
         template <typename Arg, typename... Args>
-        static void task_print(std::ostream& out, Arg&& arg, Args&&... args){   
+        void task_print(std::ostream& out, Arg&& arg, Args&&... args){   
             
             //ostringstream seems to have lowest possible 
             //overhead
@@ -198,7 +198,7 @@ namespace print_module {
         }
 
         template <typename... Args>
-        static void flush(std::ostream& out, std::ostringstream& buff, Args&&... args){
+        void flush(std::ostream& out, std::ostringstream& buff, Args&&... args){
             
             //basic_osyncstream if we support it
             std::ostringstream ss;
@@ -217,7 +217,7 @@ namespace print_module {
         }
 
         template <typename Arg, typename... Args>
-        static void print(const char bufferChar[], Arg&& arg, Args&&... args){
+        void print(const char bufferChar[], Arg&& arg, Args&&... args){
 
             //char to string
             std::string bufferName(bufferChar);
@@ -240,7 +240,7 @@ namespace print_module {
         }
 
         template <typename Arg, typename... Args>
-        static void print(buffer_set bufferNames, Arg&& arg, Args&&... args){
+        void print(buffer_set bufferNames, Arg&& arg, Args&&... args){
 
             //loop over all the handles in the buffer
             for (std::string name : bufferNames.fetch()){
