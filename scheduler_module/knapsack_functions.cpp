@@ -119,7 +119,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 		//check if it is cooperative
 		#ifdef __NVCC__
 		
-		if (uncooperative_tasks[i - 1]){
+		if (uncooperative_tasks[i - 1] != -1){
 
 			if (threadIdx.x < MAXMODES - 1){
 
@@ -158,8 +158,9 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 		#else 
 
 			int desired_state = -1;
-			if (uncooperative_tasks[i - 1]){
+			if (uncooperative_tasks[i - 1] != -1){
 				desired_state = uncooperative_tasks[i - 1];
+				std::cout << "UNCOOPERATIVE TASK: " << i - 1 << " " << desired_state << std::endl;
 			}
 		
 		#endif	

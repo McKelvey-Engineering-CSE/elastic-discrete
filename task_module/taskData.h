@@ -64,7 +64,7 @@ private:
 	static int counter;
 	int index; //unique identifier
 	
-	bool changeable;
+	bool changeable = true;
 	bool can_reschedule;
 	int num_adaptations;
 

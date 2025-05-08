@@ -75,7 +75,7 @@ Functions
 void simulated_scheduler()
 {
 	
-	scheduler->do_schedule(NUMCPUS - 1);
+	scheduler->do_schedule(NUMCPUS - 1, true);
 
 }
 
@@ -301,7 +301,7 @@ void scheduler_task()
 
 		if(needs_scheduling)
 		{
-			scheduler->do_schedule(NUMCPUS - 1);
+			scheduler->do_schedule(NUMCPUS - 1, true);
 			needs_scheduling = false;
 			killpg(process_group, SIGRTMIN+1);
 
@@ -864,11 +864,38 @@ int main(int argc, char *argv[])
 		__uint128_t current_cpu_mask[parsed_tasks.size()];
 		__uint128_t current_gpu_mask[parsed_tasks.size()];
 
-		//for testing we just use the first 3 tasks, and they use 3, 5, and 7 iterations
-		//FIXME: this should be changed to be more dynamic
-		instigating_tasks[0] = 3;
-		instigating_tasks[1] = 5;
-		instigating_tasks[2] = 7;
+		//for testing select 5 random tasks to be the instigators
+		int task_count = parsed_tasks.size();
+		int instigator_count = 5;
+		int instigation_time[] = {3, 5, 7, 11, 13};
+
+		//set rand seed
+		srand(time(NULL));
+
+		//randomly select 5 tasks to be instigators
+		for (int i = 0; i < instigator_count; i++){
+
+			int random_task = rand() % task_count;
+
+			//if we have already selected this task, try again
+			while (instigating_tasks[random_task] != -1){
+
+				random_task = rand() % task_count;
+
+			}
+
+			instigating_tasks[random_task] = instigation_time[i];
+			scheduler->get_schedule()->get_task(random_task)->set_cooperative(false);
+
+		}
+
+		//print the instigating tasks
+		std::cout << "Instigating Task array layout: " << std::endl;
+		for (int i = 0; i < parsed_tasks.size(); i++){
+
+			std::cout << "Task " << i << ": " << instigating_tasks[i] << std::endl;
+
+		}
 
 		//one control bool for scheduling gating
 		bool needs_scheduling = false;
@@ -883,7 +910,7 @@ int main(int argc, char *argv[])
 
 		//for a simulation time of x iterations
 		//(time simulated changes based on task parameters)
-		while(iter++ < 1500){
+		while(iter++ < 1000){
 
 			std::cout << "\nStarting Simulated Iteration: " << iter << "\n" << std::endl;
 
@@ -930,9 +957,14 @@ int main(int argc, char *argv[])
 						//tell the scheduler to reschedule
 						needs_scheduling = true;
 
+						int task_current_mode = td->get_real_mode(td->get_current_mode());
+
+						//print what mode we are trying to switch to
+						std::cout << "Task " << i << " is instigating a reschedule to mode " << (task_current_mode + 1) % td->get_original_modes_passed() << " from mode " << task_current_mode << std::endl;
+
 						//set the mode this task should be moving into 
 						//(for now just cycle through all modes)
-						td->set_current_mode(td->get_current_mode() % td->get_original_modes_passed(), true);
+						td->set_current_mode((task_current_mode + 1) % td->get_original_modes_passed(), true);
 
 					}
 

@@ -295,7 +295,8 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 	//are not allowed to change their modes in the knapsack
 	//algorithm. We take note of which tasks are uncooperative
 	//and send them to the device
-	int host_uncooperative[MAXTASKS] = {0};
+	int host_uncooperative[MAXTASKS] = {-1};
+	memset(host_uncooperative, -1, sizeof(int) * MAXTASKS);
 
 	if (!first_time){
 
@@ -408,7 +409,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	#else
 
-		device_do_schedule(N - 1, maxCPU, NUMGPUS, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution);
+		device_do_schedule(N - 1, maxCPU, NUMGPUS, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution, slack_A, slack_B);
 
 		loss = *d_final_loss;
 
@@ -444,7 +445,6 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 	//print out the time taken
 	print_module::print(std::cerr, "Time taken to run just the double knapsack: ", elapsed_time / 1000000, " milliseconds.\n");
 
-
 	//check to see that we got a solution that renders this system schedulable
 	if ((result.size() == 0 || loss == 100001) && first_time){
 
@@ -472,7 +472,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 	std::ostringstream mode_strings;
 	print_module::buffered_print(mode_strings, "\n========================= \n", "New Schedule Layout:\n");
 	for (size_t i = 0; i < result.size(); i++)
-		print_module::buffered_print(mode_strings, "Task ", i, " is now in mode: ", result.at(i), "\n");
+		print_module::buffered_print(mode_strings, "Task ", i, " is now in mode: ", result.at(i), " | ", schedule.get_task(i)->get_real_mode(result.at(i)), "\n");
 	print_module::buffered_print(mode_strings, "Total Loss from Mode Change: ", loss, "\n=========================\n\n");
 
 	//print resources now held by each task
