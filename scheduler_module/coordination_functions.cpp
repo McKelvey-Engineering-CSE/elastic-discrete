@@ -388,6 +388,10 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		//against maximum possible value for a given transition
 		if (check_max_possible){
 
+			//enable unsafe checking
+			int optimal_modes[MAXTASKS * 2] = {0};
+			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, optimal_modes, sizeof(int) * MAXTASKS * 2, cudaMemcpyHostToDevice));
+
 			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B);
 
 			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
@@ -399,7 +403,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			//print the difference 
 			pm::print(std::cerr, "Difference between optimal and obtained: ", max_possible_value - loss, "\n");
-			
+
 		}
 
 	#else
