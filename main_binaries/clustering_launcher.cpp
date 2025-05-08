@@ -232,7 +232,7 @@ bool simulated_reschedule(int task_index, timespec* current_period, timespec* cu
 		// Set up everything to begin as scheduled.
 		*current_period = schedule->get_task(task_index)->get_current_period();
 		*current_work = schedule->get_task(task_index)->get_current_work();
-		*current_mode = schedule->get_task(task_index)->get_current_mode();
+		*current_mode = schedule->get_task(task_index)->get_current_virtual_mode();
 
 		//update our cpu mask
 		*current_cpu_mask = schedule->get_task(task_index)->get_cpu_mask();
@@ -957,7 +957,7 @@ int main(int argc, char *argv[])
 						//tell the scheduler to reschedule
 						needs_scheduling = true;
 
-						int task_current_mode = td->get_real_mode(td->get_current_mode());
+						int task_current_mode = td->get_real_mode(td->get_current_virtual_mode());
 
 						int mode_moving_to = ((task_current_mode + 1) % td->get_original_modes_passed());
 

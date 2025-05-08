@@ -470,7 +470,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	//print the new schedule layout
 	std::ostringstream mode_strings;
-	print_module::buffered_print(mode_strings, "\n========================= \n", "New Schedule Layout (real | virtual):\n");
+	print_module::buffered_print(mode_strings, "\n========================= \n", "New Schedule Layout (virtual | real):\n");
 	for (size_t i = 0; i < result.size(); i++)
 		print_module::buffered_print(mode_strings, "Task ", i, " is now in mode: (", result.at(i), " | ", schedule.get_task(i)->get_real_mode(result.at(i)), ")\n");
 	print_module::buffered_print(mode_strings, "Total Loss from Mode Change: ", loss, "\n=========================\n\n");
@@ -485,7 +485,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 	//this changes the mode the tasks are currently
 	//set to within their TaskData structure
 	for (int i = 0; i < schedule.count(); i++)
-		(schedule.get_task(i))->set_current_mode(result.at(i), false);
+		(schedule.get_task(i))->set_current_virtual_mode(result.at(i), false);
 
 	//greedily give cpus on first run
 	if (first_time) {
@@ -495,7 +495,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		//structure. Running this function for each task one more time
 		//right at the start ensures that it is set
 		for (int i = 0; i < schedule.count(); i++)
-			(schedule.get_task(i))->set_current_mode(result.at(i), false);
+			(schedule.get_task(i))->set_current_virtual_mode(result.at(i), false);
 
 		//update the previous modes to the first ever selected modes
 		for (size_t i = 0; i < result.size(); i++)

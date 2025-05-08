@@ -291,7 +291,7 @@ void reschedule(){
 	// Set up everything to begin as scheduled.
     current_period = schedule.get_task(task_index)->get_current_period();
     current_work = schedule.get_task(task_index)->get_current_work();
-	current_mode = schedule.get_task(task_index)->get_current_mode();
+	current_mode = schedule.get_task(task_index)->get_current_virtual_mode();
 	deadline = current_period;
 	percentile = schedule.get_task(task_index)->get_percentage_workload();
 

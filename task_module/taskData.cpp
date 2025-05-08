@@ -95,7 +95,7 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 																													percentage_workload(1.0), current_period({0,0}), 
 																													current_work({0,0}), current_span({0,0}), 
 																													current_utilization(0.0), current_CPUs(0), previous_CPUs(0), 
-																													permanent_CPU(-1), current_mode(0), max_work({0,0}){
+																													permanent_CPU(-1), current_virtual_mode(0), max_work({0,0}){
 	
 	if (num_modes > MAXMODES){
 
@@ -499,10 +499,10 @@ int TaskData::get_real_mode(int mode){
 
 void TaskData::reset_mode_to_previous(){
 
-	current_mode = previous_mode;
-	current_work = work[current_mode];
-	current_span = span[current_mode];
-	current_period = period[current_mode];
+	current_virtual_mode = previous_mode;
+	current_work = work[current_virtual_mode];
+	current_span = span[current_virtual_mode];
+	current_period = period[current_virtual_mode];
 	current_utilization = current_work / current_period;
 	percentage_workload = current_work / max_work;
 	current_CPUs = previous_CPUs;
@@ -510,32 +510,32 @@ void TaskData::reset_mode_to_previous(){
 
 }
 
-void TaskData::set_current_mode(int new_mode, bool disable)
+void TaskData::set_current_virtual_mode(int new_mode, bool disable)
 {
 	if (new_mode >= 0 && new_mode < num_modes){
 
 		//stash old mode
-		previous_mode = current_mode;
+		previous_mode = current_virtual_mode;
 
 		//update CPU parameters
-		current_mode = new_mode;
-		current_work = work[current_mode];
-		current_span = span[current_mode];
-		current_period = period[current_mode];
+		current_virtual_mode = new_mode;
+		current_work = work[current_virtual_mode];
+		current_span = span[current_virtual_mode];
+		current_period = period[current_virtual_mode];
 		current_utilization = current_work / current_period;
 		percentage_workload = current_work / max_work;
 		previous_CPUs = current_CPUs;
-		current_CPUs = CPUs[current_mode];
+		current_CPUs = CPUs[current_virtual_mode];
 		
 		//update GPU parameters
 		previous_GPUs = current_GPUs;
-		current_GPUs = GPUs[current_mode];
+		current_GPUs = GPUs[current_virtual_mode];
 
 		//update the changeable flag
 		changeable = (disable) ? false : true;
 
 		//set the current mode notation to something the task actually can use
-		real_current_mode = get_real_mode(current_mode);
+		real_current_mode = get_real_mode(current_virtual_mode);
 
 	}
 
@@ -544,8 +544,8 @@ void TaskData::set_current_mode(int new_mode, bool disable)
 	}
 }
 
-int TaskData::get_current_mode(){
-	return current_mode;
+int TaskData::get_current_virtual_mode(){
+	return current_virtual_mode;
 }
 
 void TaskData::reset_changeable(){

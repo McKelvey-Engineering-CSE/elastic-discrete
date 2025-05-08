@@ -123,7 +123,7 @@ private:
 	int current_logical_mode;
 	timespec max_work;
 
-	int current_mode;
+	int current_virtual_mode;
 
 	bool cooperative_bool = true;
 
@@ -208,8 +208,8 @@ public:
 	int get_CPUs_gained();
 	void set_CPUs_gained(int new_CPUs_gained);
 
-	void set_current_mode(int new_mode, bool disable);
-	int get_current_mode();
+	void set_current_virtual_mode(int new_mode, bool disable);
+	int get_current_virtual_mode();
 
 	void reset_changeable();
 	void set_current_lowest_CPU(int _lowest);
