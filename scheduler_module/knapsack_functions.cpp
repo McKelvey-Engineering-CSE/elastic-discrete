@@ -81,7 +81,6 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 		// Calculate offset for int variables
 		offset += sizeof(char) * 2 * (64 + 1) * (64 + 1) * 2;
 		offset = (offset + int_align - 1) & ~(int_align - 1);
-		int* int_mem = (int*)(shared_mem + offset);
 		
 		// Create references with the EXACT same names as the original static variables
 		auto& shared_dp_two = *reinterpret_cast<float (*)[2][64 + 1][64 + 1]>(float_mem);
@@ -98,7 +97,11 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 	const int pass_count = ceil(((maxCPU + 1) * (NUMGPUS + 1)) / HOST_DEVICE_BLOCK_DIM) + 1;
 
 	//store the indices we will be using
-	int indices[12][2];
+	#ifdef __NVCC__
+
+		int indices[12][2];
+
+	#endif
 
 	//loopback variables to ensure we process
 	//the uncooperative tasks last every time

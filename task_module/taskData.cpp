@@ -95,7 +95,7 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 																													percentage_workload(1.0), current_period({0,0}), 
 																													current_work({0,0}), current_span({0,0}), 
 																													current_utilization(0.0), current_CPUs(0), previous_CPUs(0), 
-																													permanent_CPU(-1), current_virtual_mode(0), max_work({0,0}){
+																													permanent_CPU(-1), max_work({0,0}), current_virtual_mode(0){
 	
 	if (num_modes > MAXMODES){
 
@@ -236,9 +236,9 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 			if (best_base_mode_seen < distinct_modes_seen){
 
 				bool candidate_mode = true;
-				for (int i = 0; i < modes_originally_passed; i++){
+				for (int m = 0; m < modes_originally_passed; m++){
 
-					if (seen_modes_utilizations[i] == 0)
+					if (seen_modes_utilizations[m] == 0)
 						candidate_mode = false;
 
 				}

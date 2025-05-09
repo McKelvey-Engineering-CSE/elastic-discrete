@@ -40,6 +40,9 @@ bool first_time = true;
 
 #endif
 
+//#define LOUD_PRINT
+//#define SM_PRINT
+
 void update_core_B(__uint128_t mask) {
 
     //for now just pretend
@@ -54,7 +57,7 @@ void update_core_B(__uint128_t mask) {
         unsigned int partition_num;
 
         //fill the initial descriptor
-        CUDA_SAFE_CALL(cuDeviceGetDevResource(0, &initial_resources, CU_DEV_RESOURCE_TYPE_SM));
+        cuDeviceGetDevResource(0, &initial_resources, CU_DEV_RESOURCE_TYPE_SM);
 
         partition_num = initial_resources.sm.smCount / 2;
 
@@ -91,12 +94,14 @@ void update_core_B(__uint128_t mask) {
         CUDA_SAFE_CALL(cuGreenCtxStreamCreate(&stream, task_green_ctx, CU_STREAM_NON_BLOCKING, 0));
 
     //if first time, print sms
-    /*if (display_sms) {
+    #ifdef SM_PRINT
+        if (display_sms) {
 
-        visualize_sm_partitions_interprocess(task_green_ctx, 1, "JAMESSM");
-        display_sms = false;
-        
-    }*/
+            visualize_sm_partitions_interprocess(task_green_ctx, 1, "JAMESSM");
+            display_sms = false;
+            
+        }
+    #endif
 
     #endif
 
@@ -133,14 +138,17 @@ int run(int argc, char *argv[]){
 
     std::atomic<int> count = 0;
 
-    //print_module::buffered_print(buffer, "\n(", getpid(), ") [", task_index, "] [Threads]: \n");
+    #ifdef LOUD_PRINT
+        print_module::buffered_print(buffer, "\n(", getpid(), ") [", task_index, "] [Threads]: \n");
+    #endif
 
     #ifdef OMP_OVERRIDE
 
         omp( pragma_omp_parallel
         {
-
-            //pm::buffered_print(buffer, "ompish Thread ", thread_id, " on core ", sched_getcpu(), " of ", team_dim, " threads\n");
+            #ifdef LOUD_PRINT
+                pm::buffered_print(buffer, "ompish Thread ", thread_id, " on core ", sched_getcpu(), " of ", team_dim, " threads\n");
+            #endif
 
             count++;
 
@@ -153,8 +161,10 @@ int run(int argc, char *argv[]){
         #pragma omp parallel
         {
 
-            //pm::buffered_print(buffer, "omp Thread ", omp_get_thread_num(), " on core ", sched_getcpu(), " of ", omp_get_num_threads(), " threads\n");
-
+            #ifdef LOUD_PRINT
+                pm::buffered_print(buffer, "omp Thread ", omp_get_thread_num(), " on core ", sched_getcpu(), " of ", omp_get_num_threads(), " threads\n");
+            #endif
+            
             count++;
 
             busy_work(spin_tv);
@@ -163,8 +173,10 @@ int run(int argc, char *argv[]){
 
     #endif
 
-    //pm::buffered_print(buffer, "TEST: [", task_index, ",", iterations_complete, "] core count: ", count, "\n");
-    //pm::flush(std::cerr, buffer);
+    #ifdef LOUD_PRINT
+        pm::buffered_print(buffer, "TEST: [", task_index, ",", iterations_complete, "] core count: ", count, "\n");
+        pm::flush(std::cerr, buffer);
+    #endif
 
     iterations_complete++;
 
