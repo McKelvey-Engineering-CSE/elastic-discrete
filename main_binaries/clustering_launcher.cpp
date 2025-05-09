@@ -398,7 +398,7 @@ void force_cleanup(bool kill_processes = true) {
 // User requested to exit
 void exit_user_request(int sig) {
 	force_cleanup();
-	exit(0);
+	exit(1);
 }
 
 // Child task encountered an error
@@ -876,7 +876,7 @@ int main(int argc, char *argv[])
 			int random_task = rand() % task_count;
 
 			//if we have already selected this task, try again
-			while (instigating_tasks[random_task] != -1 || random_task < 3){
+			while (instigating_tasks[random_task] != -1){
 
 				random_task = rand() % task_count;
 

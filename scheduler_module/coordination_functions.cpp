@@ -298,17 +298,25 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 	int host_uncooperative[MAXTASKS] = {-1};
 	memset(host_uncooperative, -1, sizeof(int) * MAXTASKS);
 
-	if (!first_time){
+	//loopback variables to ensure we process
+	//the uncooperative tasks last every time
+	int real_order_of_tasks[num_tasks];
+	int loopback_back = num_tasks - 1;
+	int loopback_front = 0;
 
-		for (int i = 0; i < schedule.count(); i++){
+	for (int i = 0; i < schedule.count(); i++){
 
-			if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative()){
-					
+		if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative()){
+				
+			if (!first_time)
 				host_uncooperative[i] = schedule.get_task(i)->get_real_current_mode();
 
-			}
+			real_order_of_tasks[loopback_back--] = i;
 
 		}
+
+		else 
+			real_order_of_tasks[loopback_front++] = i;
 
 	}
 
@@ -417,20 +425,23 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	std::vector<int> result;
 
-	result.clear();
+	for (int i = 0; i < (int) num_tasks; i++)
+		result.push_back(-1);
 
 	for (int i = 0; i < (int) num_tasks; i++) {
+
+		int index = real_order_of_tasks[i];
 		
 
 		#ifdef __NVCC__
 
 			if (host_final[i] != -1)
-				result.push_back(host_final[i]);
+				result.at(index) = (host_final[i]);
 
 		#else
 
 			if (d_final_solution[i] != -1)
-				result.push_back(d_final_solution[i]);
+				result.at(index) = (d_final_solution[i]);
 
 		#endif
 

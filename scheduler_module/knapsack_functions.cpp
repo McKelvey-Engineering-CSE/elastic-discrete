@@ -100,9 +100,26 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 	//store the indices we will be using
 	int indices[12][2];
 
+	//loopback variables to ensure we process
+	//the uncooperative tasks last every time
+	int loopback_indices[MAXTASKS];
+	int loopback_back = num_tasks - 1;
+	int loopback_front = 0;
+
+	//initialize the loopback variables
+	for (int i = 1; i <= num_tasks; i++){
+
+		if (uncooperative_tasks[i - 1] != -1)
+			loopback_indices[loopback_back--] = i;
+		else
+			loopback_indices[loopback_front++] = i;
+
+	}
+
 	//loop over all tasks
 	for (int i = 1; i <= (int) num_tasks; i++) {
 
+		int group_idx = loopback_indices[i - 1];
 
 		#ifdef __NVCC__
 
@@ -117,8 +134,8 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 		//check if it is cooperative
 		int desired_state = -1;
 
-		if (uncooperative_tasks[i - 1] != -1)
-			desired_state = uncooperative_tasks[i - 1];
+		if (uncooperative_tasks[group_idx - 1] != -1)
+			desired_state = uncooperative_tasks[group_idx - 1];
 	
 		//for each pass we are supposed to do
 		for (int k = 0; k < pass_count; k++){
@@ -168,10 +185,10 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 			for (int j = j_start; j < j_end; j++) {
 
 				//fetch initial suspected resource values
-				int current_item_sms = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 1];
-				int current_item_cores = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3];
+				int current_item_sms = constant_task_table[(group_idx - 1) * MAXMODES * 3 + j * 3 + 1];
+				int current_item_cores = constant_task_table[(group_idx - 1) * MAXMODES * 3 + j * 3];
 
-				int current_item_real_mode = constant_task_table[(i - 1) * MAXMODES * 3 + j * 3 + 2];
+				int current_item_real_mode = constant_task_table[(group_idx - 1) * MAXMODES * 3 + j * 3 + 2];
 
 				if (desired_state != -1)
 					if (current_item_real_mode != desired_state){
@@ -179,8 +196,8 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 					}
 
 				//check the change in processors
-				int delta_cores = task_table[(i - 1) * 2] - current_item_cores;
-				int delta_sms = task_table[((i - 1) * 2) + 1] - current_item_sms;
+				int delta_cores = task_table[(group_idx - 1) * 2] - current_item_cores;
+				int delta_sms = task_table[((group_idx - 1) * 2) + 1] - current_item_sms;
 
 				if (current_item_cores == -1 || current_item_sms == -1)
 					continue;
@@ -230,7 +247,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 				if ((dp_table_loss != 100000)) {
 
-					float newCPULoss_two = dp_table_loss + constant_losses[(i - 1) * MAXMODES + j];
+					float newCPULoss_two = dp_table_loss + constant_losses[(group_idx - 1) * MAXMODES + j];
 					
 					//if found solution is better, update
 					if ((newCPULoss_two) < (best_loss)) {
@@ -278,6 +295,8 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 		for (int i = num_tasks; i > 0; i--){
 
+			int group_idx = loopback_indices[i - 1];
+
 			int current_item = solutions[i][current_w][current_v];
 
 			if (current_item == -1){
@@ -289,8 +308,8 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 			else {
 
 				//take the core and sm values for the item
-				int current_item_cores = constant_task_table[(i - 1) * MAXMODES * 3 + current_item * 3];
-				int current_item_sms = constant_task_table[(i - 1) * MAXMODES * 3 + current_item * 3 + 1];
+				int current_item_cores = constant_task_table[(group_idx - 1) * MAXMODES * 3 + current_item * 3];
+				int current_item_sms = constant_task_table[(group_idx - 1) * MAXMODES * 3 + current_item * 3 + 1];
 
 				//update the current w and v values
 				current_w = current_w - current_item_cores;
