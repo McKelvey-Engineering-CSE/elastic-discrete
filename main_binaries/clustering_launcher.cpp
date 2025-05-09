@@ -876,7 +876,7 @@ int main(int argc, char *argv[])
 			int random_task = rand() % task_count;
 
 			//if we have already selected this task, try again
-			while (instigating_tasks[random_task] != -1){
+			while (instigating_tasks[random_task] != -1 || random_task < 3){
 
 				random_task = rand() % task_count;
 

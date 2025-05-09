@@ -468,6 +468,27 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	}
 
+	//make sure that all tasks which demanded
+	//to be in a specific mode are in that mode
+	//since we are guaranteed to have a valid
+	//solution at this point
+	for (int i = 0; i < schedule.count(); i++){
+
+		if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative()){
+
+			//if the task is not in the mode it was supposed to be in
+			if ((schedule.get_task(i))->get_real_mode(result.at(i)) != (schedule.get_task(i))->get_real_current_mode()){
+
+				print_module::print(std::cerr, "Error: Task ", i, " is not in the mode it was supposed to be in. Expected: ", (schedule.get_task(i))->get_real_mode(result.at(i)), " Found: ", (schedule.get_task(i))->get_real_current_mode(), "\n");
+				killpg(process_group, SIGINT);
+				return;
+
+			}
+
+		}
+
+	}
+
 	//print the new schedule layout
 	std::ostringstream mode_strings;
 	print_module::buffered_print(mode_strings, "\n========================= \n", "New Schedule Layout (virtual/real):\n");
