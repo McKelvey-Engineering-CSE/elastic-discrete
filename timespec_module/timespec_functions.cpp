@@ -59,6 +59,8 @@ double operator/(const timespec & ts1, const timespec & ts2)
 	return static_cast<double>(ts1_nsecs) / ts2_nsecs;
 }
 
+
+//FIXME: THIS ONLY ALLOWS 2 SECONDS MAX!!!
 long get_timespec_in_ns(const timespec ts1)
 {
 	return ts1.tv_nsec + nanosec_in_sec * ts1.tv_sec;

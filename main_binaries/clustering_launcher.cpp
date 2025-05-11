@@ -842,7 +842,18 @@ int main(int argc, char *argv[])
 	else{
 
 		//iteration counter
-		int iter = 0;
+		int iter[parsed_tasks.size()];
+
+		//microsecond tracker
+		unsigned long long nanoseconds_passed = 0;
+
+
+
+		//task run trackers
+		unsigned long long current_periods_counting_down[parsed_tasks.size()];
+
+		//simple array to track whether or not tasks have transitioned yet
+		bool task_has_transitioned[parsed_tasks.size()];
 
 		//array to store who is an instigating task, and on what iteration
 		int instigating_tasks[parsed_tasks.size()];
@@ -887,16 +898,9 @@ int main(int argc, char *argv[])
 
 		}
 
-		//print the instigating tasks
-		std::cout << "Instigating Task array layout: " << std::endl;
-		for (size_t i = 0; i < parsed_tasks.size(); i++){
-
-			std::cout << "Task " << i << ": " << instigating_tasks[i] << std::endl;
-
-		}
-
 		//one control bool for scheduling gating
 		bool needs_scheduling = false;
+		bool reschedule_in_progress = false;
 
 		//start each of the simulated tasks
 		for (size_t i = 0; i < parsed_tasks.size(); i++){
@@ -906,65 +910,105 @@ int main(int argc, char *argv[])
 
 		}
 
+		//print the instigating tasks
+		std::cout << "Instigating Task array layout: " << std::endl;
+		for (size_t i = 0; i < parsed_tasks.size(); i++){
+
+			std::cout << "Task " << i << ": " << instigating_tasks[i] << std::endl;
+
+			current_periods_counting_down[i] = get_timespec_in_ns(current_period[i]);
+
+			iter[i] = 0;
+
+			task_has_transitioned[i] = false;
+
+		}
+
 		//for a simulation time of x iterations
 		//(time simulated changes based on task parameters)
-		while(iter++ < 2000){
+		std::cout << sec_to_run << " seconds of simulation time requested" << std::endl;
+		unsigned long long time_to_run = ((unsigned long long)sec_to_run * (unsigned long long )1000000000) + (unsigned long long)nsec_to_run;
+		while(nanoseconds_passed < time_to_run){
 
-			std::cout << "\nStarting Simulated Iteration: " << iter << "\n" << std::endl;
+			//look through the list of task period we have and find the shortest one
+			unsigned long long smallest_period = -1;
+			for (size_t i = 0; i < parsed_tasks.size(); i++){
+				
+				unsigned long long current_period = current_periods_counting_down[i];
+				
+				if (current_period < smallest_period)
+					smallest_period = current_period;
 
-			//check if we had any simulated task that instigated
-			//a reschedule-> I am incredibly lazy and don't want to
-			//reimplement any core mechanism of the scheduler, so 
-			//the way rescheduling works is that we just loop over all
-			//the tasks repeatedly forcing them to handoff resources 
-			//until we get a false return from all of the tasks
-			if (needs_scheduling){
+			}
 
-				bool continue_processing_reschedule = false;
+			//update nanoseconds_passed
+			nanoseconds_passed += smallest_period;
 
-				while(!continue_processing_reschedule){
+			//once we have the smallest one, we update each task's time 
+			//tracker to determine which tasks are supposed to run
+			for (size_t i = 0; i < parsed_tasks.size(); i++)
+				current_periods_counting_down[i] -= smallest_period;
 
-					continue_processing_reschedule = true;
+			//for each task which is ready, we execute one "loop" of it's work
+			for (size_t i = 0; i < parsed_tasks.size(); i++){
 
-					for (size_t i = 0; i < parsed_tasks.size(); i++){
+				if (current_periods_counting_down[i] == 0){
 
-						//call the simulated reschedule
-						continue_processing_reschedule &= simulated_reschedule(i, &current_period[i], &current_work[i], &current_mode[i], &deadline[i], &percentile[i], &current_cpu_mask[i], &current_gpu_mask[i], scheduler->get_schedule());
+					//get the task
+					TaskData * td = scheduler->get_schedule()->get_task(i);
+
+					//if this task is supposed to instigate a reschedule
+					if (instigating_tasks[i] != - 1){
+
+						if ((iter[i]++ % instigating_tasks[i] == 0) && !reschedule_in_progress){
+
+							//tell the scheduler to reschedule
+							needs_scheduling = true;
+
+							int task_current_mode = td->get_real_mode(td->get_current_virtual_mode());
+
+							int mode_moving_to = ((task_current_mode + 1) % td->get_original_modes_passed());
+
+							//print what mode we are trying to switch to
+							std::cout << "Task " << i << " is instigating a reschedule to mode " << mode_moving_to << " from mode " << task_current_mode << std::endl;
+
+							//set the mode this task should be moving into 
+							//(for now just cycle through all modes)
+							td->set_real_current_mode(mode_moving_to, true);
+
+						}
+
+					}
+
+					//reset the current period counter for this task
+					current_periods_counting_down[i] = get_timespec_in_ns(current_period[i]);
+
+					//check if we had any simulated task that instigated
+					//a reschedule-> I am incredibly lazy and don't want to
+					//reimplement any core mechanism of the scheduler, so 
+					//the way rescheduling works is that we just loop over all
+					//the tasks repeatedly forcing them to handoff resources 
+					//until we get a false return from all of the tasks
+					if (reschedule_in_progress && !task_has_transitioned[i]){
+
+						//call the simulated reschedule (completely fine to call this multiple times)
+						task_has_transitioned[i] |= simulated_reschedule(i, &current_period[i], &current_work[i], &current_mode[i], &deadline[i], &percentile[i], &current_cpu_mask[i], &current_gpu_mask[i], scheduler->get_schedule());
 
 					}
 
 				}
 
-			}
+				//check if all the tasks have transitioned yet
+				if (reschedule_in_progress){
 
-			//all tasks should have transitioned
-			//to their new modes by now
-			needs_scheduling = false;
+					bool all_tasks_transitioned = true;
 
-			//for each task, we execute one "loop" of it's work
-			for (size_t i = 0; i < parsed_tasks.size(); i++){
+					for (size_t i = 0; i < parsed_tasks.size(); i++)
+						all_tasks_transitioned &= task_has_transitioned[i];
 
-				//get the task
-				TaskData * td = scheduler->get_schedule()->get_task(i);
+					if (all_tasks_transitioned){
 
-				//if this task is supposed to instigate a reschedule
-				if (instigating_tasks[i] != - 1){
-
-					if (iter % instigating_tasks[i] == 0){
-
-						//tell the scheduler to reschedule
-						needs_scheduling = true;
-
-						int task_current_mode = td->get_real_mode(td->get_current_virtual_mode());
-
-						int mode_moving_to = ((task_current_mode + 1) % td->get_original_modes_passed());
-
-						//print what mode we are trying to switch to
-						std::cout << "Task " << i << " is instigating a reschedule to mode " << mode_moving_to << " from mode " << task_current_mode << std::endl;
-
-						//set the mode this task should be moving into 
-						//(for now just cycle through all modes)
-						td->set_real_current_mode(mode_moving_to, true);
+						reschedule_in_progress = false;
 
 					}
 
@@ -978,6 +1022,15 @@ int main(int argc, char *argv[])
 
 				//call the simulated scheduler
 				simulated_scheduler();
+
+				//set reschedule flag
+				reschedule_in_progress = true;
+
+				//set the transition array 
+				for (size_t i = 0; i < parsed_tasks.size(); i++)
+					task_has_transitioned[i] = false;
+
+				needs_scheduling = false;
 
 			}
 
