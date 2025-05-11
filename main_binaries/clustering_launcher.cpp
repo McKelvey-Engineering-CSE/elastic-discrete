@@ -1020,8 +1020,19 @@ int main(int argc, char *argv[])
 			//handle any reschedule requests if they exist
 			if (needs_scheduling){
 
+				timespec scheduler_start_time;
+				get_time(&scheduler_start_time);
+
 				//call the simulated scheduler
 				simulated_scheduler();
+
+				//get the time it took to run the scheduler
+				timespec scheduler_end_time;
+				get_time(&scheduler_end_time);
+
+				long long time_taken = get_timespec_in_ns(scheduler_end_time) - get_timespec_in_ns(scheduler_start_time);
+
+				std::cout << "Scheduler took " << time_taken << " nanoseconds to run" << std::endl;
 
 				//set reschedule flag
 				reschedule_in_progress = true;
@@ -1031,6 +1042,35 @@ int main(int argc, char *argv[])
 					task_has_transitioned[i] = false;
 
 				needs_scheduling = false;
+
+				//we need to simulate the time from the tasks' perspective
+				//for the amount of time we spent executing the scheduler
+				//for each task which is ready, we execute one "loop" of it's work
+				for (size_t i = 0; i < parsed_tasks.size(); i++){
+
+					//we need to check how many times each task should have 
+					//executed while we were running the scheduler
+					long long scheduler_time = (long long) current_periods_counting_down[i] - time_taken;
+
+					if (scheduler_time < 0){
+						
+						//update for the first simulated run
+						iter[i]++;
+
+						//now add this tasks' period to the value until it goes positive
+						while (scheduler_time < 0){
+
+							scheduler_time += get_timespec_in_ns(current_period[i]);
+							iter[i]++;
+
+						}
+
+					}
+
+					//set the current period counting down to the scheduler time
+					current_periods_counting_down[i] = scheduler_time;
+
+				}
 
 			}
 
