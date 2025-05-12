@@ -42,15 +42,21 @@ static std::vector<std::pair<int,int>> computeModeResources(double CpA, double L
     int mA_min = (CpA == 0 ? 1 : std::ceil((CpA - L_A) / (T - L_A)));
     int mA_max = (CpA == 0 ? 1 : std::ceil((CpA - L_A) / 1));
 
-	if (mA_max > NUMCPUS)
+	if (mA_max > NUMCPUS || mA_max < 0)
 		mA_max = NUMCPUS;
+
+	std::cout << "MAX CPUS: " << mA_max << std::endl;
+	std::cout << "MIN CPUS: " << mA_min << std::endl;
 
     std::vector<std::pair<int,int>> result;
     
     for (int mA = mA_min; mA <= mA_max; ++mA) {
         
         // actual A-phase finish time
-        double tA = ((CpA - L_A) / mA) + L_A;
+        double tA = 0;
+		
+		if (mA > 0) 
+			tA = ((CpA - L_A) / mA) + L_A;
         
         if (tA < 0) continue;
         
@@ -74,7 +80,7 @@ static std::vector<std::pair<int,int>> computeModeResources(double CpA, double L
     }
 
 	if (result.empty()){
-		print_module::print(std::cerr, "Error: No valid mode found for task with parameters ", CpA, " ", L_A, " ", CpB, " ", L_B, " ", T, "\n");
+		print_module::print(std::cerr, "Error: No valid allocations found for task mode with parameters ", CpA, " ", L_A, " ", CpB, " ", L_B, " ", T, "\n");
 		exit(-1);
 	}
     
