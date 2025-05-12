@@ -321,19 +321,15 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 	}
 
 	//copy over the current state of the task system
-	int host_current_modes[MAXTASKS * 2] = {0};
+	int host_current_modes[MAXTASKS * 2];
+	memset(host_current_modes, 0, sizeof(int) * MAXTASKS * 2);
 
 	if (!first_time){
 
-		for (int i = 0; i < MAXTASKS; i++){
+		for (size_t i = 0; i < previous_modes.size(); i++){
 
-			//make sure we are not going out of bounds
-			if (i < (int) previous_modes.size()){
-
-				host_current_modes[i * 2] = previous_modes.at(i).cores;
-				host_current_modes[i * 2 + 1] = previous_modes.at(i).sms;
-
-			}
+			host_current_modes[i * 2] = previous_modes.at(i).cores;
+			host_current_modes[i * 2 + 1] = previous_modes.at(i).sms;
 
 		}
 
@@ -379,7 +375,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
 
 		//Execute exact solution
-		device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B);
+		device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 0);
 
 		//peek for launch errors
 		CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
@@ -397,29 +393,63 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		//against maximum possible value for a given transition
 		if (check_max_possible){
 
+			//first check just the constrained version of the problem
+			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 1);
+
+			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
+
+			//copy the error
+			double constrained_value = 0;
+			CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&constrained_value, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, scheduler_stream));
+			CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
+
+
 			//enable unsafe checking
-			int optimal_modes[MAXTASKS * 2] = {0};
+			int optimal_modes[MAXTASKS * 2];
+			memset(optimal_modes, 0, sizeof(int) * MAXTASKS * 2);
+
 			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, optimal_modes, sizeof(int) * MAXTASKS * 2, cudaMemcpyHostToDevice));
 
-			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B);
+			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 0);
 
 			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
 
 			//copy the error
 			double max_possible_value = 0;
-			CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&max_possible_value, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, cautious_stream));
-			CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(cautious_stream));
+			CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&max_possible_value, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, scheduler_stream));
+			CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
 
 			//print the difference 
-			pm::print(std::cerr, "Difference between optimal and obtained: ", max_possible_value - loss, "\n");
+			pm::print(std::cerr, "Amount our result is better than the constrained system state: ", constrained_value - loss, "\n");
+			pm::print(std::cerr, "Amount our result is worse than the optimal system state: ", loss - max_possible_value, "\n");
 
 		}
 
 	#else
 
-		device_do_schedule(N - 1, maxCPU, NUMGPUS, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution, slack_A, slack_B);
+		device_do_schedule(N - 1, maxCPU, NUMGPUS, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution, slack_A, slack_B, 0);
 
 		loss = *d_final_loss;
+
+		//if we are running the scheduler twice to compare 
+		//against maximum possible value for a given transition
+		if (check_max_possible){
+
+			//enable unsafe checking
+			int optimal_modes[MAXTASKS * 2];
+			memset(optimal_modes, 0, sizeof(int) * MAXTASKS * 2);
+
+			int* toss_d_final_solution = (int*)malloc(sizeof(int) * MAXTASKS);
+
+			device_do_schedule(N - 1, maxCPU, NUMGPUS, host_current_modes, d_losses, d_final_loss, host_uncooperative, toss_d_final_solution, slack_A, slack_B, 1);
+
+			//copy the error
+			double max_possible_value = *d_final_loss;
+
+			//print the difference 
+			pm::print(std::cerr, "Max Possible Value: ", max_possible_value, " What We Safely Got: ", loss, "\n");
+
+		}
 
 	#endif
 

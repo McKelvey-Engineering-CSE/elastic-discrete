@@ -57,7 +57,9 @@ HOST_DEVICE_CONSTANT int constant_task_table[MAXTASKS * MAXMODES * 3];
 
 HOST_DEVICE_CONSTANT float constant_losses[MAXTASKS * MAXMODES];
 
-HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution, int slack_A, int slack_B){
+HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution, int slack_A, int slack_B, int constricted){
+
+	int number_of_items_skipped = 0;
 
 	//shared variables for determining the start and end of 
 	//the indices for uncooperative tasks
@@ -228,22 +230,41 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 				//check if our resource constrains are maintained
 				if (delta_cores * delta_sms < 0){
 
-					//if cores is negative, make sure we have enough
-					//free cores to cover it
-					if (delta_cores < 0){
+					if (constricted == 0){
 
-						if (free_cores + delta_cores < 0)
-							continue;
+						//if cores is negative, make sure we have enough
+						//free cores to cover it
+						if (delta_cores < 0){
 
+							if (free_cores + delta_cores < 0){
+							
+								number_of_items_skipped++;
+								continue;
+
+							}
+
+						}
+
+						//if sms is negative, make sure we have enough
+						//free sms to cover it
+						if (delta_sms < 0){
+
+							if (free_sms + delta_sms < 0){
+							
+								number_of_items_skipped++;
+								continue;
+
+							}
+
+						}
+					
 					}
 
-					//if sms is negative, make sure we have enough
-					//free sms to cover it
-					if (delta_sms < 0){
+					else {
 
-						if (free_sms + delta_sms < 0)
-							continue;
-
+						number_of_items_skipped++;
+						continue;
+					
 					}
 
 				}
@@ -291,6 +312,8 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 	//to get the final answer, start at the end and work backwards, taking the j values
 	if (HOST_DEVICE_THREAD_DIM < 1){
+
+		printf("First Item In Table: (%d, %d) -> Total Items Skipped: %d\n", task_table[0], task_table[1], number_of_items_skipped);
 
 		bool valid_solution = true;
 		int current_w = maxCPU;
