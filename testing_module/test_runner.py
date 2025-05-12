@@ -6,6 +6,16 @@ import random
 import re
 import subprocess
 import sys
+import signal
+
+#task_set_skipped
+skipped_set = False
+
+def skip_set(who, cares):
+
+    global skipped_set
+
+    skipped_set = True
 
 def parse_args():
     """Parse command line arguments."""
@@ -199,6 +209,8 @@ def run_clustering_launcher(yaml_file, task_count, run_number, bin_dir="bin"):
 
 def main():
     args = parse_args()
+
+    global skipped_set
     
     # Setup consistent seed once at the beginning
     seed = args.num_runs * args.tasks_to_select
@@ -218,23 +230,40 @@ def main():
     if not os.path.isdir(bin_dir):
         print(f"Warning: '{bin_dir}' directory not found. Creating it.")
         os.makedirs(bin_dir, exist_ok=True)
+
+    # Set python to ignore SIGUSR1 since that is used by the scheduler
+    signal.signal(signal.SIGUSR1, skip_set)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
     
     # Run the specified number of times
     for run in range(1, args.num_runs + 1):
         print(f"\nStarting run {run}/{args.num_runs}")
+
+        return_code = 2
+
+        # Loop until we get a valid set
+        while return_code == 2:
         
-        # Randomly select tasks - no need to reseed, Python's random maintains state
-        selected_tasks = select_random_tasks(total_tasks, files_info, args.tasks_to_select)
-        
-        # Create james.yaml inside bin directory
-        yaml_file = create_james_yaml(selected_tasks, args.tasks_to_select, bin_dir)
-        print(f"Created {yaml_file} with {len(selected_tasks)} tasks")
-        
-        # Run clustering launcher
-        return_code = run_clustering_launcher(yaml_file, args.tasks_to_select, run, bin_dir)
-        if return_code != 0:
-            print(f"Error: clustering_launcher returned {return_code}. Stopping execution.")
-            sys.exit(1)
+            # Randomly select tasks - no need to reseed, Python's random maintains state
+            selected_tasks = select_random_tasks(total_tasks, files_info, args.tasks_to_select)
+            
+            # Create james.yaml inside bin directory
+            yaml_file = create_james_yaml(selected_tasks, args.tasks_to_select, bin_dir)
+            print(f"Created {yaml_file} with {len(selected_tasks)} tasks")
+            
+            # Run clustering launcher
+            return_code = run_clustering_launcher(yaml_file, args.tasks_to_select, run, bin_dir)
+
+            # If return code is 2, task set is not scheduable at all
+            if skipped_set == True:
+                print(f"Error: clustering_launcher returned unscheduable. Generating new taskset.")
+                return_code = 2
+                skipped_set = False
+
+            # If something went wrong
+            elif return_code != 0:
+                print(f"Error: clustering_launcher returned {return_code}. Stopping execution.")
+                sys.exit(1)
         
         print(f"Run {run} completed successfully")
     

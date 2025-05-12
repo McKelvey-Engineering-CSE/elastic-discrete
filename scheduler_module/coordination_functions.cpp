@@ -460,7 +460,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 	if ((result.size() == 0 || loss == 100001) && first_time){
 
 		print_module::print(std::cerr, "Error: System is not schedulable in any configuration. Exiting.\n");
-		killpg(process_group, SIGINT);
+		killpg(process_group, SIGUSR1);
 		return;
 
 	}

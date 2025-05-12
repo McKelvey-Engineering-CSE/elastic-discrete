@@ -395,6 +395,12 @@ void force_cleanup(bool kill_processes = true) {
 	}
 }
 
+//System cannot be scheduled at all
+void exit_unscheduable(int sig) {
+	force_cleanup();
+	exit(2);
+}
+
 // User requested to exit
 void exit_user_request(int sig) {
 	force_cleanup();
@@ -550,6 +556,7 @@ int main(int argc, char *argv[])
 
 	signal(SIGINT, exit_user_request);
 	signal(SIGTERM, exit_user_request);
+	signal(SIGUSR1, exit_unscheduable);
 	signal(1, exit_from_child);
 	
 	//open the scheduling file
@@ -876,7 +883,7 @@ int main(int argc, char *argv[])
 		//for testing select 5 random tasks to be the instigators
 		int task_count = parsed_tasks.size();
 		int instigator_count = 5;
-		int instigation_time[] = {3, 5, 7, 11, 13};
+		int instigation_time[] = {3, 5, 7, 11, 13, 3, 5, 7, 11, 13, 3, 5, 7, 11, 13};
 
 		//set rand seed
 		srand(time(NULL));
@@ -1031,9 +1038,7 @@ int main(int argc, char *argv[])
 				get_time(&scheduler_end_time);
 
 				long long time_taken = get_timespec_in_ns(scheduler_end_time) - get_timespec_in_ns(scheduler_start_time);
-
-				std::cout << "Scheduler took " << time_taken << " nanoseconds to run" << std::endl;
-
+				
 				//set reschedule flag
 				reschedule_in_progress = true;
 
