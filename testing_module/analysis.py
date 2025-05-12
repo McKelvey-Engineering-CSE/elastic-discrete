@@ -19,7 +19,7 @@ def process_directory(directory):
 
     # Regular expressions to extract the needed values
     better_pattern = re.compile(
-        r"Amount our result is better than the constrained system state:\s*([0-9.+\-eE]+)"
+        r"Amount the constrained result worse than the optimal system state:\s*([0-9.+\-eE]+)"
     )
     worse_pattern = re.compile(
         r"Amount our result is worse than the optimal system state:\s*([0-9.+\-eE]+)"
@@ -27,11 +27,14 @@ def process_directory(directory):
 
     # Process each group
     for task_id, files in sorted(groups.items(), key=lambda x: int(x[0])):
+        # Stats for 'better than constrained'
         better_count = 0
         better_sum = 0.0
-        special_count = 0
+        constrained_no_answer = 0
+        # Stats for 'worse than optimal'
         worse_count = 0
         worse_sum = 0.0
+        optimal_no_answer = 0
 
         for filepath in files:
             try:
@@ -41,9 +44,8 @@ def process_directory(directory):
                         bmatch = better_pattern.search(line)
                         if bmatch:
                             value = float(bmatch.group(1))
-                            # If unusually large, count as special case
                             if value > 10:
-                                special_count += 1
+                                constrained_no_answer += 1
                             else:
                                 better_count += 1
                                 better_sum += value
@@ -52,8 +54,11 @@ def process_directory(directory):
                         wmatch = worse_pattern.search(line)
                         if wmatch:
                             value = float(wmatch.group(1))
-                            worse_count += 1
-                            worse_sum += value
+                            if value > 100:
+                                optimal_no_answer += 1
+                            else:
+                                worse_count += 1
+                                worse_sum += value
 
             except Exception as e:
                 print(f"Warning: could not read file {filepath}: {e}")
@@ -64,9 +69,10 @@ def process_directory(directory):
 
         # Output the statistics for the group
         print(f"Group {task_id}:")
-        print(f"  Better than constrained: {better_count} occurrences, average = {(avg_better * 100):.6f}")
-        print(f"  Worse than optimal:     {worse_count} occurrences, average = {(avg_worse * 100):.6f}")
-        print(f"  Constrained no answer:  {special_count} occurrences\n")
+        print(f"  Better than constrained: {better_count} occurrences, average = {avg_better:.6f}")
+        print(f"  Constrained no answer:  {constrained_no_answer} occurrences")
+        print(f"  Worse than optimal:     {worse_count} occurrences, average = {avg_worse:.6f}")
+        print(f"  Optimal no answer:      {optimal_no_answer} occurrences\n")
 
 
 def main():

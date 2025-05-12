@@ -420,18 +420,9 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 			CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
 
 			//print the percentage our values are worse than optimal
-			if (max_possible_value == 0){
-
-				
-
-			} 
-
-			else {
-
-				pm::print(std::cerr, "Amount our result is better than the constrained system state: ", (constrained_value - max_possible_value) / max_possible_value, "\n");
-				pm::print(std::cerr, "Amount our result is worse than the optimal system state: ", (loss - max_possible_value) / max_possible_value, "\n");
-			
-			}
+			pm::print(std::cerr, "Amount the constrained result worse than the optimal system state: ", constrained_value - max_possible_value, "\n");
+			pm::print(std::cerr, "Amount our result is worse than the optimal system state: ", loss - max_possible_value, "\n");
+	
 		}
 
 	#else
