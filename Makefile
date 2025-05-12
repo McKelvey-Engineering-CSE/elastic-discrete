@@ -50,11 +50,11 @@ BARRIER_OBJECTS := process_primitives.o generic_barrier.o process_barrier.o thre
 all: clustering_distribution finish
 
 finish: clustering_distribution james
-	mkdir -p ./bin
-	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./yaml_parser ./bin
+	mkdir -p ./testing_module/bin
+	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./yaml_parser ./testing_module/bin
 
 clean:
-	rm -r ./bin *.o *.a $(TARGET_TASK) clustering_launcher yaml_parser synthetic_task || true
+	rm -r ./testing_module/bin *.o *.a $(TARGET_TASK) clustering_launcher yaml_parser synthetic_task || true
 
 taskData.o: taskData_real.o 
 	ld -relocatable taskData_real.o -o taskData.o
