@@ -59,8 +59,6 @@ HOST_DEVICE_CONSTANT float constant_losses[MAXTASKS * MAXMODES];
 
 HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution, int slack_A, int slack_B, int constricted){
 
-	int number_of_items_skipped = 0;
-
 	//shared variables for determining the start and end of 
 	//the indices for uncooperative tasks
 	#ifdef __NVCC__
@@ -238,7 +236,6 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 							if (free_cores + delta_cores < 0){
 							
-								number_of_items_skipped++;
 								continue;
 
 							}
@@ -251,7 +248,6 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 							if (free_sms + delta_sms < 0){
 							
-								number_of_items_skipped++;
 								continue;
 
 							}
@@ -262,7 +258,6 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 					else {
 
-						number_of_items_skipped++;
 						continue;
 					
 					}
@@ -312,8 +307,6 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 	//to get the final answer, start at the end and work backwards, taking the j values
 	if (HOST_DEVICE_THREAD_DIM < 1){
-
-		printf("First Item In Table: (%d, %d) -> Total Items Skipped: %d\n", task_table[0], task_table[1], number_of_items_skipped);
 
 		bool valid_solution = true;
 		int current_w = maxCPU;
