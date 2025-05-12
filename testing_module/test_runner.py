@@ -117,9 +117,8 @@ def get_total_tasks(folder_path):
     
     return total_tasks, files_info
 
-def select_random_tasks(total_tasks, files_info, count, seed_value):
+def select_random_tasks(total_tasks, files_info, count):
     """Randomly select tasks without loading them all."""
-    random.seed(seed_value)
     selected_indices = random.sample(range(total_tasks), count)
     selected_indices.sort()  # Sort for more efficient file reading
     
@@ -201,8 +200,9 @@ def run_clustering_launcher(yaml_file, task_count, run_number, bin_dir="bin"):
 def main():
     args = parse_args()
     
-    # Setup consistent seed based on runs × tasks
+    # Setup consistent seed once at the beginning
     seed = args.num_runs * args.tasks_to_select
+    random.seed(seed)
     print(f"Using seed: {seed}")
     
     # Get information about tasks in all files
@@ -216,15 +216,15 @@ def main():
     # Define bin directory
     bin_dir = "bin"
     if not os.path.isdir(bin_dir):
-        print(f"Warning: '{bin_dir}' directory not found.")
-        sys.exit(1)
+        print(f"Warning: '{bin_dir}' directory not found. Creating it.")
+        os.makedirs(bin_dir, exist_ok=True)
     
     # Run the specified number of times
     for run in range(1, args.num_runs + 1):
         print(f"\nStarting run {run}/{args.num_runs}")
         
-        # Randomly select tasks
-        selected_tasks = select_random_tasks(total_tasks, files_info, args.tasks_to_select, seed)
+        # Randomly select tasks - no need to reseed, Python's random maintains state
+        selected_tasks = select_random_tasks(total_tasks, files_info, args.tasks_to_select)
         
         # Create james.yaml inside bin directory
         yaml_file = create_james_yaml(selected_tasks, args.tasks_to_select, bin_dir)

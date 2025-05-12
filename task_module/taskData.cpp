@@ -45,9 +45,6 @@ static std::vector<std::pair<int,int>> computeModeResources(double CpA, double L
 	if (mA_max > NUMCPUS || mA_max < 0)
 		mA_max = NUMCPUS;
 
-	std::cout << "MAX CPUS: " << mA_max << std::endl;
-	std::cout << "MIN CPUS: " << mA_min << std::endl;
-
     std::vector<std::pair<int,int>> result;
     
     for (int mA = mA_min; mA <= mA_max; ++mA) {
