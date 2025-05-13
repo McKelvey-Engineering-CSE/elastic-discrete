@@ -157,6 +157,12 @@ std::map<int, pthread_t> thread_at_cpu;
 //tells OMP number of thread
 std::map<pthread_t, int> omp_thread_index;
 
+//name of the memory segment which controls 
+//whether or not a tas's request can be granted
+//due to a reschedule currently happening
+const std::string reschedule_lock = "SCHEDLK";
+p_mutex* rescheduling_lock;
+
 //vector representing pool of threads associated with
 //this task that are sleeping on cores we gave up
 std::vector<pthread_t> thread_handles(NUMCPUS, pthread_t());
@@ -172,20 +178,44 @@ void sigrt1_handler(int signum){
 //FIXME: THE TASK DOESN'T KNOW WHAT MODE IT ACTUALLY WANTS, IT JUST KNOWS
 //IT NEEDS ONE OF THE MODES WHICH IS DESCRIBED BY THE POSSIBLE MODES WHICH
 //ARE MAPPED TO THAT ONE REAL MODE.
-void modify_self(int new_mode){
+bool modify_self(int new_mode){
 
 	if (new_mode == schedule.get_task(task_index)->get_real_current_mode())
-		return;
-	
-	mode_change_finished = false;
-	schedule.get_task(task_index)->set_real_current_mode(new_mode, true);
-	killpg(process_group, SIGRTMIN+0);
+		return false;
+
+	if (rescheduling_lock->try_lock() == 0){
+		
+		mode_change_finished = false;
+		schedule.get_task(task_index)->set_real_current_mode(new_mode, true);
+		killpg(process_group, SIGRTMIN+0);
+
+		rescheduling_lock->unlock();
+
+		return true;
+
+	}
+
+	else
+		return false;
 
 }
 
 int get_current_mode(){
 
 	return schedule.get_task(task_index)->get_real_current_mode();
+
+}
+
+void mimic_simulator(int task_index){
+
+	TaskData * td = schedule.get_task(task_index);
+
+	int task_current_mode = td->get_real_mode(td->get_current_virtual_mode());
+
+	int mode_moving_to = ((task_current_mode + 1) % td->get_original_modes_passed());
+
+	if (modify_self(mode_moving_to))
+		pm::print(std::cerr, "Task ", task_index, " is instigating a reschedule to mode ", mode_moving_to, " from mode ", task_current_mode, "\n");
 
 }
 
@@ -444,6 +474,9 @@ int main(int argc, char *argv[])
 	explicit_sync = std::stoi(std::string(argv[9])) == 1;
 	int task_argc = argc - 10;                                             
 	char **task_argv = &argv[10];
+
+	//fetch the scheduler lock
+	rescheduling_lock = smm::fetch<struct p_mutex>(reschedule_lock);
 
 	//Wait at barrier for the other tasks but mainly to make sure scheduler has finished
 	if ((ret_val = process_barrier::await_and_rearm_barrier("BAR_2")) != 0){

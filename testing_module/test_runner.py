@@ -113,15 +113,12 @@ def get_total_tasks(folder_path):
     """Get the total number of tasks and their distribution in all YAML files."""
     yaml_files = glob.glob(os.path.join(folder_path, "*.yaml"))
     
-    if len(yaml_files) != 4:
-        print(f"Error: Expected 4 YAML files, found {len(yaml_files)}")
-        sys.exit(1)
-    
     files_info = []
     total_tasks = 0
     
+    #only alow 3000 for each file
     for file_path in yaml_files:
-        task_count = count_tasks_in_file(file_path)
+        task_count = 3000 #count_tasks_in_file(file_path)
         files_info.append({"path": file_path, "tasks": task_count, "start": total_tasks})
         total_tasks += task_count
     

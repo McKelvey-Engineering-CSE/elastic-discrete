@@ -103,6 +103,9 @@ the RAG and executes it if a solution is found
 *************************************************************/
 void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
+	//lock the scheduler mutex
+	scheduler_running = true;
+
 	//If we compiled with CUDA enabled, we need 
 	//to initialize the CUDA context and stream
 	#ifdef __NVCC__
@@ -121,6 +124,28 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		}
 
 	#endif
+
+	//caclulate the largest possible loss across 
+	//all tasks and modes
+	if (first_time) {
+
+		for (size_t i = 0; i < task_table.size(); i++){
+
+			double worst_mode = 0;
+
+			for (size_t j = 0; j < task_table.at(i).size(); j++){
+
+				if (task_table.at(i).at(j).cpuLoss > worst_mode)
+					worst_mode = task_table.at(i).at(j).cpuLoss;
+
+			}
+
+			max_loss += worst_mode;
+		}
+
+		print_module::print(std::cerr, "Max Possible Loss: ", max_loss, "\n");
+
+	}
 
 	
 	std::vector<int> transitioned_tasks;
@@ -420,9 +445,25 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 			CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
 
 			//print the percentage our values are worse than optimal
-			pm::print(std::cerr, "Amount the constrained result worse than the optimal system state: ", constrained_value - max_possible_value, "\n");
-			pm::print(std::cerr, "Amount our result is worse than the optimal system state: ", loss - max_possible_value, "\n");
-	
+			double best_possible_percentage = ((max_loss - max_possible_value) / max_loss);
+
+			if (((constrained_value > max_loss) || (loss > max_loss)) && (max_possible_value < max_loss)){
+
+				if (constrained_value > max_loss)
+					pm::print(std::cerr, "Constrained Scheduler Has No Solution \n");
+
+				if (loss > max_loss)
+					pm::print(std::cerr, "System Scheduler Has No Solution \n");
+
+			}
+			
+			else {
+
+				pm::print(std::cerr, "Amount the constrained result worse than the optimal system state: ", best_possible_percentage - ((max_loss - constrained_value) / max_loss), "\n");
+				pm::print(std::cerr, "Amount our result is worse than the optimal system state: ", best_possible_percentage - ((max_loss - loss) / max_loss), "\n");
+			
+			}
+			
 		}
 
 	#else
@@ -813,8 +854,17 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 	//print out the time taken
 	print_module::print(std::cerr, "Time taken to reschedule: ", elapsed_time / 1000000, " milliseconds.\n");
 
+	//unlock the scheduler mutex
+	scheduler_running = false;
+
 }
 
 void Scheduler::setTermination(){
 	schedule.setTermination();
+}
+
+bool Scheduler::check_if_scheduler_running(){
+
+	return scheduler_running;
+
 }

@@ -36,6 +36,11 @@ bool FPTAS = false;
 const std::string barrier_name = "BAR";
 const std::string barrier_name2 = "BAR_2";
 
+//lock object to share with tasks so no task
+//requests a reschedule while another is in progress
+const std::string reschedule_lock = "SCHEDLK";
+p_mutex* rescheduling_lock;
+
 bool needs_scheduling = false;
 Scheduler * scheduler;
 pid_t process_group;
@@ -301,6 +306,10 @@ void scheduler_task()
 
 		if(needs_scheduling)
 		{
+
+			//lock the scheduler so no other task can request a reschedule
+			rescheduling_lock->lock();
+
 			scheduler->do_schedule(NUMCPUS - 1, true);
 			needs_scheduling = false;
 			killpg(process_group, SIGRTMIN+1);
@@ -318,6 +327,9 @@ void scheduler_task()
 				}
 		
 			}
+
+			//unlock the scheduler so other tasks can request a reschedule
+			rescheduling_lock->unlock();
 		
 		}
 
@@ -342,6 +354,7 @@ void force_cleanup(bool kill_processes = true) {
 
 	//delete the shared memory
 	smm::delete_memory<int>("PRSEDOBJ");
+	smm::delete_memory<struct p_mutex>(reschedule_lock);
 
 	if (explicit_sync) {
 		process_barrier::destroy_barrier("EX_SYNC");
@@ -417,6 +430,7 @@ void exit_from_child(int sig){
 void sigrt0_handler( int signum ){
 	needs_scheduling = true;
 }
+
 void sigrt1_handler( int signum ){
 }
 
@@ -687,6 +701,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	//initialize the scheduler lock
+	rescheduling_lock = smm::allocate<struct p_mutex>(reschedule_lock);
 
 	//Initialize two barriers to synchronize the tasks after creation
 	if (process_barrier::create_process_barrier(barrier_name, parsed_tasks.size() + 1) == nullptr || 
@@ -889,7 +905,7 @@ int main(int argc, char *argv[])
 		srand(time(NULL));
 
 		//randomly select 5 tasks to be instigators
-		for (int i = 0; i < instigator_count; i++){
+		/*for (int i = 0; i < instigator_count; i++){
 
 			int random_task = rand() % task_count;
 
@@ -902,6 +918,18 @@ int main(int argc, char *argv[])
 
 			instigating_tasks[random_task] = instigation_time[i];
 			scheduler->get_schedule()->get_task(random_task)->set_cooperative(false);
+
+		}*/
+
+		//for testing, just set the first 5 tasks to be instigators
+		for (int i = 0; i < instigator_count; i++){
+
+			if (i < task_count){
+
+				instigating_tasks[i] = instigation_time[i];
+				scheduler->get_schedule()->get_task(i)->set_cooperative(false);
+
+			}
 
 		}
 

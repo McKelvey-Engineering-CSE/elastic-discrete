@@ -17,7 +17,7 @@ int mode_count = 0;
 int mode_change_interval = -1;
 
 int synth_current_mode = 0;
-int iterations_complete = 0;
+int iterations_complete = -1;
 
 extern int task_index;
 
@@ -178,13 +178,19 @@ int run(int argc, char *argv[]){
         pm::flush(std::cerr, buffer);
     #endif
 
-    iterations_complete++;
+    const int instigation_time[] = {3, 5, 7, 11, 13};
 
-    if (mode_count > 1 && mode_change_interval > 0 && iterations_complete > 0 && (iterations_complete % mode_change_interval == 0) && mode_change_finished) {
-        synth_current_mode = (synth_current_mode + 1) % 4;
-        pm::print(std::cerr, "Task ", task_index, " changing mode to ", synth_current_mode, "\n");
-        modify_self(synth_current_mode);
+    if (task_index < 5){
+
+        if (iterations_complete % instigation_time[task_index] == 0){
+
+            mimic_simulator(task_index);
+
+        }
+
     }
+
+    iterations_complete++;
 
     return 0;
 }

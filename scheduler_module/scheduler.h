@@ -129,6 +129,9 @@ class Scheduler{
 	//table for storing the combination for unsafe tasks later
 	int* unsafe_table;
 
+	//max loss for a given task system
+	double max_loss = 0.0;
+
 	//pointers for cuda memory
 	double* d_losses;
 	double* d_final_loss;
@@ -151,6 +154,9 @@ class Scheduler{
 		void create_scheduler_stream();
 
 	#endif
+
+	//FIXME: REPLACE WITH REAL LOCK
+	bool scheduler_running = false;
 	
 public:
 
@@ -186,6 +192,8 @@ public:
 	void set_FPTAS();
 
 	int get_num_tasks();
+
+	bool check_if_scheduler_running();
 
 	bool has_cycle(const std::unordered_map<int, Node>& nodes, int start);
 
