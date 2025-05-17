@@ -19,7 +19,7 @@ timespec operator*(double scalar, const timespec & ts);
 timespec operator/(const timespec & ts, double scalar);
 double operator/(const timespec & ts1, const timespec & ts2);
 
-long get_timespec_in_ns(const timespec ts1);
+long long get_timespec_in_ns(const timespec ts1);
 
 timespec timespec_from_ns(long ns);
 

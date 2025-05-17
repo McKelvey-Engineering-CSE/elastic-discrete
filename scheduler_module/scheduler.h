@@ -129,6 +129,9 @@ class Scheduler{
 	//table for storing the combination for unsafe tasks later
 	int* unsafe_table;
 
+	//max loss for a given task system
+	double max_loss = 0.0;
+
 	//pointers for cuda memory
 	double* d_losses;
 	double* d_final_loss;
@@ -151,6 +154,9 @@ class Scheduler{
 		void create_scheduler_stream();
 
 	#endif
+
+	//FIXME: REPLACE WITH REAL LOCK
+	bool scheduler_running = false;
 	
 public:
 
@@ -175,7 +181,7 @@ public:
 
 	void generate_unsafe_combinations(size_t maxCPU = NUMCPUS - 1);
 
-	void do_schedule(size_t maxCPU = NUMCPUS - 1);
+	void do_schedule(size_t maxCPU, bool check_max_possible = false);
 
 	std::vector<int> sort_classes(std::vector<int> items_in_candidate);
 
@@ -186,6 +192,8 @@ public:
 	void set_FPTAS();
 
 	int get_num_tasks();
+
+	bool check_if_scheduler_running();
 
 	bool has_cycle(const std::unordered_map<int, Node>& nodes, int start);
 
@@ -198,7 +206,7 @@ public:
 
 	void print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes);
 
-	TaskData * add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_);
+	TaskData * add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, bool safe);
 };
 
 

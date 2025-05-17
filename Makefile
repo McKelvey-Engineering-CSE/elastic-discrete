@@ -40,7 +40,7 @@ endif
 
 ##### Project Configuration ########################################################
 TARGET_TASK := james
-RTPS_FILE := ./target_task/james.yaml
+RTPS_FILE := ./example_task/james.yaml
 CLUSTERING_OBJECTS := process_barrier.o generic_barrier.o timespec_functions.o process_primitives.o
 BARRIER_OBJECTS := process_primitives.o generic_barrier.o process_barrier.o thread_barrier.o
 
@@ -50,11 +50,11 @@ BARRIER_OBJECTS := process_primitives.o generic_barrier.o process_barrier.o thre
 all: clustering_distribution finish
 
 finish: clustering_distribution james
-	mkdir -p ./bin
-	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./yaml_parser ./bin
+	mkdir -p ./testing_module/bin
+	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./yaml_parser ./testing_module/bin
 
 clean:
-	rm -r ./bin *.o *.a $(TARGET_TASK) clustering_launcher yaml_parser synthetic_task || true
+	rm -r ./testing_module/bin *.o *.a $(TARGET_TASK) clustering_launcher yaml_parser synthetic_task || true
 
 taskData.o: taskData_real.o 
 	ld -relocatable taskData_real.o -o taskData.o
@@ -121,8 +121,8 @@ clustering_launcher-bin: ./main_binaries/clustering_launcher.cpp
 clustering_launcher: yaml_parser clustering_launcher-bin timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS)
 	$(CC) $(FLAGS)  timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS) clustering_launcher.o -o clustering_launcher $(LIBS)
 
-james-bin: ./target_task/james.cpp 
-	$(CC) $(FLAGS) $(NVCC_OVERRIDE) ./target_task/james.cpp -c $< $(LIBS)
+james-bin: ./example_task/james.cpp 
+	$(CC) $(FLAGS) $(NVCC_OVERRIDE) ./example_task/james.cpp -c $< $(LIBS)
 
 james: james-bin task_manager.o print_library.o $(BARRIER_OBJECTS) timespec_functions.o scheduler.o schedule.o taskData.o task.o
 	$(CC) $(FLAGS) james.o timespec_functions.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o $(BARRIER_OBJECTS) -o james $(LIBS)

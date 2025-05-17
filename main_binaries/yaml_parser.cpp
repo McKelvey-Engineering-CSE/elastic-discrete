@@ -435,13 +435,13 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						//by solving for the period
 						//which can give us the desired
 						//CPU allocation
-						long numerator_as_value = get_timespec_in_ns(numerator);
+						long long numerator_as_value = get_timespec_in_ns(numerator);
 						numerator_as_value /= i;
 
 						//get the span as a value
-						long span_as_value = get_timespec_in_ns(span[0]);
+						long long span_as_value = get_timespec_in_ns(span[0]);
 
-						long target_period = numerator_as_value + span_as_value;
+						long long target_period = numerator_as_value + span_as_value;
 
 						//make a mode out of this
 						struct parsed_task_mode_info mode_info;
@@ -516,13 +516,13 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						//by solving for the period
 						//which can give us the desired
 						//CPU allocation
-						long numerator_as_value = get_timespec_in_ns(numerator);
+						long long numerator_as_value = get_timespec_in_ns(numerator);
 						numerator_as_value /= i;
 
 						//get the span as a value
-						long span_as_value = get_timespec_in_ns(span[0]);
+						long long span_as_value = get_timespec_in_ns(span[0]);
 
-						long target_period = numerator_as_value + span_as_value;
+						long long target_period = numerator_as_value + span_as_value;
 
 						//add it to the candidate periods
 						nanosecond_periods.push_back(target_period);
@@ -538,13 +538,13 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						//by solving for the period
 						//which can give us the desired
 						//CPU allocation
-						long numerator_as_value = get_timespec_in_ns(numerator);
+						long long numerator_as_value = get_timespec_in_ns(numerator);
 						numerator_as_value /= i;
 
 						//get the span as a value
-						long span_as_value = get_timespec_in_ns(GPU_span[0]);
+						long long span_as_value = get_timespec_in_ns(GPU_span[0]);
 
-						long target_period = numerator_as_value + span_as_value;
+						long long target_period = numerator_as_value + span_as_value;
 
 						//add it to the candidate periods
 						nanosecond_periods.push_back(target_period);
@@ -655,13 +655,13 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						//by solving for the period
 						//which can give us the desired
 						//CPU allocation
-						long denominator_as_value = get_timespec_in_ns(denominator);
+						long long denominator_as_value = get_timespec_in_ns(denominator);
 						denominator_as_value *= i;
 
 						//get the span as a value
-						long span_as_value = get_timespec_in_ns(span[0]);
+						long long span_as_value = get_timespec_in_ns(span[0]);
 
-						long target_work = denominator_as_value - span_as_value;
+						long long target_work = denominator_as_value - span_as_value;
 
 						//make a mode out of this
 						struct parsed_task_mode_info mode_info;
@@ -740,13 +740,13 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						//by solving for the period
 						//which can give us the desired
 						//CPU allocation
-						long denominator_as_value = get_timespec_in_ns(denominator);
+						long long denominator_as_value = get_timespec_in_ns(denominator);
 						denominator_as_value *= i;
 
 						//get the span as a value
-						long span_as_value = get_timespec_in_ns(span[0]);
+						long long span_as_value = get_timespec_in_ns(span[0]);
 
-						long target_work = denominator_as_value - span_as_value;
+						long long target_work = denominator_as_value - span_as_value;
 
 						//add it to the candidate modes
 						allocations_and_work_cpu.push_back({i, target_work});
@@ -762,13 +762,13 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						//by solving for the period
 						//which can give us the desired
 						//CPU allocation
-						long denominator_as_value = get_timespec_in_ns(denominator);
+						long long denominator_as_value = get_timespec_in_ns(denominator);
 						denominator_as_value *= i;
 
 						//get the span as a value
-						long span_as_value = get_timespec_in_ns(GPU_span[0]);
+						long long span_as_value = get_timespec_in_ns(GPU_span[0]);
 
-						long target_work = denominator_as_value - span_as_value;
+						long long target_work = denominator_as_value - span_as_value;
 
 						//add it to the candidate modes
 						allocations_and_work_gpu.push_back({i, target_work});

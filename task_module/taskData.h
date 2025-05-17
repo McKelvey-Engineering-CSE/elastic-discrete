@@ -64,7 +64,7 @@ private:
 	static int counter;
 	int index; //unique identifier
 	
-	bool changeable;
+	bool changeable = true;
 	bool can_reschedule;
 	int num_adaptations;
 
@@ -80,6 +80,8 @@ private:
 	timespec GPU_span[MAXMODES];
 	timespec GPU_period[MAXMODES];
 	int GPUs[MAXMODES];
+
+	int owning_modes[MAXMODES];
 
 	//simple map to assign multiple possible
 	//mode configurations to a single mode
@@ -118,8 +120,10 @@ private:
 
 	int permanent_CPU;
 
-	int current_mode;
+	int current_logical_mode;
 	timespec max_work;
+
+	int current_virtual_mode;
 
 	bool cooperative_bool = true;
 
@@ -167,9 +171,11 @@ private:
 
 	int previous_mode = 0;
 
+	int modes_originally_passed;
+
 public:
 
-	TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_);
+	TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, bool safe);
 
 	TaskData();
 
@@ -202,8 +208,8 @@ public:
 	int get_CPUs_gained();
 	void set_CPUs_gained(int new_CPUs_gained);
 
-	void set_current_mode(int new_mode, bool disable);
-	int get_current_mode();
+	void set_current_virtual_mode(int new_mode, bool disable);
+	int get_current_virtual_mode();
 
 	void reset_changeable();
 	void set_current_lowest_CPU(int _lowest);
@@ -251,11 +257,17 @@ public:
 
 	int get_GPUs_change();
 
+	int get_real_current_mode();
+	
+	void set_real_current_mode(int new_mode, bool disable);
+
 	//function to check if this task has transitioned
 	//to a new mode yet
 	bool check_mode_transition();
 
 	void set_mode_transition(bool state);
+
+	int get_original_modes_passed();
 
 	//functions to work with static vector of CPU indices
 	int pop_back_cpu();

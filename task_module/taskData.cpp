@@ -42,7 +42,7 @@ static std::vector<std::pair<int,int>> computeModeResources(double CpA, double L
     int mA_min = (CpA == 0 ? 1 : std::ceil((CpA - L_A) / (T - L_A)));
     int mA_max = (CpA == 0 ? 1 : std::ceil((CpA - L_A) / 1));
 
-	if (mA_max > NUMCPUS)
+	if (mA_max > NUMCPUS || mA_max < 0)
 		mA_max = NUMCPUS;
 
     std::vector<std::pair<int,int>> result;
@@ -50,7 +50,10 @@ static std::vector<std::pair<int,int>> computeModeResources(double CpA, double L
     for (int mA = mA_min; mA <= mA_max; ++mA) {
         
         // actual A-phase finish time
-        double tA = ((CpA - L_A) / mA) + L_A;
+        double tA = 0;
+		
+		if (mA > 0) 
+			tA = ((CpA - L_A) / mA) + L_A;
         
         if (tA < 0) continue;
         
@@ -74,7 +77,7 @@ static std::vector<std::pair<int,int>> computeModeResources(double CpA, double L
     }
 
 	if (result.empty()){
-		print_module::print(std::cerr, "Error: No valid mode found for task with parameters ", CpA, " ", L_A, " ", CpB, " ", L_B, " ", T, "\n");
+		print_module::print(std::cerr, "Error: No valid allocations found for task mode with parameters ", CpA, " ", L_A, " ", CpB, " ", L_B, " ", T, "\n");
 		exit(-1);
 	}
     
@@ -83,7 +86,7 @@ static std::vector<std::pair<int,int>> computeModeResources(double CpA, double L
 }
 
 TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, 
-														timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_) : 	
+														timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, bool safe) : 	
 																													
 																													index(counter++), changeable(true), 
 																													can_reschedule(false), num_adaptations(0),  
@@ -95,7 +98,7 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 																													percentage_workload(1.0), current_period({0,0}), 
 																													current_work({0,0}), current_span({0,0}), 
 																													current_utilization(0.0), current_CPUs(0), previous_CPUs(0), 
-																													permanent_CPU(-1), current_mode(0), max_work({0,0}){
+																													permanent_CPU(-1), max_work({0,0}), current_virtual_mode(0){
 	
 	if (num_modes > MAXMODES){
 
@@ -160,6 +163,9 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 			GPU_span[next_position] = GPU_span_l;
 			GPU_period[next_position] = GPU_period_l;
 
+			//note which mode this came from
+			owning_modes[next_position] = i;
+
 			//update max utilization
 			if (((work_l / period_l) + (GPU_work_l / period_l)) > max_utilization)
 				max_utilization = ((work_l / period_l) + (GPU_work_l / period_l));
@@ -186,8 +192,100 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 		print_module::print(std::cout, work_[i], " ", span_[i], " ", period_[i], " ", gpu_work_[i], " ", gpu_span_[i], "\n");
 	print_module::print(std::cout, "\n");
 	
+	modes_originally_passed = num_modes;
+
 	num_modes = mode_options;
 	number_of_modes = mode_options;
+
+	//check if we should be making this task safe from false negatives
+	if (safe){
+
+		//look through the lowest mode and for each possible state 
+		//select a mode which represents the lowest possible state
+		//and look through all the other mode_options, and count the
+		//number of mode options which are stricly larger
+		//than the current mode option. Ensure at least one candidate mode is present
+		//from each mode transition possible
+
+		int best_base_mode = 0;
+		int best_base_mode_seen = 0;
+
+		for (int i = 0; i < num_modes; i++){
+
+			int current_cpu = CPUs[i];
+			int current_gpu = GPUs[i];
+
+			int distinct_modes_seen = 0;
+			int seen_modes_utilizations[modes_originally_passed] = {0};
+
+			//set the first seen mode as itself
+			seen_modes_utilizations[owning_modes[i]] = 1;
+
+			for (int j = 0; j < num_modes; j++){
+
+				if (i != j){
+
+					if (CPUs[j] >= current_cpu && GPUs[j] >= current_gpu){
+
+						distinct_modes_seen++;
+						seen_modes_utilizations[owning_modes[j]] += 1;
+
+					}
+
+				}
+
+			}
+
+			if (best_base_mode_seen < distinct_modes_seen){
+
+				bool candidate_mode = true;
+				for (int m = 0; m < modes_originally_passed; m++){
+
+					if (seen_modes_utilizations[m] == 0)
+						candidate_mode = false;
+
+				}
+
+				if (candidate_mode){
+
+					best_base_mode = i;
+					best_base_mode_seen = distinct_modes_seen;
+
+				}
+
+			}
+
+		}
+
+
+		//if we have a best base mode set, we can use that as
+		//the standard by which we forcibly inflate all other 
+		//modes
+		if (best_base_mode_seen > 0){
+
+			for (int i = 0; i < num_modes; i++){
+
+				if (CPUs[i] < CPUs[best_base_mode])
+					CPUs[i] = CPUs[best_base_mode];
+
+				if (GPUs[i] < GPUs[best_base_mode])
+					GPUs[i] = GPUs[best_base_mode];
+
+			}
+
+			print_module::print(std::cout, "Task ", index, " has been forced to inflate to mode ", best_base_mode, "\n");
+
+		}
+
+		else {
+
+			print_module::print(std::cout, "Task ", index, " has no base mode to inflate to. The system cannot be safely scheduled.\n");
+			exit(-1);
+
+		}
+
+
+	}
 
 	//loop over all modes, and compare the allocated processor A
 	//and processor B to all other modes in the task. If the task
@@ -404,10 +502,10 @@ int TaskData::get_real_mode(int mode){
 
 void TaskData::reset_mode_to_previous(){
 
-	current_mode = previous_mode;
-	current_work = work[current_mode];
-	current_span = span[current_mode];
-	current_period = period[current_mode];
+	current_virtual_mode = previous_mode;
+	current_work = work[current_virtual_mode];
+	current_span = span[current_virtual_mode];
+	current_period = period[current_virtual_mode];
 	current_utilization = current_work / current_period;
 	percentage_workload = current_work / max_work;
 	current_CPUs = previous_CPUs;
@@ -415,32 +513,32 @@ void TaskData::reset_mode_to_previous(){
 
 }
 
-void TaskData::set_current_mode(int new_mode, bool disable)
+void TaskData::set_current_virtual_mode(int new_mode, bool disable)
 {
 	if (new_mode >= 0 && new_mode < num_modes){
 
 		//stash old mode
-		previous_mode = current_mode;
+		previous_mode = current_virtual_mode;
 
 		//update CPU parameters
-		current_mode = new_mode;
-		current_work = work[current_mode];
-		current_span = span[current_mode];
-		current_period = period[current_mode];
+		current_virtual_mode = new_mode;
+		current_work = work[current_virtual_mode];
+		current_span = span[current_virtual_mode];
+		current_period = period[current_virtual_mode];
 		current_utilization = current_work / current_period;
 		percentage_workload = current_work / max_work;
 		previous_CPUs = current_CPUs;
-		current_CPUs = CPUs[current_mode];
+		current_CPUs = CPUs[current_virtual_mode];
 		
 		//update GPU parameters
 		previous_GPUs = current_GPUs;
-		current_GPUs = GPUs[current_mode];
+		current_GPUs = GPUs[current_virtual_mode];
 
 		//update the changeable flag
 		changeable = (disable) ? false : true;
 
 		//set the current mode notation to something the task actually can use
-		real_current_mode = get_real_mode(current_mode);
+		real_current_mode = get_real_mode(current_virtual_mode);
 
 	}
 
@@ -449,8 +547,8 @@ void TaskData::set_current_mode(int new_mode, bool disable)
 	}
 }
 
-int TaskData::get_current_mode(){
-	return current_mode;
+int TaskData::get_current_virtual_mode(){
+	return current_virtual_mode;
 }
 
 void TaskData::reset_changeable(){
@@ -491,6 +589,10 @@ int TaskData::get_CPUs(int index){
 
 bool TaskData::pure_cpu_task(){
 	return is_pure_cpu_task;
+}
+
+int TaskData::get_original_modes_passed(){
+	return modes_originally_passed;
 }
 
 void TaskData::set_CPUs_change(int num_cpus_to_return){
@@ -950,6 +1052,31 @@ void TaskData::clear_gpus_granted_from_other_tasks(){
 
 	for (size_t i = 0; i < MAXTASKS + 1; i++)
 		gpus_granted_from_other_tasks[i][0] = -1;
+
+}
+
+int TaskData::get_real_current_mode(){
+
+	//return the real current mode
+	return real_current_mode;
+
+}
+
+void TaskData::set_real_current_mode(int new_mode, bool disable){
+
+	if (new_mode >= 0 && new_mode < modes_originally_passed){
+
+		//update the changeable flag
+		changeable = (disable) ? false : true;
+
+		//set the current mode notation to something the task actually can use
+		real_current_mode = new_mode;
+
+	}
+
+	else{
+		print_module::print(std::cerr, "Error: Task ", get_index(), " was told to go to invalid mode ", new_mode, ". Ignoring.\n");
+	}
 
 }
 

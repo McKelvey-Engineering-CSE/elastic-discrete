@@ -39,11 +39,11 @@ int Scheduler::get_num_tasks(){
 
 void Scheduler::generate_unsafe_combinations(size_t maxCPU){}
 
-TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_){
+TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, bool safe){
 
 	//add the task to the legacy schedule object, but also add to vector
 	//to make the scheduler much easier to read and work with.
-	auto taskData_object = schedule.add_task(elasticity_, num_modes_, work_, span_, period_, gpu_work_, gpu_span_, gpu_period_);
+	auto taskData_object = schedule.add_task(elasticity_, num_modes_, work_, span_, period_, gpu_work_, gpu_span_, gpu_period_, safe);
 
 	task_table.push_back(std::vector<task_mode>());
 
@@ -101,7 +101,10 @@ enabled, runs the CUDA version of the scheduler. It also builds
 the RAG and executes it if a solution is found
 
 *************************************************************/
-void Scheduler::do_schedule(size_t maxCPU){
+void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
+
+	//lock the scheduler mutex
+	scheduler_running = true;
 
 	//If we compiled with CUDA enabled, we need 
 	//to initialize the CUDA context and stream
@@ -121,6 +124,28 @@ void Scheduler::do_schedule(size_t maxCPU){
 		}
 
 	#endif
+
+	//caclulate the largest possible loss across 
+	//all tasks and modes
+	if (first_time) {
+
+		for (size_t i = 0; i < task_table.size(); i++){
+
+			double worst_mode = 0;
+
+			for (size_t j = 0; j < task_table.at(i).size(); j++){
+
+				if (task_table.at(i).at(j).cpuLoss > worst_mode)
+					worst_mode = task_table.at(i).at(j).cpuLoss;
+
+			}
+
+			max_loss += worst_mode;
+		}
+
+		print_module::print(std::cerr, "Max Possible Loss: ", max_loss, "\n");
+
+	}
 
 	
 	std::vector<int> transitioned_tasks;
@@ -295,36 +320,41 @@ void Scheduler::do_schedule(size_t maxCPU){
 	//are not allowed to change their modes in the knapsack
 	//algorithm. We take note of which tasks are uncooperative
 	//and send them to the device
-	int host_uncooperative[MAXTASKS] = {0};
+	int host_uncooperative[MAXTASKS] = {-1};
+	memset(host_uncooperative, -1, sizeof(int) * MAXTASKS);
 
-	if (!first_time){
+	//loopback variables to ensure we process
+	//the uncooperative tasks last every time
+	int real_order_of_tasks[num_tasks];
+	int loopback_back = num_tasks - 1;
+	int loopback_front = 0;
 
-		for (int i = 0; i < schedule.count(); i++){
+	for (int i = 0; i < schedule.count(); i++){
 
-			if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative()){
-					
-				host_uncooperative[i] = (schedule.get_task(i))->get_current_mode();
+		if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative()){
+				
+			if (!first_time)
+				host_uncooperative[i] = schedule.get_task(i)->get_real_current_mode();
 
-			}
+			real_order_of_tasks[loopback_back--] = i;
 
 		}
+
+		else 
+			real_order_of_tasks[loopback_front++] = i;
 
 	}
 
 	//copy over the current state of the task system
-	int host_current_modes[MAXTASKS * 2] = {0};
+	int host_current_modes[MAXTASKS * 2];
+	memset(host_current_modes, 0, sizeof(int) * MAXTASKS * 2);
 
 	if (!first_time){
 
-		for (int i = 0; i < MAXTASKS; i++){
+		for (size_t i = 0; i < previous_modes.size(); i++){
 
-			//make sure we are not going out of bounds
-			if (i < (int) previous_modes.size()){
-
-				host_current_modes[i * 2] = previous_modes.at(i).cores;
-				host_current_modes[i * 2 + 1] = previous_modes.at(i).sms;
-
-			}
+			host_current_modes[i * 2] = previous_modes.at(i).cores;
+			host_current_modes[i * 2 + 1] = previous_modes.at(i).sms;
 
 		}
 
@@ -335,21 +365,42 @@ void Scheduler::do_schedule(size_t maxCPU){
 	//and actually run the knapsack algorithm on the device
 	//if CUDA is not enabled, just run the knapsack algorithm
 	//on the host
-	#ifdef __NVCC__
 
-		if (first_time) {
+	int slack_A = maxCPU;
+	int slack_B = NUMGPUS;
+
+	if (first_time) {
+		
+		#ifdef __NVCC__
+
+		CUDA_NEW_SAFE_CALL(cudaFuncSetAttribute(device_do_schedule,
+						cudaFuncAttributeMaxDynamicSharedMemorySize,
+						66 * 65 * 3 * 4));
+
+		#endif
+	
+	}
+
+	else {
+
+		for (int i = 0; i < (int) previous_modes.size() * 2; i += 2){
 			
-			CUDA_NEW_SAFE_CALL(cudaFuncSetAttribute(device_do_schedule,
-							cudaFuncAttributeMaxDynamicSharedMemorySize,
-							66 * 65 * 3 * 4));
+			slack_A -= host_current_modes[i];
+			slack_B -= host_current_modes[i + 1];
 
 		}
+
+	}
+
+	pm::print(std::cerr, "[Starting Slack] Slack A: ", slack_A, " Slack B: ", slack_B, "\n");
+
+	#ifdef __NVCC__
 
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, host_current_modes, sizeof(int) * MAXTASKS * 2, cudaMemcpyHostToDevice));
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
 
 		//Execute exact solution
-		device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution);
+		device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 0);
 
 		//peek for launch errors
 		CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
@@ -363,30 +414,105 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 		CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
 
+		//if we are running the scheduler twice to compare 
+		//against maximum possible value for a given transition
+		if (check_max_possible){
+
+			//first check just the constrained version of the problem
+			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 1);
+
+			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
+
+			//copy the error
+			double constrained_value = 0;
+			CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&constrained_value, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, scheduler_stream));
+			CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
+
+
+			//enable unsafe checking
+			int optimal_modes[MAXTASKS * 2];
+			memset(optimal_modes, 0, sizeof(int) * MAXTASKS * 2);
+
+			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, optimal_modes, sizeof(int) * MAXTASKS * 2, cudaMemcpyHostToDevice));
+
+			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 0);
+
+			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
+
+			//copy the error
+			double max_possible_value = 0;
+			CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&max_possible_value, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, scheduler_stream));
+			CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
+
+			//print the percentage our values are worse than optimal
+			double best_possible_percentage = ((max_loss - max_possible_value) / max_loss);
+
+			if (((constrained_value > max_loss) || (loss > max_loss)) && (max_possible_value < max_loss)){
+
+				if (constrained_value > max_loss)
+					pm::print(std::cerr, "Constrained Scheduler Has No Solution \n");
+
+				if (loss > max_loss)
+					pm::print(std::cerr, "System Scheduler Has No Solution \n");
+
+			}
+			
+			else {
+
+				pm::print(std::cerr, "Amount the constrained result worse than the optimal system state: ", best_possible_percentage - ((max_loss - constrained_value) / max_loss), "\n");
+				pm::print(std::cerr, "Amount our result is worse than the optimal system state: ", best_possible_percentage - ((max_loss - loss) / max_loss), "\n");
+			
+			}
+			
+		}
+
 	#else
 
-		device_do_schedule(N - 1, maxCPU, NUMGPUS, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution);
+		device_do_schedule(N - 1, maxCPU, NUMGPUS, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution, slack_A, slack_B, 0);
 
 		loss = *d_final_loss;
+
+		//if we are running the scheduler twice to compare 
+		//against maximum possible value for a given transition
+		if (check_max_possible){
+
+			//enable unsafe checking
+			int optimal_modes[MAXTASKS * 2];
+			memset(optimal_modes, 0, sizeof(int) * MAXTASKS * 2);
+
+			int* toss_d_final_solution = (int*)malloc(sizeof(int) * MAXTASKS);
+
+			device_do_schedule(N - 1, maxCPU, NUMGPUS, host_current_modes, d_losses, d_final_loss, host_uncooperative, toss_d_final_solution, slack_A, slack_B, 1);
+
+			//copy the error
+			double max_possible_value = *d_final_loss;
+
+			//print the difference 
+			pm::print(std::cerr, "Max Possible Value: ", max_possible_value, " What We Safely Got: ", loss, "\n");
+
+		}
 
 	#endif
 
 	std::vector<int> result;
 
-	result.clear();
+	for (int i = 0; i < (int) num_tasks; i++)
+		result.push_back(-1);
 
 	for (int i = 0; i < (int) num_tasks; i++) {
+
+		int index = real_order_of_tasks[i];
 		
 
 		#ifdef __NVCC__
 
 			if (host_final[i] != -1)
-				result.push_back(host_final[i]);
+				result.at(index) = (host_final[i]);
 
 		#else
 
 			if (d_final_solution[i] != -1)
-				result.push_back(d_final_solution[i]);
+				result.at(index) = (d_final_solution[i]);
 
 		#endif
 
@@ -401,12 +527,11 @@ void Scheduler::do_schedule(size_t maxCPU){
 	//print out the time taken
 	print_module::print(std::cerr, "Time taken to run just the double knapsack: ", elapsed_time / 1000000, " milliseconds.\n");
 
-
 	//check to see that we got a solution that renders this system schedulable
 	if ((result.size() == 0 || loss == 100001) && first_time){
 
 		print_module::print(std::cerr, "Error: System is not schedulable in any configuration. Exiting.\n");
-		killpg(process_group, SIGINT);
+		killpg(process_group, SIGUSR1);
 		return;
 
 	}
@@ -425,11 +550,32 @@ void Scheduler::do_schedule(size_t maxCPU){
 
 	}
 
+	//make sure that all tasks which demanded
+	//to be in a specific mode are in that mode
+	//since we are guaranteed to have a valid
+	//solution at this point
+	for (int i = 0; i < schedule.count(); i++){
+
+		if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative()){
+
+			//if the task is not in the mode it was supposed to be in
+			if ((schedule.get_task(i))->get_real_mode(result.at(i)) != (schedule.get_task(i))->get_real_current_mode()){
+
+				print_module::print(std::cerr, "Error: Task ", i, " is not in the mode it was supposed to be in. Expected: ", (schedule.get_task(i))->get_real_mode(result.at(i)), " Found: ", (schedule.get_task(i))->get_real_current_mode(), "\n");
+				killpg(process_group, SIGINT);
+				return;
+
+			}
+
+		}
+
+	}
+
 	//print the new schedule layout
 	std::ostringstream mode_strings;
-	print_module::buffered_print(mode_strings, "\n========================= \n", "New Schedule Layout:\n");
+	print_module::buffered_print(mode_strings, "\n========================= \n", "New Schedule Layout (virtual/real):\n");
 	for (size_t i = 0; i < result.size(); i++)
-		print_module::buffered_print(mode_strings, "Task ", i, " is now in mode: ", result.at(i), "\n");
+		print_module::buffered_print(mode_strings, "Task ", i, " is now in mode: (", result.at(i), "/", schedule.get_task(i)->get_real_mode(result.at(i)), ")\n");
 	print_module::buffered_print(mode_strings, "Total Loss from Mode Change: ", loss, "\n=========================\n\n");
 
 	//print resources now held by each task
@@ -442,7 +588,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 	//this changes the mode the tasks are currently
 	//set to within their TaskData structure
 	for (int i = 0; i < schedule.count(); i++)
-		(schedule.get_task(i))->set_current_mode(result.at(i), false);
+		(schedule.get_task(i))->set_current_virtual_mode(result.at(i), false);
 
 	//greedily give cpus on first run
 	if (first_time) {
@@ -452,7 +598,7 @@ void Scheduler::do_schedule(size_t maxCPU){
 		//structure. Running this function for each task one more time
 		//right at the start ensures that it is set
 		for (int i = 0; i < schedule.count(); i++)
-			(schedule.get_task(i))->set_current_mode(result.at(i), false);
+			(schedule.get_task(i))->set_current_virtual_mode(result.at(i), false);
 
 		//update the previous modes to the first ever selected modes
 		for (size_t i = 0; i < result.size(); i++)
@@ -708,8 +854,17 @@ void Scheduler::do_schedule(size_t maxCPU){
 	//print out the time taken
 	print_module::print(std::cerr, "Time taken to reschedule: ", elapsed_time / 1000000, " milliseconds.\n");
 
+	//unlock the scheduler mutex
+	scheduler_running = false;
+
 }
 
 void Scheduler::setTermination(){
 	schedule.setTermination();
+}
+
+bool Scheduler::check_if_scheduler_running(){
+
+	return scheduler_running;
+
 }

@@ -59,9 +59,10 @@ double operator/(const timespec & ts1, const timespec & ts2)
 	return static_cast<double>(ts1_nsecs) / ts2_nsecs;
 }
 
-long get_timespec_in_ns(const timespec ts1)
+
+long long get_timespec_in_ns(const timespec ts1)
 {
-	return ts1.tv_nsec + nanosec_in_sec * ts1.tv_sec;
+	return (long long)ts1.tv_nsec + (long long)nanosec_in_sec * (long long)ts1.tv_sec;
 }
 
 timespec timespec_from_ns(long ns)

@@ -56,6 +56,8 @@ extern void modify_self(timespec new_value);
 
 extern void set_cooperative(bool value);
 
+extern void mimic_simulator(int task_index);
+
 // Used to determine current task and its features.
 extern bool missed_dl;
 
@@ -97,5 +99,5 @@ void mode_change_setup();
 void mode_change_finish();
 
 extern void allow_change();
-extern void modify_self(int new_mode);
+extern bool modify_self(int new_mode);
 #endif /* RT_GOMP_TASK_H */
