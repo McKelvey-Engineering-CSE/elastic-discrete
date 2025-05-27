@@ -148,7 +148,7 @@ def create_james_yaml(selected_tasks, task_count, bin_dir="bin", output_file="ja
             task['program']['args'] = '0 61428571 2 10'
     
     # Create the YAML content as text
-    yaml_content = "--- \nschedulable: true\nexplicit_sync: false\nmaxRuntime: {sec: 60, nsec: 0}\ntasks:\n"
+    yaml_content = "--- \nschedulable: true\nexplicit_sync: false\nmaxRuntime: {sec: 240, nsec: 0}\ntasks:\n"
     
     # Add each task
     for task in selected_tasks:

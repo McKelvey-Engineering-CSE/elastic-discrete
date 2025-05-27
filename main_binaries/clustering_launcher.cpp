@@ -934,6 +934,8 @@ int main(int argc, char *argv[])
 		unsigned long long time_to_run = ((unsigned long long)sec_to_run * (unsigned long long )1000000000) + (unsigned long long)nsec_to_run;
 		while(nanoseconds_passed < time_to_run){
 
+			std::cout << "Current time: " << nanoseconds_passed << " ns" << std::endl;
+
 			//look through the list of task period we have and find the shortest one
 			unsigned long long smallest_period = -1;
 			for (size_t i = 0; i < parsed_tasks.size(); i++){

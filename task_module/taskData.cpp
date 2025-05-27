@@ -137,7 +137,7 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 			//store the CPU and GPU resources
 			CPUs[next_position] = res.first;
-			GPUs[next_position] = res.second;
+			GPUs[next_position] = std::ceil((double)res.second / 2.0);
 
 			//map the mode
 			mode_map[next_position] = i;

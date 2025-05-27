@@ -57,6 +57,353 @@ HOST_DEVICE_CONSTANT int constant_task_table[MAXTASKS * MAXMODES * 3];
 
 HOST_DEVICE_CONSTANT float constant_losses[MAXTASKS * MAXMODES];
 
+HOST_DEVICE_SCOPE void zero_one_knapsack(int* item_weights, int* item_values, int* out_array, int num_items, int max_weight) {
+
+	//FIXME: MIGHT BE BETTER TO NOT EVER SET THE TABLE AND USE 
+	//STATIC VARIABLES WHEN i == 1
+	int dp_table[MAXTASKS + 1][128 + 1];
+	for (int i = 0; i <= max_weight; i++)
+		dp_table[0][i] = 0;
+
+	for (int i = 1; i <= num_items; i++) {
+
+		if (item_weights[i] == -1)
+			continue;
+
+		for (int w = 0; w <= max_weight; w++) {
+
+			if (item_weights[i - 1] <= w){
+
+				int old_value = dp_table[(i - 1)][w];
+				int new_value = dp_table[(i - 1)][w - item_weights[i - 1]] + item_values[i - 1];
+
+				dp_table[i][w] = (new_value > old_value) ? new_value : old_value;
+
+			}
+			
+			else
+				dp_table[i][w] = dp_table[(i - 1)][w];
+
+		}
+
+	}
+
+	//backtrack to find the items
+	int w = max_weight;
+	for (int i = num_items; i > 0; i--) {
+
+		if (dp_table[i][w] != dp_table[i - 1][w]) {
+
+			out_array[i - 1] = 1; // item is included
+			w -= item_weights[i - 1];
+
+		} else {
+
+			out_array[i - 1] = 0; // item is not included
+
+		}
+
+	}
+
+}
+
+HOST_DEVICE_SCOPE bool rebuild_solution(int* final_solution, int* loopback_indices, int num_tasks, int maxCPU, int NUMGPUS) {
+
+	bool valid_solution = true;
+	int current_w = maxCPU;
+	int current_v = NUMGPUS;
+
+	for (int i = num_tasks; i > 0; i--){
+
+		int group_idx = loopback_indices[i - 1];
+
+		int current_item = solutions[i][current_w][current_v];
+
+		if (current_item == -1){
+
+			valid_solution = false;
+
+		}
+
+		else {
+
+			//take the core and sm values for the item
+			int current_item_cores = constant_task_table[(group_idx - 1) * MAXMODES * 3 + current_item * 3];
+			int current_item_sms = constant_task_table[(group_idx - 1) * MAXMODES * 3 + current_item * 3 + 1];
+
+			//update the current w and v values
+			current_w = current_w - current_item_cores;
+			current_v = current_v - current_item_sms;
+			
+		}
+
+		final_solution[i - 1] = current_item;
+
+	}
+
+	return valid_solution;
+
+}
+
+HOST_DEVICE_SCOPE bool reorder_heuristic(int* current_solution, int* task_table, int num_items, int* slack_A, int* slack_B, int check_x_first){
+
+	//The solution currently being reordered is passed to us as an int* array where -1 means the item
+	//is not currently being used in the solution. This is to enable the reorder buffer, so we
+	//can easily extend each of these modules to item skipping in the next phase
+
+	//now we need to classify the items in the current solution as either x providers or 
+	//y providers, or both
+	int pure_providers[MAXTASKS];
+
+	int x_providers_weight[MAXTASKS];
+	int y_providers_weight[MAXTASKS];
+
+	int x_providers_value[MAXTASKS];
+	int y_providers_value[MAXTASKS];
+
+	int x_providers_count = 0;
+	int y_providers_count = 0;
+	int pure_providers_count = 0;
+
+	for (int i = 0; i < num_items; i++) {
+
+		int item = current_solution[i];
+
+		if (item == -1)
+			continue;
+
+		int item_current_cores = task_table[i * 2];
+		int item_current_sms = task_table[(i * 2) + 1];
+
+		int solution_item_sms = constant_task_table[(i) * MAXMODES * 3 + item * 3 + 1];
+		int solution_item_cores = constant_task_table[(i) * MAXMODES * 3 + item * 3];
+
+		int delta_cores = item_current_cores - solution_item_cores;
+		int delta_sms = item_current_sms - solution_item_sms;
+
+		if (delta_cores > 0 && delta_sms > 0){
+
+			pure_providers[pure_providers_count++] = i;
+
+		} 
+		
+		else if (delta_cores > 0 && delta_sms < 0){
+
+			x_providers_weight[x_providers_count] = -delta_sms;
+
+			x_providers_value[x_providers_count++] = delta_cores;
+
+		} 
+		
+		else if (delta_cores < 0 && delta_sms > 0){
+
+			y_providers_weight[y_providers_count] = -delta_cores;
+
+			y_providers_value[y_providers_count++] = delta_sms;
+
+		}
+
+	}
+
+	//after this all items are classified and consumers are ignored
+	//now we need to reorder the items in the solution. We have to try
+	//starting from both sides of the problem to ensure there is no solution.
+	//which one is better is unfortunately undecideable, so we will just go
+	//with the first one that works
+	int current_slack_A = *slack_A;
+	int current_slack_B = *slack_B;
+
+	//get the slack out of the providers
+	for (int i = 0; i < pure_providers_count; i++) {
+
+		int item = pure_providers[i];
+
+		int item_current_cores = task_table[item * 2];
+		int item_current_sms = task_table[(item * 2) + 1];
+
+		int solution_item_sms = constant_task_table[(item) * MAXMODES * 3 + item * 3 + 1];
+		int solution_item_cores = constant_task_table[(item) * MAXMODES * 3 + item * 3];
+
+		current_slack_A += (item_current_cores - solution_item_cores);
+		current_slack_B += (item_current_sms - solution_item_sms);
+
+	}
+
+	//we now start with whatever provider we are positioning in this
+	//iteration
+
+	int x_providers_processed = 0;
+	int y_providers_processed = 0;
+
+	int out_array[MAXTASKS];
+
+	bool found_x = true;
+	bool found_y = true;
+
+	//handle which one we should start with
+	if (check_x_first){
+
+		zero_one_knapsack(x_providers_weight, x_providers_value, out_array, x_providers_count, current_slack_B);
+
+		//we take the items the knapsack solver found,
+		//and we remove the slack they used, and add the slack they
+		//provided. We then update the processed numbers and remove 
+		//them from the x_providers arrays
+		for (int i = 0; i < x_providers_count; i++) {
+
+			if (out_array[i] == 1){
+
+				int value = x_providers_value[i];
+				int weight = x_providers_weight[i];
+
+				current_slack_A += value;
+				current_slack_B -= weight;
+
+				x_providers_processed++;
+
+				//remove the item from the x_providers arrays
+				x_providers_value[i] = -1;
+				x_providers_weight[i] = -1;
+
+			}
+
+		}
+
+	}
+
+	else {
+
+		zero_one_knapsack(y_providers_weight, y_providers_value, out_array, y_providers_count, current_slack_A);
+
+		//we take the items the knapsack solver found,
+		//and we remove the slack they used, and add the slack they
+		//provided. We then update the processed numbers and remove
+		//them from the y_providers arrays
+		for (int i = 0; i < y_providers_count; i++) {
+
+			if (out_array[i] == 1){
+
+				int value = y_providers_value[i];
+				int weight = y_providers_weight[i];
+
+				current_slack_A -= value;
+				current_slack_B += weight;
+
+				y_providers_processed++;
+
+				//remove the item from the y_providers arrays
+				y_providers_value[i] = -1;
+				y_providers_weight[i] = -1;
+
+
+			}
+
+		}
+
+	}
+
+	//now just repeat until we either get a loop
+	//or we process all elements
+	while(x_providers_processed < x_providers_count && y_providers_processed < y_providers_count && (found_x || found_y)) {
+
+		found_x = false;
+		found_y = false;
+
+		//start the knapsack
+		zero_one_knapsack(x_providers_weight, x_providers_value, out_array, x_providers_count, current_slack_B);
+
+		//we take the items the knapsack solver found,
+		//and we remove the slack they used, and add the slack they
+		//provided. We then update the processed numbers and remove 
+		//them from the x_providers arrays
+		for (int i = 0; i < x_providers_count; i++) {
+
+			if (out_array[i] == 1){
+
+				int value = x_providers_value[i];
+				int weight = x_providers_weight[i];
+
+				current_slack_A += value;
+				current_slack_B -= weight;
+
+				x_providers_processed++;
+
+				//remove the item from the x_providers arrays
+				x_providers_value[i] = -1;
+				x_providers_weight[i] = -1;
+
+				//update the bool
+				found_x = true;
+
+			}
+
+		}
+
+		//run the knapsack for the y providers
+		zero_one_knapsack(y_providers_weight, y_providers_value, out_array, y_providers_count, current_slack_A);
+
+		//we take the items the knapsack solver found,
+		//and we remove the slack they used, and add the slack they
+		//provided. We then update the processed numbers and remove
+		//them from the y_providers arrays
+		for (int i = 0; i < y_providers_count; i++) {
+
+			if (out_array[i] == 1){
+
+				int value = y_providers_value[i];
+				int weight = y_providers_weight[i];
+
+				current_slack_A -= value;
+				current_slack_B += weight;
+
+				y_providers_processed++;
+
+				//remove the item from the y_providers arrays
+				y_providers_value[i] = -1;
+				y_providers_weight[i] = -1;
+
+				//update the bool
+				found_y = true;
+
+			}
+
+		}
+
+	}
+
+	//if both bools are false, return false,
+	//otherwise we update the new slack values
+	//and return true
+	if (!found_x && !found_y)
+		return false;
+	
+	else {
+
+		/*if (pure_providers_count == 0 && slack_A == 0 && slack_B == 0) {
+
+			std::cout << "We somehow found a solution to the reorder problem without any providers (this is not possible)." << std::endl;
+			std::cout << "Set that caused this: " << std::endl;
+
+			for (int i = 0; i < num_items; i++) {
+
+				if (current_solution[i] != -1)
+					std::cout << "Item " << i + 1 << " with cores: " << task_table[i * 2] << " and sms: " << task_table[(i * 2) + 1] << std::endl;
+
+			}
+
+			exit(1);
+
+		}*/
+
+		*slack_A = current_slack_A;
+		*slack_B = current_slack_B;
+
+		return true;
+
+	}
+
+}
+
 HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution, int slack_A, int slack_B, int constricted){
 
 	//shared variables for determining the start and end of 
@@ -228,10 +575,50 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 				//check if our resource constrains are maintained
 				if (delta_cores * delta_sms < 0){
 
-					if (constricted == 0){
+					bool reorder = false;
 
-						//if cores is negative, make sure we have enough
-						//free cores to cover it
+					//if cores is negative, make sure we have enough
+					//free cores to cover it
+					if (delta_cores < 0){
+
+						if (free_cores + delta_cores < 0){
+						
+							reorder = true;
+
+						}
+
+					}
+
+					//if sms is negative, make sure we have enough
+					//free sms to cover it
+					if (delta_sms < 0){
+
+						if (free_sms + delta_sms < 0){
+						
+							reorder = true;
+
+						}
+
+					}
+
+					//if we need to reorder, we run the new heuristic
+					if (reorder){
+
+						//fetch the solution
+						int reordered_solution[MAXTASKS];
+
+						for (int l = 0; l < MAXTASKS; l++)
+							reordered_solution[l] = -1;
+
+						rebuild_solution(reordered_solution, loopback_indices, i - 1, w - current_item_cores, v - current_item_sms);
+
+						//now we need to reorder the solution
+						if (!reorder_heuristic(reordered_solution, task_table, num_tasks, &free_cores, &free_sms, 1))
+							reorder_heuristic(reordered_solution, task_table, num_tasks, &free_cores, &free_sms, 0);
+						
+						//regardless of whether or not we actually managed
+						//to reorder the solution, we just check the 
+						//item unsafeness against the slack again
 						if (delta_cores < 0){
 
 							if (free_cores + delta_cores < 0){
@@ -242,8 +629,6 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 						}
 
-						//if sms is negative, make sure we have enough
-						//free sms to cover it
 						if (delta_sms < 0){
 
 							if (free_sms + delta_sms < 0){
@@ -253,13 +638,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 							}
 
 						}
-					
-					}
 
-					else {
-
-						continue;
-					
 					}
 
 				}
@@ -308,37 +687,8 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 	//to get the final answer, start at the end and work backwards, taking the j values
 	if (HOST_DEVICE_THREAD_DIM < 1){
 
-		bool valid_solution = true;
-		int current_w = maxCPU;
-		int current_v = NUMGPUS;
-
-		for (int i = num_tasks; i > 0; i--){
-
-			int group_idx = loopback_indices[i - 1];
-
-			int current_item = solutions[i][current_w][current_v];
-
-			if (current_item == -1){
-
-				valid_solution = false;
-
-			}
-
-			else {
-
-				//take the core and sm values for the item
-				int current_item_cores = constant_task_table[(group_idx - 1) * MAXMODES * 3 + current_item * 3];
-				int current_item_sms = constant_task_table[(group_idx - 1) * MAXMODES * 3 + current_item * 3 + 1];
-
-				//update the current w and v values
-				current_w = current_w - current_item_cores;
-				current_v = current_v - current_item_sms;
-				
-			}
-
-			final_solution[i - 1] = current_item;
-
-		}
+		//rebuild the solution
+		bool valid_solution = rebuild_solution(final_solution, loopback_indices, num_tasks, maxCPU, NUMGPUS);
 
 		//print the final loss 
 		if (valid_solution){
