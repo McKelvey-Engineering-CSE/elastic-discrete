@@ -874,6 +874,7 @@ int main(int argc, char *argv[])
 		timespec deadline[parsed_tasks.size()];
 
 		int current_mode[parsed_tasks.size()];
+		int next_mode_to_try[parsed_tasks.size()];
 
 		int percentile[parsed_tasks.size()];
 
@@ -888,17 +889,10 @@ int main(int argc, char *argv[])
 		//set rand seed
 		srand(time(NULL));
 
-		//randomly select 5 tasks to be instigators
+		//select the first 5 tasks to be instigators (they are already random)
 		for (int i = 0; i < instigator_count; i++){
 
-			int random_task = rand() % task_count;
-
-			//if we have already selected this task, try again
-			while (instigating_tasks[random_task] != -1){
-
-				random_task = rand() % task_count;
-
-			}
+			int random_task = i;
 
 			instigating_tasks[random_task] = instigation_time[i];
 			scheduler->get_schedule()->get_task(random_task)->set_cooperative(false);
@@ -914,6 +908,9 @@ int main(int argc, char *argv[])
 
 			//call the simulated task start
 			simulated_task_start(i, &current_period[i], &current_work[i], &current_mode[i], &deadline[i], &percentile[i], &current_cpu_mask[i], &current_gpu_mask[i], scheduler->get_schedule());
+
+			//for each task, fill in what mode they are currently in 
+			next_mode_to_try[i] = scheduler->get_schedule()->get_task(i)->get_current_virtual_mode();
 
 		}
 
@@ -972,7 +969,7 @@ int main(int argc, char *argv[])
 							//tell the scheduler to reschedule
 							needs_scheduling = true;
 
-							int task_current_mode = td->get_real_mode(td->get_current_virtual_mode());
+							int task_current_mode = next_mode_to_try[i];
 
 							int mode_moving_to = ((task_current_mode + 1) % td->get_original_modes_passed());
 
@@ -982,6 +979,9 @@ int main(int argc, char *argv[])
 							//set the mode this task should be moving into 
 							//(for now just cycle through all modes)
 							td->set_real_current_mode(mode_moving_to, true);
+
+							//update the mode_moving_to
+							next_mode_to_try[i] = mode_moving_to;
 
 						}
 
