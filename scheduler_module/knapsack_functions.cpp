@@ -59,18 +59,25 @@ HOST_DEVICE_CONSTANT float constant_losses[MAXTASKS * MAXMODES];
 
 HOST_DEVICE_SCOPE void zero_one_knapsack(int* item_weights, int* item_values, int* out_array, int num_items, int max_weight) {
 
+	//FIXME: WHEN THERE IS ONE ITEM PASSED, WE END UP GETTING
+	//THE WRONG VALUE OUT IF THE ITEM CANNOT BE TAKEN
+
 	//FIXME: MIGHT BE BETTER TO NOT EVER SET THE TABLE AND USE 
 	//STATIC VARIABLES WHEN i == 1
-	int dp_table[MAXTASKS + 1][128 + 1];
+	int dp_table[10 + 1][128 + 1];
 	for (int i = 0; i <= max_weight; i++)
 		dp_table[0][i] = 0;
 
 	for (int i = 1; i <= num_items; i++) {
 
-		if (item_weights[i] == -1)
-			continue;
-
 		for (int w = 0; w <= max_weight; w++) {
+		    
+		    if (item_weights[i - 1] == -1){
+    		    dp_table[i][w] = dp_table[(i - 1)][w];
+    		    continue;
+    		}
+
+			dp_table[i][w] = dp_table[i - 1][w];
 
 			if (item_weights[i - 1] <= w){
 
@@ -94,12 +101,14 @@ HOST_DEVICE_SCOPE void zero_one_knapsack(int* item_weights, int* item_values, in
 
 		if (dp_table[i][w] != dp_table[i - 1][w]) {
 
-			out_array[i - 1] = 1; // item is included
+			out_array[i - 1] = 1;
 			w -= item_weights[i - 1];
 
-		} else {
+		} 
+		
+		else {
 
-			out_array[i - 1] = 0; // item is not included
+			out_array[i - 1] = 0;
 
 		}
 
@@ -241,7 +250,7 @@ HOST_DEVICE_SCOPE bool reorder_heuristic(int* current_solution, int* task_table,
 	bool found_y = true;
 
 	//handle which one we should start with
-	if (check_x_first){
+	/*if (check_x_first){
 
 		zero_one_knapsack(x_providers_weight, x_providers_value, out_array, x_providers_count, current_slack_B);
 
@@ -300,11 +309,11 @@ HOST_DEVICE_SCOPE bool reorder_heuristic(int* current_solution, int* task_table,
 
 		}
 
-	}
+	}*/
 
 	//now just repeat until we either get a loop
 	//or we process all elements
-	while(x_providers_processed < x_providers_count && y_providers_processed < y_providers_count && (found_x || found_y)) {
+	while(x_providers_processed != x_providers_count && y_providers_processed != y_providers_count && (found_x || found_y)) {
 
 		found_x = false;
 		found_y = false;
@@ -325,6 +334,21 @@ HOST_DEVICE_SCOPE bool reorder_heuristic(int* current_solution, int* task_table,
 
 				current_slack_A += value;
 				current_slack_B -= weight;
+
+				if (current_slack_B < 0){
+
+					//if we are here, we have a problem
+					std::cout << "We have a problem with the reorder heuristic, current slack B is negative." << std::endl;
+					std::cout << "Current slack A: " << current_slack_A << std::endl;
+					std::cout << "Current slack B: " << current_slack_B << std::endl;
+
+					//print out array
+					std::cout << "Out array: " << std::endl;
+					for (int j = 0; j < x_providers_count; j++) {
+						std::cout << out_array[j] << " ";
+					}
+
+				}
 
 				x_providers_processed++;
 
@@ -355,6 +379,20 @@ HOST_DEVICE_SCOPE bool reorder_heuristic(int* current_solution, int* task_table,
 
 				current_slack_A -= value;
 				current_slack_B += weight;
+
+				if (current_slack_A < 0){
+
+					//if we are here, we have a problem
+					std::cout << "We have a problem with the reorder heuristic, current slack A is negative." << std::endl;
+					std::cout << "Current slack A: " << current_slack_A << std::endl;
+					std::cout << "Current slack B: " << current_slack_B << std::endl;
+
+					//print out array
+					for (int j = 0; j < y_providers_count; j++) {
+						std::cout << out_array[j] << " ";
+					}
+
+				}
 
 				y_providers_processed++;
 
@@ -573,7 +611,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 				}
 
 				//check if our resource constrains are maintained
-				if (delta_cores * delta_sms < 0){
+				if ((dp_table_loss != 100000) && (delta_cores * delta_sms < 0)){
 
 					bool reorder = false;
 
@@ -606,38 +644,67 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 						//fetch the solution
 						int reordered_solution[MAXTASKS];
+						int correctly_ordered[MAXTASKS];
+
+						for (int l = 0; l < MAXTASKS; l++){
+							reordered_solution[l] = -1;
+							correctly_ordered[l] = -1;
+						}
+						
+						//when the soluion is rebuilt, we have to associate
+						//the items with the loopback indices correctly
+						rebuild_solution(reordered_solution, loopback_indices, i - 1, w - current_item_cores, v - current_item_sms);
+
+						for (int l = 0; l < (i - 1); l++)
+							correctly_ordered[loopback_indices[l] - 1] = reordered_solution[l];
 
 						for (int l = 0; l < MAXTASKS; l++)
-							reordered_solution[l] = -1;
+							reordered_solution[l] = correctly_ordered[l];
 
-						rebuild_solution(reordered_solution, loopback_indices, i - 1, w - current_item_cores, v - current_item_sms);
+						reordered_solution[group_idx - 1] = j;
+
+						int old_slack_A = free_cores;
+						int old_slack_B = free_sms;
 
 						//now we need to reorder the solution
 						if (!reorder_heuristic(reordered_solution, task_table, num_tasks, &free_cores, &free_sms, 1))
-							reorder_heuristic(reordered_solution, task_table, num_tasks, &free_cores, &free_sms, 0);
+							if (!reorder_heuristic(reordered_solution, task_table, num_tasks, &free_cores, &free_sms, 0))
+								continue;
+
+						if ((i > 4) && (old_slack_A != free_cores || old_slack_B != free_sms)){
+
+							std::cout << "free cores:" << free_cores << std::endl;
+							std::cout << "free sms:" << free_sms << std::endl;
+
+							std::cout << "Target Selected Item: " << solutions[i-1][w - current_item_cores][v - current_item_sms] << std::endl;
+
+							std::cout << "Reordering solution for task " << group_idx << " with item " << j << std::endl;
+							std::cout << "Current solution: " << std::endl;
+							for (int l = 0; l < MAXTASKS; l++){
+
+									std::cout << "Item " << l + 1 << ": " << reordered_solution[l] << std::endl;
+
+							}
+
+							std::cout << "groupidx order : " << std::endl;
+							for (int l = 0; l < i; l++){
+
+								if (loopback_indices[l] != -1)
+									std::cout << "Item " << l + 1 << ": " << loopback_indices[l] << std::endl;
+
+							}
+
+							//print the new slack
+							std::cout << "New slack A: " << free_cores << std::endl;
+							std::cout << "New slack B: " << free_sms << std::endl;
+
+							exit(1);
+
+						}
 						
-						//regardless of whether or not we actually managed
-						//to reorder the solution, we just check the 
-						//item unsafeness against the slack again
-						if (delta_cores < 0){
-
-							if (free_cores + delta_cores < 0){
-							
-								continue;
-
-							}
-
-						}
-
-						if (delta_sms < 0){
-
-							if (free_sms + delta_sms < 0){
-							
-								continue;
-
-							}
-
-						}
+						free_cores -= delta_cores;
+						free_sms -= delta_sms;
+						
 
 					}
 
