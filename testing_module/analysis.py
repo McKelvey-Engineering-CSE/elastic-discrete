@@ -25,6 +25,10 @@ def process_directory(directory):
         r"Amount our result is worse than the optimal system state:\s*([0-9.+\-eE]+)"
     )
 
+    no_answer_pattern = re.compile(
+        r"Error: System is not schedulable in any configuration with specified constraints. Not updating modes."
+    )
+
     # Process each group
     for task_id, files in sorted(groups.items(), key=lambda x: int(x[0])):
         # Stats for 'better than constrained'
@@ -35,6 +39,7 @@ def process_directory(directory):
         worse_count = 0
         worse_sum = 0.0
         optimal_no_answer = 0
+        total_no_answer = 0
 
         for filepath in files:
             try:
@@ -44,9 +49,7 @@ def process_directory(directory):
                         bmatch = better_pattern.search(line)
                         if bmatch:
                             value = float(bmatch.group(1))
-                            if value > 10:
-                                constrained_no_answer += 1
-                            else:
+                            if value > 0:
                                 better_count += 1
                                 better_sum += value
 
@@ -56,9 +59,14 @@ def process_directory(directory):
                             value = float(wmatch.group(1))
                             if value > 100:
                                 optimal_no_answer += 1
-                            else:
+                                worse_count += 1
+                            elif value > 0:
                                 worse_count += 1
                                 worse_sum += value
+
+                        # Check for "no answer"
+                        if no_answer_pattern.search(line):
+                            total_no_answer += 1
 
             except Exception as e:
                 print(f"Warning: could not read file {filepath}: {e}")
@@ -69,10 +77,11 @@ def process_directory(directory):
 
         # Output the statistics for the group
         print(f"Group {task_id}:")
-        print(f"  Better than constrained: {better_count} occurrences, average = {avg_better:.6f}")
+        print(f"  Better than constrained: {better_count} occurrences, average = {(avg_better * 100.0):.3f}%")
         print(f"  Constrained no answer:  {constrained_no_answer} occurrences")
-        print(f"  Worse than optimal:     {worse_count} occurrences, average = {avg_worse:.6f}")
-        print(f"  Optimal no answer:      {optimal_no_answer} occurrences\n")
+        print(f"  Worse than optimal:     {worse_count} occurrences, average = {(avg_worse * 100.0):.3f}%")
+        print(f"  Optimal no answer:      {optimal_no_answer} occurrences")
+        print(f"  Total no answer:        {total_no_answer} occurrences\n")
 
 
 def main():
