@@ -111,7 +111,9 @@ def parse_task_yaml(task_text):
 
 def get_total_tasks(folder_path):
     """Get the total number of tasks and their distribution in all YAML files."""
-    yaml_files = glob.glob(os.path.join(folder_path, "*.yaml"))
+    yaml_files = ['tasks/3000-light-elastic.yaml', 'tasks/3000-workload-elastic.yaml', 'tasks/3000-comb-elastic.yaml']
+
+    #ensure we select "light -> workload -> comb" to match cybermech....
     
     files_info = []
     total_tasks = 0
@@ -127,7 +129,7 @@ def select_random_tasks(total_tasks, files_info, count):
     """Randomly select tasks without loading them all."""
     selected_indices = random.sample(range(total_tasks), count)
     selected_indices.sort()  # Sort for more efficient file reading
-    
+
     selected_tasks = []
     for index in selected_indices:
         # Find which file this index belongs to
