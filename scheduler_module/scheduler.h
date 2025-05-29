@@ -108,6 +108,8 @@ class Scheduler{
 
 	bool barrier = true;
 
+	double max_loss = 0.0;
+
 	bool FPTAS = true;
 
 	//each entry is a task with each item in the vector representing a mode
