@@ -49,7 +49,10 @@ def process_directory(directory):
                         bmatch = better_pattern.search(line)
                         if bmatch:
                             value = float(bmatch.group(1))
-                            if value > 0:
+                            if value > 100:
+                                constrained_no_answer += 1
+                                better_count += 1
+                            elif value > 0:
                                 better_count += 1
                                 better_sum += value
 
