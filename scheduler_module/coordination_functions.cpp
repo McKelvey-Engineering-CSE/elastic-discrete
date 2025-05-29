@@ -394,8 +394,8 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, host_current_modes, sizeof(int) * MAXTASKS * 2, cudaMemcpyHostToDevice));
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
 
-		//Execute exact solution
-		device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 0);
+		//Execute exact solution without reordering
+		device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 1);
 
 		//peek for launch errors
 		CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
@@ -411,18 +411,26 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 		//if we are running the scheduler twice to compare 
 		//against maximum possible value for a given transition
+		double constrained_value = 0;
+
 		if (check_max_possible){
+			
+			//if the order without reordering can't find a solution, try the new heuristic
+			if (loss > max_loss){
 
-			//first check just the constrained version of the problem
-			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 1);
+				//first check just the constrained version of the problem
+				device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 0);
 
-			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
+				CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
 
-			//copy the error
-			double constrained_value = 0;
-			CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&constrained_value, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, scheduler_stream));
-			CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
+				//copy the error and the solution
+				CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(host_final, d_final_solution, MAXTASKS * sizeof(int), cudaMemcpyDeviceToHost, scheduler_stream));
+				CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&loss, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, scheduler_stream));
+				CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
 
+			}
+
+			constrained_value = loss;
 
 			//enable unsafe checking
 			int optimal_modes[MAXTASKS * 2];
