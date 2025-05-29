@@ -200,6 +200,12 @@ public:
 
 	void print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes);
 
+	void graph_building_zero_one_knapsack(int* out_array, int num_items, std::vector<int> transformers, std::unordered_map<int, Node>& nodes, int* max_weight, int* max_value, int side);
+
+	bool build_resource_graph_zero_one(std::vector<std::pair<int, int>> resource_pairs, 
+                        std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node>& static_nodes, std::vector<int>& task_modes,
+						std::vector<int> lowest_modes, bool execute = false);
+
 	TaskData * add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, bool safe);
 };
 

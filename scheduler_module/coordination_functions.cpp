@@ -715,7 +715,15 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 		//if the call to build_resource_graph returns false, 
 		//then we have a cycle and only a barrier can allow the handoff
-		if (build_resource_graph(dependencies, nodes, static_nodes, task_modes, lowest_modes)){
+		bool found_solution = build_resource_graph(dependencies, nodes, static_nodes, task_modes, lowest_modes);
+		bool skip_execute = false;
+
+		if (!found_solution){
+			found_solution = build_resource_graph_zero_one(dependencies, nodes, static_nodes, task_modes, lowest_modes);
+			skip_execute = true;
+		}
+
+		if (found_solution){
 
 			//show the resource graph (debugging)
 			print_module::print(std::cerr, "\n========================= \n", "New Schedule RAG:\n");
@@ -743,7 +751,8 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 					multiple_mode_changes = true;
 
 			//execute the RAG we proved exists
-			execute_resource_allocation_graph(dependencies, nodes);
+			if (!skip_execute)
+				execute_resource_allocation_graph(dependencies, nodes);
 
 			//if we have a second mode change to bring the system back to the original state
 			if (multiple_mode_changes){
