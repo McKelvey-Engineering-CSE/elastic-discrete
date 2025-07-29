@@ -532,19 +532,19 @@ int main(int argc, char *argv[])
 	print_module::buffered_print(task_info, task_header);
 	print_module::buffered_print(task_info, std::string(blank_size - 1, '='), "\n\n");
 
-	//cpu info
-	print_module::buffered_print(task_info, "CPU Metrics: \n");
-	print_module::buffered_print(task_info, "	- Lowest CPU: ", schedule.get_task(task_index)->get_current_lowest_processor_A(), "\n");
-	print_module::buffered_print(task_info, "	- Current CPUs: ", schedule.get_task(task_index)->get_current_processors_A(), "\n");
-	print_module::buffered_print(task_info, "	- Minimum CPUs: ", schedule.get_task(task_index)->get_min_processors_A(), "\n");
-	print_module::buffered_print(task_info, "	- Maximum CPUs: ", schedule.get_task(task_index)->get_max_processors_A(), "\n");
+	//processor A info
+	print_module::buffered_print(task_info, "Processor A Metrics: \n");
+	print_module::buffered_print(task_info, "	- Lowest A Core: ", schedule.get_task(task_index)->get_current_lowest_processor_A(), "\n");
+	print_module::buffered_print(task_info, "	- Current A Cores: ", schedule.get_task(task_index)->get_current_processors_A(), "\n");
+	print_module::buffered_print(task_info, "	- Minimum A Cores: ", schedule.get_task(task_index)->get_min_processors_A(), "\n");
+	print_module::buffered_print(task_info, "	- Maximum A Cores: ", schedule.get_task(task_index)->get_max_processors_A(), "\n");
 
-	//gpu info
-	print_module::buffered_print(task_info, "GPU Metrics: \n");
-	print_module::buffered_print(task_info, "	- Lowest GPU: ", schedule.get_task(task_index)->get_current_lowest_processor_B(), "\n");
-	print_module::buffered_print(task_info, "	- Current GPUs: ", schedule.get_task(task_index)->get_current_processors_B(), "\n");
-	print_module::buffered_print(task_info, "	- Minimum GPUs: ", schedule.get_task(task_index)->get_min_processors_B(), "\n");
-	print_module::buffered_print(task_info, "	- Maximum GPUs: ", schedule.get_task(task_index)->get_max_processors_B(), "\n");
+	//processor B info
+	print_module::buffered_print(task_info, "Processor B Metrics: \n");
+	print_module::buffered_print(task_info, "	- Lowest B Core: ", schedule.get_task(task_index)->get_current_lowest_processor_B(), "\n");
+	print_module::buffered_print(task_info, "	- Current B Cores: ", schedule.get_task(task_index)->get_current_processors_B(), "\n");
+	print_module::buffered_print(task_info, "	- Minimum B Cores: ", schedule.get_task(task_index)->get_min_processors_B(), "\n");
+	print_module::buffered_print(task_info, "	- Maximum B Cores: ", schedule.get_task(task_index)->get_max_processors_B(), "\n");
 
 	//timing info
 	print_module::buffered_print(task_info, "Timing Metrics: \n");
@@ -639,10 +639,10 @@ int main(int argc, char *argv[])
 
 	//set the cpu mask
 	current_cpu_mask = schedule.get_task(task_index)->get_processor_A_mask();
-	std::cout << "Process: " << task_index <<  " Initial CPU Mask: " << (unsigned long long) current_cpu_mask << std::endl;
+	std::cout << "Process: " << task_index <<  " Initial Processor A Mask: " << (unsigned long long) current_cpu_mask << std::endl;
 
 	//print active vs passive CPUs
-	print_module::buffered_print(task_info, "CPU Core Configuration: \n");
+	print_module::buffered_print(task_info, "Processor A Core Configuration: \n");
 	print_module::buffered_print(task_info, "	- Active: ", convertToRanges(active_cpu_string), "\n");
 	//print_module::buffered_print(task_info, "	- Passive: ", convertToRanges(passive_cpu_string), "\n\n");
 

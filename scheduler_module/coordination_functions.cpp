@@ -63,7 +63,7 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 		else 
 			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - ((taskData_object->get_work(j) / taskData_object->get_period(j)) + (taskData_object->get_processor_B_work(j) / taskData_object->get_period(j))), 2)));// * 1000;
 
-		std::cout << "Mode "<< j << " Loss: " << item.cpuLoss << " Core A: " << taskData_object->get_processors_A(j) << " Core B: " << taskData_object->get_processors_B(j) << " Core C: " << taskData_object->get_processors_C(j) << " Core D: " << taskData_object->get_processors_D(j) << std::endl;
+		std::cout << "Mode "<< j << " Loss: " << item.cpuLoss << " Processor A: " << taskData_object->get_processors_A(j) << " Processor B: " << taskData_object->get_processors_B(j) << " Processor C: " << taskData_object->get_processors_C(j) << " Processor D: " << taskData_object->get_processors_D(j) << std::endl;
 
 		item.gpuLoss = 0;
 		item.cpuCLoss = 0;
@@ -276,7 +276,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			if (((previous_modes.at(i).cores - 1) != (int) task_owned_cpus.size())){
 				
-				std::cout << "CPU Count Mismatch. Process:" << i << " | Core A assigned: " << previous_modes.at(i).cores << " | Core A found: " << task_owned_cpus.size() << " | Cannot Continue" << std::endl;
+				std::cout << "Processor A Count Mismatch. Process:" << i << " | Processor A assigned: " << previous_modes.at(i).cores << " | Processor A found: " << task_owned_cpus.size() << " | Cannot Continue" << std::endl;
 				killpg(process_group, SIGINT);
 				return;
 
@@ -286,7 +286,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			if ((previous_modes.at(i).sms) != (int) task_owned_gpus.size()){
 
-				std::cout << "GPU Count Mismatch. Process:" << i << " | GPUs assigned: " << previous_modes.at(i).sms << " | GPUs found: " << task_owned_gpus.size() << " | Cannot Continue" << std::endl;
+				std::cout << "Processor B Count Mismatch. Process:" << i << " | Processors B assigned: " << previous_modes.at(i).sms << " | Processors B found: " << task_owned_gpus.size() << " | Cannot Continue" << std::endl;
 				killpg(process_group, SIGINT);
 				return;
 
@@ -296,7 +296,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			if ((previous_modes.at(i).cores_C) != (int) task_owned_cpus_C.size()){
 
-				std::cout << "CPU C Count Mismatch. Process:" << i << " | Cores C assigned: " << previous_modes.at(i).cores_C << " | Cores C found: " << task_owned_cpus_C.size() << " | Cannot Continue" << std::endl;
+				std::cout << "Processor C Count Mismatch. Process:" << i << " | Processors C assigned: " << previous_modes.at(i).cores_C << " | Processors C found: " << task_owned_cpus_C.size() << " | Cannot Continue" << std::endl;
 				killpg(process_group, SIGINT);
 				return;
 
@@ -306,7 +306,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			if ((previous_modes.at(i).sms_D) != (int) task_owned_gpus_D.size()){
 
-				std::cout << "GPU D Count Mismatch. Process:" << i << " | GPUs D assigned: " << previous_modes.at(i).sms_D << " | GPUs D found: " << task_owned_gpus_D.size() << " | Cannot Continue" << std::endl;
+				std::cout << "Processor D Count Mismatch. Process:" << i << " | Processors D assigned: " << previous_modes.at(i).sms_D << " | Processors D found: " << task_owned_gpus_D.size() << " | Cannot Continue" << std::endl;
 				killpg(process_group, SIGINT);
 				return;
 
@@ -323,7 +323,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		//check that the total cores in the system - the total found is the free count
 		if (((int) maxCPU - total_cores) != (int) schedule.get_task(previous_modes.size())->get_processor_A_owned_by_process().size()){
 
-			std::cout << "CPU Count Mismatch. Total Core A: " << maxCPU << " | Total Found: " << total_cores << " | Free Core A: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_A_mask()).count() << " | Cannot Continue" << std::endl;
+			std::cout << "Processor A Count Mismatch. Total Processor A: " << maxCPU << " | Total Found: " << total_cores << " | Free Processor A: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_A_mask()).count() << " | Cannot Continue" << std::endl;
 			killpg(process_group, SIGINT);
 			return;
 
@@ -332,7 +332,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		//check that the total gpus in the system - the total found is the free count
 		if (((int) NUM_PROCESSOR_B - total_gpus) != (int) schedule.get_task(previous_modes.size())->get_processor_B_owned_by_process().size()){
 
-			std::cout << "GPU Count Mismatch. Total GPUs: " << NUM_PROCESSOR_B << " | Total Found: " << total_gpus << " | Free GPUs: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_B_mask()).count() << " | Cannot Continue" << std::endl;
+			std::cout << "Processor B Count Mismatch. Total Processors B: " << NUM_PROCESSOR_B << " | Total Found: " << total_gpus << " | Free Processors B: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_B_mask()).count() << " | Cannot Continue" << std::endl;
 			killpg(process_group, SIGINT);
 			return;
 
@@ -341,7 +341,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		//check that the total cores C in the system - the total found is the free count
 		if (((int) NUM_PROCESSOR_C - total_cores_C) != (int) schedule.get_task(previous_modes.size())->get_processor_C_owned_by_process().size()){
 
-			std::cout << "CPU C Count Mismatch. Total Cores C: " << NUM_PROCESSOR_C << " | Total Found: " << total_cores_C << " | Free Cores C: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_C_mask()).count() << " | Cannot Continue" << std::endl;
+			std::cout << "Processor C Count Mismatch. Total Processors C: " << NUM_PROCESSOR_C << " | Total Found: " << total_cores_C << " | Free Processors C: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_C_mask()).count() << " | Cannot Continue" << std::endl;
 			killpg(process_group, SIGINT);
 			return;
 
@@ -350,7 +350,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		//check that the total gpus D in the system - the total found is the free count
 		if (((int) NUM_PROCESSOR_D - total_gpus_D) != (int) schedule.get_task(previous_modes.size())->get_processor_D_owned_by_process().size()){
 
-			std::cout << "GPU D Count Mismatch. Total GPUs D: " << NUM_PROCESSOR_D << " | Total Found: " << total_gpus_D << " | Free GPUs D: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_D_mask()).count() << " | Cannot Continue" << std::endl;
+			std::cout << "Processor D Count Mismatch. Total Processors D: " << NUM_PROCESSOR_D << " | Total Found: " << total_gpus_D << " | Free Processors D: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_D_mask()).count() << " | Cannot Continue" << std::endl;
 			killpg(process_group, SIGINT);
 			return;
 
@@ -633,7 +633,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 	//print resources now held by each task
 	print_module::buffered_print(mode_strings, "\n========================= \n", "New Resource Layout:\n");
 	for (size_t i = 0; i < result.size(); i++)
-		print_module::buffered_print(mode_strings, "Task ", i, " now has: ", task_table.at(i).at(result.at(i)).cores, " Core A | ", task_table.at(i).at(result.at(i)).sms, " Core B | ", task_table.at(i).at(result.at(i)).cores_C, " Core C | ", task_table.at(i).at(result.at(i)).sms_D, " Core D\n");
+		print_module::buffered_print(mode_strings, "Task ", i, " now has: ", task_table.at(i).at(result.at(i)).cores, " Processor A | ", task_table.at(i).at(result.at(i)).sms, " Processor B | ", task_table.at(i).at(result.at(i)).cores_C, " Processor C | ", task_table.at(i).at(result.at(i)).sms_D, " Processor D\n");
 	print_module::buffered_print(mode_strings, "=========================\n\n");
 	print_module::flush(std::cerr, mode_strings);
 
@@ -663,7 +663,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			if ((schedule.get_task(i))->get_current_lowest_processor_A() > 0){
 
-				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest CPU cleared. (this likely means memory was not cleaned up)\n");
+				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest Processor A cleared. (this likely means memory was not cleaned up)\n");
 				killpg(process_group, SIGINT);
 				return;
 
@@ -674,7 +674,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			if (next_CPU > num_CPUs + 1){
 
-				print_module::print(std::cerr, "Error in task ", i, ": too many CPUs have been allocated.", next_CPU, " ", num_CPUs, " \n");
+				print_module::print(std::cerr, "Error in task ", i, ": too many Processors A have been allocated.", next_CPU, " ", num_CPUs, " \n");
 				killpg(process_group, SIGINT);
 				return;
 
@@ -694,7 +694,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			if ((schedule.get_task(i))->get_current_lowest_processor_B() > 0){
 
-				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest GPU cleared. (this likely means memory was not cleaned up)\n");
+				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest Processor B cleared. (this likely means memory was not cleaned up)\n");
 				killpg(process_group, SIGINT);
 				return;
 
@@ -710,7 +710,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 				if (next_TPC > (int)(NUM_PROCESSOR_B) + 1){
 
-					print_module::print(std::cerr, "Error in task ", i, ": too many GPUs have been allocated.", next_TPC, " ", NUM_PROCESSOR_B, " \n");
+					print_module::print(std::cerr, "Error in task ", i, ": too many Processors B have been allocated.", next_TPC, " ", NUM_PROCESSOR_B, " \n");
 					killpg(process_group, SIGINT);
 					return;
 
