@@ -169,8 +169,8 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		for (int i = 0; i < schedule.count(); i++)
 			previous_modes.push_back(task_mode());
 
-		//MAXTASKS tasks, 4 modes (0-3): cores, sms, cpuLoss
-		int host_task_table[MAXTASKS * MAXMODES * 3];
+		//MAXTASKS tasks, 5 modes (0-4): cores A, cores B, cores C, cores D, mode
+		int host_task_table[MAXTASKS * MAXMODES * 5];
 		float host_losses[MAXTASKS * MAXMODES];
 
 		//find largest number of modes in the task table
@@ -184,11 +184,13 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			for (int j = 0; j < (int) task_table.at(i).size(); j++){
 
-				host_task_table[i * MAXMODES * 3 + j * 3 + 0] = task_table.at(i).at(j).cores;
-				host_task_table[i * MAXMODES * 3 + j * 3 + 1] = task_table.at(i).at(j).sms;
+				host_task_table[i * MAXMODES * 5 + j * 5 + 0] = task_table.at(i).at(j).cores;      // cores A
+				host_task_table[i * MAXMODES * 5 + j * 5 + 1] = task_table.at(i).at(j).sms;        // cores B
+				host_task_table[i * MAXMODES * 5 + j * 5 + 2] = 0;                                // cores C (stubbed)
+				host_task_table[i * MAXMODES * 5 + j * 5 + 3] = 0;                                // cores D (stubbed)
 
 				//set the real mode to the mode number
-				host_task_table[i * MAXMODES * 3 + j * 3 + 2] = (schedule.get_task(i))->get_real_mode(j);
+				host_task_table[i * MAXMODES * 5 + j * 5 + 4] = (schedule.get_task(i))->get_real_mode(j);
 
 				host_losses[i * MAXMODES + j] = task_table.at(i).at(j).cpuLoss;
 
@@ -197,9 +199,11 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 			//if this task had fewer modes than max, pad all the rest with -1
 			for (int j = (int) task_table.at(i).size(); j < MAXMODES; j++){
 
-				host_task_table[i * MAXMODES * 3 + j * 3 + 0] = -1;
-				host_task_table[i * MAXMODES * 3 + j * 3 + 1] = -1;
-				host_task_table[i * MAXMODES * 3 + j * 3 + 2] = -1;
+				host_task_table[i * MAXMODES * 5 + j * 5 + 0] = -1;
+				host_task_table[i * MAXMODES * 5 + j * 5 + 1] = -1;
+				host_task_table[i * MAXMODES * 5 + j * 5 + 2] = -1;
+				host_task_table[i * MAXMODES * 5 + j * 5 + 3] = -1;
+				host_task_table[i * MAXMODES * 5 + j * 5 + 4] = -1;
 				host_losses[i * MAXMODES + j] = -1;
 
 			}
@@ -215,13 +219,13 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_losses, sizeof(double) * MAXTASKS * MAXMODES));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_final_loss, sizeof(double)));
 			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&cautious_d_final_loss, sizeof(double)));
-			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_current_task_modes, sizeof(int) * MAXTASKS * 2));
+			CUDA_NEW_SAFE_CALL(cudaMalloc((void **)&d_current_task_modes, sizeof(int) * MAXTASKS * 4));
 
 		#else 
 
 			d_uncooperative_tasks = (int*)malloc(sizeof(int) * MAXTASKS);
 			d_final_solution = (int*)malloc(sizeof(int) * MAXTASKS);
-			d_current_task_modes = (int*)malloc(sizeof(int) * MAXTASKS * 2);
+			d_current_task_modes = (int*)malloc(sizeof(int) * MAXTASKS * 4);
 			d_losses = (double*)malloc(sizeof(double) * MAXTASKS * MAXMODES);
 			d_final_loss = (double*)malloc(sizeof(double));
 
@@ -232,14 +236,14 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_losses, host_losses, sizeof(float) * MAXTASKS * MAXMODES, cudaMemcpyHostToDevice));
 
-			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_task_table, &host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3));
+			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_task_table, &host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 5));
 			CUDA_NEW_SAFE_CALL(cudaMemcpyToSymbol(constant_losses, &host_losses, sizeof(float) * MAXTASKS * MAXMODES));
 
 		#else 
 
 			memcpy(d_losses, host_losses, sizeof(float) * MAXTASKS * MAXMODES);
 
-			memcpy(constant_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 3);
+			memcpy(constant_task_table, host_task_table, sizeof(int) * MAXTASKS * MAXMODES * 5);
 			memcpy(constant_losses, host_losses, sizeof(float) * MAXTASKS * MAXMODES);
 
 		#endif
@@ -398,15 +402,17 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 	}
 
 	//copy over the current state of the task system
-	int host_current_modes[MAXTASKS * 2];
-	memset(host_current_modes, 0, sizeof(int) * MAXTASKS * 2);
+	int host_current_modes[MAXTASKS * 4];
+	memset(host_current_modes, 0, sizeof(int) * MAXTASKS * 4);
 
 	if (!first_time){
 
 		for (size_t i = 0; i < previous_modes.size(); i++){
 
-			host_current_modes[i * 2] = previous_modes.at(i).cores;
-			host_current_modes[i * 2 + 1] = previous_modes.at(i).sms;
+			host_current_modes[i * 4 + 0] = previous_modes.at(i).cores;      // cores A
+			host_current_modes[i * 4 + 1] = previous_modes.at(i).sms;        // cores B
+			host_current_modes[i * 4 + 2] = 0;                              // cores C (stubbed)
+			host_current_modes[i * 4 + 3] = 0;                              // cores D (stubbed)
 
 		}
 
@@ -420,6 +426,8 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	int slack_A = maxCPU;
 	int slack_B = NUM_PROCESSOR_B;
+	int slack_C = NUM_PROCESSOR_C;
+	int slack_D = NUM_PROCESSOR_D;
 
 	if (first_time) {
 		
@@ -435,10 +443,12 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	else {
 
-		for (int i = 0; i < (int) previous_modes.size() * 2; i += 2){
+		for (int i = 0; i < (int) previous_modes.size() * 4; i += 4){
 			
-			slack_A -= host_current_modes[i];
+			slack_A -= host_current_modes[i + 0];
 			slack_B -= host_current_modes[i + 1];
+			slack_C -= host_current_modes[i + 2];
+			slack_D -= host_current_modes[i + 3];
 
 		}
 
@@ -448,11 +458,11 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	#ifdef __NVCC__
 
-		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, host_current_modes, sizeof(int) * MAXTASKS * 2, cudaMemcpyHostToDevice));
+		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, host_current_modes, sizeof(int) * MAXTASKS * 4, cudaMemcpyHostToDevice));
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
 
 		//Execute exact solution
-		device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUM_PROCESSOR_B, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 0);
+		device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, slack_C, slack_D, 0);
 
 		//peek for launch errors
 		CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
@@ -471,7 +481,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		if (check_max_possible){
 
 			//first check just the constrained version of the problem
-			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUM_PROCESSOR_B, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 1);
+			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, slack_C, slack_D, 1);
 
 			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
 
@@ -482,12 +492,12 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 
 			//enable unsafe checking
-			int optimal_modes[MAXTASKS * 2];
-			memset(optimal_modes, 0, sizeof(int) * MAXTASKS * 2);
+			int optimal_modes[MAXTASKS * 4];
+			memset(optimal_modes, 0, sizeof(int) * MAXTASKS * 4);
 
-			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, optimal_modes, sizeof(int) * MAXTASKS * 2, cudaMemcpyHostToDevice));
+			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, optimal_modes, sizeof(int) * MAXTASKS * 4, cudaMemcpyHostToDevice));
 
-			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUM_PROCESSOR_B, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 0);
+			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, slack_C, slack_D, 0);
 
 			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
 
@@ -520,7 +530,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	#else
 
-		device_do_schedule(N - 1, maxCPU, NUM_PROCESSOR_B, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution, slack_A, slack_B, 0);
+		device_do_schedule(N - 1, maxCPU, NUM_PROCESSOR_B, NUM_PROCESSOR_C, NUM_PROCESSOR_D, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution, slack_A, slack_B, slack_C, slack_D, 0);
 
 		loss = *d_final_loss;
 
@@ -529,12 +539,12 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		if (check_max_possible){
 
 			//enable unsafe checking
-			int optimal_modes[MAXTASKS * 2];
-			memset(optimal_modes, 0, sizeof(int) * MAXTASKS * 2);
+			int optimal_modes[MAXTASKS * 4];
+			memset(optimal_modes, 0, sizeof(int) * MAXTASKS * 4);
 
 			int* toss_d_final_solution = (int*)malloc(sizeof(int) * MAXTASKS);
 
-			device_do_schedule(N - 1, maxCPU, NUM_PROCESSOR_B, host_current_modes, d_losses, d_final_loss, host_uncooperative, toss_d_final_solution, slack_A, slack_B, 1);
+			device_do_schedule(N - 1, maxCPU, NUM_PROCESSOR_B, NUM_PROCESSOR_C, NUM_PROCESSOR_D, host_current_modes, d_losses, d_final_loss, host_uncooperative, toss_d_final_solution, slack_A, slack_B, slack_C, slack_D, 1);
 
 			//copy the error
 			double max_possible_value = *d_final_loss;

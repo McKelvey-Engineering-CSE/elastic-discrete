@@ -66,9 +66,6 @@ extern bool missed_dl;
 // Task struct that should be defined by the real time task.
 extern task_t task;
 
-extern const int NUM_PROCESSOR_A;
-extern const int MAXTASKS;
-
 extern timespec current_period;
 extern timespec current_work;
 

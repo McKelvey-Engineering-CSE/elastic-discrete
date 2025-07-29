@@ -1,6 +1,8 @@
 #include <iostream>
 #include <string>
 
+#include "include.h"
+
 #ifdef __NVCC__
 
 	#include <cuda.h>
@@ -30,7 +32,7 @@
 
 
 	#define HOST_DEVICE_BLOCK_DIM blockDim.x 
-	#define HOST_DEVICE_THREAD_DIM threadIdx.x
+	#define HOST_DEVICE_THREAD_IDX threadIdx.x
 	#define HOST_DEVICE_SCOPE __device__
 	#define HOST_DEVICE_CONSTANT __constant__
 	#define HOST_DEVICE_GLOBAL __global__
@@ -39,7 +41,7 @@
 #else 
 
 	#define HOST_DEVICE_BLOCK_DIM 1
-	#define HOST_DEVICE_THREAD_DIM 0
+	#define HOST_DEVICE_THREAD_IDX 0
 	#define HOST_DEVICE_SCOPE
 	#define HOST_DEVICE_CONSTANT
 	#define HOST_DEVICE_GLOBAL static
@@ -47,21 +49,21 @@
 
 #endif
 
-//HOST_DEVICE_SHARED float shared_dp_two[2][64 + 1][64 + 1];
+HOST_DEVICE_SCOPE volatile int solutions[MAXTASKS][NUM_PROCESSOR_A + 1][NUM_PROCESSOR_B + 1][NUM_PROCESSOR_C + 1][NUM_PROCESSOR_D + 1];
 
-HOST_DEVICE_SCOPE volatile int solutions[MAXTASKS][128 + 1][128 + 1];
-
-//HOST_DEVICE_SCOPE volatile char free_resource_pool[2][64 + 1][64 + 1][2];
-
-HOST_DEVICE_CONSTANT int constant_task_table[MAXTASKS * MAXMODES * 3];
+HOST_DEVICE_CONSTANT int constant_task_table[MAXTASKS * MAXMODES * 5];
 
 HOST_DEVICE_CONSTANT float constant_losses[MAXTASKS * MAXMODES];
 
-HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUM_PROCESSOR_B, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution, int slack_A, int slack_B, int constricted){
+HOST_DEVICE_SCOPE float shared_dp_two[2][NUM_PROCESSOR_A + 1][NUM_PROCESSOR_B + 1][NUM_PROCESSOR_C + 1][NUM_PROCESSOR_D + 1];
+
+HOST_DEVICE_SCOPE char free_resource_pool[2][NUM_PROCESSOR_A + 1][NUM_PROCESSOR_B + 1][NUM_PROCESSOR_C + 1][NUM_PROCESSOR_D + 1][4];
+
+HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution, int slack_A, int slack_B, int slack_C, int slack_D, int constricted){
 
 	//shared variables for determining the start and end of 
 	//the indices for uncooperative tasks
-	#ifdef __NVCC__
+	/*#ifdef __NVCC__
 
 		// Declare shared memory pointer
 		extern __shared__ char shared_mem[];
@@ -91,17 +93,10 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUM_PR
 		float shared_dp_two[2][64 + 1][64 + 1];
 		char free_resource_pool[2][64 + 1][64 + 1][2];
 
-	#endif
+	#endif*/
 
 	//assume 1 block of 1024 threads for now
-	const int pass_count = ceil(((maxCPU + 1) * (NUM_PROCESSOR_B + 1)) / HOST_DEVICE_BLOCK_DIM) + 1;
-
-	//store the indices we will be using
-	#ifdef __NVCC__
-
-		int indices[12][2];
-
-	#endif
+	const int pass_count = ceil(((NUM_PROCESSOR_A + 1) * (NUM_PROCESSOR_B + 1) * (NUM_PROCESSOR_C + 1) * (NUM_PROCESSOR_D + 1)) / HOST_DEVICE_BLOCK_DIM) + 1;
 
 	//loopback variables to ensure we process
 	//the uncooperative tasks last every time
@@ -147,51 +142,45 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUM_PR
 
 				__syncthreads();
 
-				if (i == 1){
-
-					//w = cpu
-					indices[k][0] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) / (NUM_PROCESSOR_B + 1));
-					
-					//v = gpu
-					indices[k][1] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) % (NUM_PROCESSOR_B + 1));
-
-				}
-
-				//w = cpu
-				int w = indices[k][0];
-
-				//v = gpu
-				int v = indices[k][1];
-
-			#else
-
-				//w = cpu
-				int w = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) / (NUM_PROCESSOR_B + 1));
-				
-				//v = gpu
-				int v = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) % (NUM_PROCESSOR_B + 1));
-
 			#endif
 
-			if (w > maxCPU || v > NUM_PROCESSOR_B)
+			// Map 1D thread index to 4D coordinates for processors A, B, C, D
+			int thread_id = (k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_IDX;
+			
+			//a = processor A
+			int a = (thread_id / ((NUM_PROCESSOR_B + 1) * (NUM_PROCESSOR_C + 1) * (NUM_PROCESSOR_D + 1))) % (NUM_PROCESSOR_A + 1);
+			
+			//b = processor B
+			int b = (thread_id / ((NUM_PROCESSOR_C + 1) * (NUM_PROCESSOR_D + 1))) % (NUM_PROCESSOR_B + 1);
+			
+			//c = processor C
+			int c = (thread_id / (NUM_PROCESSOR_D + 1)) % (NUM_PROCESSOR_C + 1);
+			
+			//d = processor D
+			int d = thread_id % (NUM_PROCESSOR_D + 1);
+
+			if (a > NUM_PROCESSOR_A || b > NUM_PROCESSOR_B || c > NUM_PROCESSOR_C || d > NUM_PROCESSOR_D)
 				continue;
 
 			//invalid state
 			float best_loss = 100000;
 			int best_item = -1;
 
-			//free resource pool candiates
-			int best_free_cores = 0;
-			int best_free_sms = 0;
+			//free resource pool candidates for all processor types
+			int best_free_cores_A = 0;
+			int best_free_cores_B = 0;
+			int best_free_cores_C = 0;
+			int best_free_cores_D = 0;
 
 			//for each item in class
 			for (int j = j_start; j < j_end; j++) {
 
 				//fetch initial suspected resource values
-				int current_item_sms = constant_task_table[(group_idx - 1) * MAXMODES * 3 + j * 3 + 1];
-				int current_item_cores = constant_task_table[(group_idx - 1) * MAXMODES * 3 + j * 3];
-
-				int current_item_real_mode = constant_task_table[(group_idx - 1) * MAXMODES * 3 + j * 3 + 2];
+				int current_item_cores_A = constant_task_table[(group_idx - 1) * MAXMODES * 5 + j * 5 + 0];
+				int current_item_cores_B = constant_task_table[(group_idx - 1) * MAXMODES * 5 + j * 5 + 1];
+				int current_item_cores_C = constant_task_table[(group_idx - 1) * MAXMODES * 5 + j * 5 + 2];
+				int current_item_cores_D = constant_task_table[(group_idx - 1) * MAXMODES * 5 + j * 5 + 3];
+				int current_item_real_mode = constant_task_table[(group_idx - 1) * MAXMODES * 5 + j * 5 + 4];
 
 				if (desired_state != -1)
 					if (current_item_real_mode != desired_state){
@@ -199,59 +188,50 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUM_PR
 					}
 
 				//check the change in processors
-				int delta_cores = task_table[(group_idx - 1) * 2] - current_item_cores;
-				int delta_sms = task_table[((group_idx - 1) * 2) + 1] - current_item_sms;
+				int delta_cores_A = task_table[(group_idx - 1) * 4 + 0] - current_item_cores_A;
+				int delta_cores_B = task_table[(group_idx - 1) * 4 + 1] - current_item_cores_B;
+				int delta_cores_C = task_table[(group_idx - 1) * 4 + 2] - current_item_cores_C;
+				int delta_cores_D = task_table[(group_idx - 1) * 4 + 3] - current_item_cores_D;
 
-				if (current_item_cores == -1 || current_item_sms == -1)
+				if (current_item_cores_A == -1 || current_item_cores_B == -1 || current_item_cores_C == -1 || current_item_cores_D == -1)
 					continue;
 
-				//if item fits in both sacks
-				if ((w < current_item_cores) || (v < current_item_sms))
+				//if item fits in all four sacks
+				if ((a < current_item_cores_A) || (b < current_item_cores_B) || (c < current_item_cores_C) || (d < current_item_cores_D))
 					continue;
 
-				float dp_table_loss = shared_dp_two[(i - 1) & 1][w - current_item_cores][v - current_item_sms];
+				float dp_table_loss = shared_dp_two[(i - 1) & 1][a - current_item_cores_A][b - current_item_cores_B][c - current_item_cores_C][d - current_item_cores_D];
 
-				//fetch the free cores and sms
-				int free_cores = free_resource_pool[(i - 1) & 1][w - current_item_cores][v - current_item_sms][0];
-				int free_sms = free_resource_pool[(i - 1) & 1][w - current_item_cores][v - current_item_sms][1];
+				//fetch the free cores for all processor types
+				int free_cores_A = free_resource_pool[(i - 1) & 1][a - current_item_cores_A][b - current_item_cores_B][c - current_item_cores_C][d - current_item_cores_D][0];
+				int free_cores_B = free_resource_pool[(i - 1) & 1][a - current_item_cores_A][b - current_item_cores_B][c - current_item_cores_C][d - current_item_cores_D][1];
+				int free_cores_C = free_resource_pool[(i - 1) & 1][a - current_item_cores_A][b - current_item_cores_B][c - current_item_cores_C][d - current_item_cores_D][2];
+				int free_cores_D = free_resource_pool[(i - 1) & 1][a - current_item_cores_A][b - current_item_cores_B][c - current_item_cores_C][d - current_item_cores_D][3];
 
 				//if we are on first pass, table is inaccurate
 				if (i == 1){
 
 					dp_table_loss = 0;
 
-					free_cores = slack_A;
-					free_sms = slack_B;
+					free_cores_A = slack_A;
+					free_cores_B = slack_B;
+					free_cores_C = slack_C;
+					free_cores_D = slack_D;
 
 				}
 
 				//check if our resource constrains are maintained
-				if (delta_cores * delta_sms < 0){
+				if (delta_cores_A < 0 || delta_cores_B < 0 || delta_cores_C < 0 || delta_cores_D < 0){
 
 					if (constricted == 0){
 
-						//if cores is negative, make sure we have enough
-						//free cores to cover it
-						if (delta_cores < 0){
-
-							if (free_cores + delta_cores < 0){
-							
-								continue;
-
-							}
-
-						}
-
-						//if sms is negative, make sure we have enough
-						//free sms to cover it
-						if (delta_sms < 0){
-
-							if (free_sms + delta_sms < 0){
-							
-								continue;
-
-							}
-
+						//if any processor type is negative, make sure we have enough
+						//free resources to cover it
+						if (free_cores_A + delta_cores_A < 0 || 
+							free_cores_B + delta_cores_B < 0 || 
+							free_cores_C + delta_cores_C < 0 || 
+							free_cores_D + delta_cores_D < 0) {
+							continue;
 						}
 					
 					}
@@ -275,9 +255,10 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUM_PR
 
 						best_item = j;
 
-						best_free_cores = free_cores + delta_cores;
-
-						best_free_sms = free_sms + delta_sms;
+						best_free_cores_A = free_cores_A + delta_cores_A;
+						best_free_cores_B = free_cores_B + delta_cores_B;
+						best_free_cores_C = free_cores_C + delta_cores_C;
+						best_free_cores_D = free_cores_D + delta_cores_D;
 
 					}
 
@@ -286,14 +267,16 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUM_PR
 			}
 
 			//store the best loss
-			shared_dp_two[i & 1][w][v] = best_loss;
+			shared_dp_two[i & 1][a][b][c][d] = best_loss;
 
 			//store the best item
-			solutions[i][w][v] = best_item;
+			solutions[i][a][b][c][d] = best_item;
 
-			//store the best free cores and sms
-			free_resource_pool[i & 1][w][v][0] = best_free_cores;
-			free_resource_pool[i & 1][w][v][1] = best_free_sms;
+			//store the best free cores for all processor types
+			free_resource_pool[i & 1][a][b][c][d][0] = best_free_cores_A;
+			free_resource_pool[i & 1][a][b][c][d][1] = best_free_cores_B;
+			free_resource_pool[i & 1][a][b][c][d][2] = best_free_cores_C;
+			free_resource_pool[i & 1][a][b][c][d][3] = best_free_cores_D;
 
 		}
 
@@ -306,17 +289,19 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUM_PR
 	#endif
 
 	//to get the final answer, start at the end and work backwards, taking the j values
-	if (HOST_DEVICE_THREAD_DIM < 1){
+	if (HOST_DEVICE_THREAD_IDX < 1){
 
 		bool valid_solution = true;
-		int current_w = maxCPU;
-		int current_v = NUM_PROCESSOR_B;
+		int current_a = NUM_PROCESSOR_A - 1;
+		int current_b = NUM_PROCESSOR_B;
+		int current_c = NUM_PROCESSOR_C;
+		int current_d = NUM_PROCESSOR_D;
 
 		for (int i = num_tasks; i > 0; i--){
 
 			int group_idx = loopback_indices[i - 1];
 
-			int current_item = solutions[i][current_w][current_v];
+			int current_item = solutions[i][current_a][current_b][current_c][current_d];
 
 			if (current_item == -1){
 
@@ -326,13 +311,17 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUM_PR
 
 			else {
 
-				//take the core and sm values for the item
-				int current_item_cores = constant_task_table[(group_idx - 1) * MAXMODES * 3 + current_item * 3];
-				int current_item_sms = constant_task_table[(group_idx - 1) * MAXMODES * 3 + current_item * 3 + 1];
+				//take the core values for all processor types for the item
+				int current_item_cores_A = constant_task_table[(group_idx - 1) * MAXMODES * 5 + current_item * 5 + 0];
+				int current_item_cores_B = constant_task_table[(group_idx - 1) * MAXMODES * 5 + current_item * 5 + 1];
+				int current_item_cores_C = constant_task_table[(group_idx - 1) * MAXMODES * 5 + current_item * 5 + 2];
+				int current_item_cores_D = constant_task_table[(group_idx - 1) * MAXMODES * 5 + current_item * 5 + 3];
 
-				//update the current w and v values
-				current_w = current_w - current_item_cores;
-				current_v = current_v - current_item_sms;
+				//update the current a, b, c, d values
+				current_a = current_a - current_item_cores_A;
+				current_b = current_b - current_item_cores_B;
+				current_c = current_c - current_item_cores_C;
+				current_d = current_d - current_item_cores_D;
 				
 			}
 
@@ -343,7 +332,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUM_PR
 		//print the final loss 
 		if (valid_solution){
 
-			*final_loss = shared_dp_two[num_tasks & 1][maxCPU][NUM_PROCESSOR_B];
+			*final_loss = shared_dp_two[num_tasks & 1][NUM_PROCESSOR_A][NUM_PROCESSOR_B][NUM_PROCESSOR_C][NUM_PROCESSOR_D];
 
 		} else {
 

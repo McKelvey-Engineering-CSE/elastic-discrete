@@ -60,10 +60,6 @@ void exit_on_signal(int sig){
 	exit(-1);
 }
 
-//task and cpu params
-extern const int NUM_PROCESSOR_A;
-extern const int MAXTASKS;
-
 //There are one trillion nanoseconds in a second, or one with nine zeroes
 const unsigned nsec_in_sec = 1000000000; 
 
