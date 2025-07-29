@@ -80,7 +80,7 @@ Functions
 void simulated_scheduler()
 {
 	
-	scheduler->do_schedule(NUMCPUS - 1, true);
+	scheduler->do_schedule(NUM_PROCESSOR_A - 1, true);
 
 }
 
@@ -129,7 +129,7 @@ static std::string convertToRanges(const std::string& input) {
     return result.str();
 }
 
-void simulated_task_start(int task_index, timespec * current_period, timespec * current_work, int * current_mode, timespec * deadline, int * percentile, __uint128_t * current_cpu_mask, __uint128_t * current_gpu_mask, Schedule* schedule){
+void simulated_task_start(int task_index, timespec * current_period, timespec * current_work, int * current_mode, timespec * deadline, int * percentile, __uint128_t * current_cpu_mask, __uint128_t * current_gpu_mask, __uint128_t * current_cpu_C_mask, __uint128_t * current_gpu_D_mask, Schedule* schedule){
 
 	//Collect our first schedule and set it ups
 	*current_work = schedule->get_task(task_index)->get_current_work();
@@ -168,7 +168,7 @@ void simulated_task_start(int task_index, timespec * current_period, timespec * 
 	std::string passive_cpu_string = "";
 
 	//for CPUs that we MAY have at some point (practical max)
-	for (int j = 1; j < NUMCPUS; j++){
+	for (int j = 1; j < NUM_PROCESSOR_A; j++){
 
 		//Our first CPU is our permanent CPU 
 		if (j == schedule->get_task(task_index)->get_current_lowest_CPU()){
@@ -210,10 +210,16 @@ void simulated_task_start(int task_index, timespec * current_period, timespec * 
 
 	//update our gpu mask
 	*current_gpu_mask = schedule->get_task(task_index)->get_gpu_mask();
+
+	//update our cpu C mask
+	*current_cpu_C_mask = schedule->get_task(task_index)->get_cpu_C_mask();
+
+	//update our gpu D mask
+	*current_gpu_D_mask = schedule->get_task(task_index)->get_gpu_D_mask();
 	
 }
 
-bool simulated_reschedule(int task_index, timespec* current_period, timespec* current_work, int* current_mode, timespec* deadline, int* percentile, __uint128_t* current_cpu_mask, __uint128_t* current_gpu_mask, Schedule* schedule){
+bool simulated_reschedule(int task_index, timespec* current_period, timespec* current_work, int* current_mode, timespec* deadline, int* percentile, __uint128_t* current_cpu_mask, __uint128_t* current_gpu_mask, __uint128_t* current_cpu_C_mask, __uint128_t* current_gpu_D_mask, Schedule* schedule){
 
 	//Fetch the mask of tasks which we are waiting on
 	//(safe to call multiple times)
@@ -245,6 +251,12 @@ bool simulated_reschedule(int task_index, timespec* current_period, timespec* cu
 		//update our gpu mask
 		*current_gpu_mask = schedule->get_task(task_index)->get_gpu_mask();
 
+		//update our cpu C mask
+		*current_cpu_C_mask = schedule->get_task(task_index)->get_cpu_C_mask();
+
+		//update our gpu D mask
+		*current_gpu_D_mask = schedule->get_task(task_index)->get_gpu_D_mask();
+
 		std::ostringstream reschedule_buffer;
 
 		//all pretty printing crap
@@ -267,6 +279,24 @@ bool simulated_reschedule(int task_index, timespec* current_period, timespec* cu
 			std::bitset<128> gpu_mask(*current_gpu_mask);
 			for (int i = 0 ; i < 128; i++)
 				print_module::buffered_print(reschedule_buffer, gpu_mask.test(i) ? std::to_string(i) + " " : "");
+
+			print_module::buffered_print(reschedule_buffer, "]\n");
+
+			//core C
+			print_module::buffered_print(reschedule_buffer, "Core C Owned: [ ");
+
+			std::bitset<128> cpu_C_mask(*current_cpu_C_mask);
+			for (int i = 0 ; i < 128; i++)
+				print_module::buffered_print(reschedule_buffer, cpu_C_mask.test(i) ? std::to_string(i) + " " : "");
+
+			print_module::buffered_print(reschedule_buffer, "]\n");
+
+			//core D
+			print_module::buffered_print(reschedule_buffer, "Core D Owned: [ ");
+
+			std::bitset<128> gpu_D_mask(*current_gpu_D_mask);
+			for (int i = 0 ; i < 128; i++)
+				print_module::buffered_print(reschedule_buffer, gpu_D_mask.test(i) ? std::to_string(i) + " " : "");
 
 			print_module::buffered_print(reschedule_buffer, "]\n");
 
@@ -310,7 +340,7 @@ void scheduler_task()
 			//lock the scheduler so no other task can request a reschedule
 			rescheduling_lock->lock();
 
-			scheduler->do_schedule(NUMCPUS - 1, true);
+			scheduler->do_schedule(NUM_PROCESSOR_A - 1, true);
 			needs_scheduling = false;
 			killpg(process_group, SIGRTMIN+1);
 
@@ -496,6 +526,22 @@ struct parsed_task_mode_info {
 	int gpu_period_sec = 0;
 	int gpu_period_nsec = 0;
 
+	//CPU C stuff
+	int cpu_C_work_sec = 0;
+	int cpu_C_work_nsec = 0;
+	int cpu_C_span_sec = 0;
+	int cpu_C_span_nsec = 0;
+	int cpu_C_period_sec = 0;
+	int cpu_C_period_nsec = 0;
+
+	//GPU D stuff
+	int gpu_D_work_sec = 0;
+	int gpu_D_work_nsec = 0;
+	int gpu_D_span_sec = 0;
+	int gpu_D_span_nsec = 0;
+	int gpu_D_period_sec = 0;
+	int gpu_D_period_nsec = 0;
+
 };
 
 struct parsed_task_info {
@@ -669,6 +715,18 @@ int main(int argc, char *argv[])
 			mode_info.gpu_span_nsec = yaml_object->parsed_modes[i][j].gpu_span_nsec;
 			mode_info.gpu_period_sec = yaml_object->parsed_modes[i][j].gpu_period_sec;
 			mode_info.gpu_period_nsec = yaml_object->parsed_modes[i][j].gpu_period_nsec;
+			mode_info.cpu_C_work_sec = yaml_object->parsed_modes[i][j].cpu_C_work_sec;
+			mode_info.cpu_C_work_nsec = yaml_object->parsed_modes[i][j].cpu_C_work_nsec;
+			mode_info.cpu_C_span_sec = yaml_object->parsed_modes[i][j].cpu_C_span_sec;
+			mode_info.cpu_C_span_nsec = yaml_object->parsed_modes[i][j].cpu_C_span_nsec;
+			mode_info.cpu_C_period_sec = yaml_object->parsed_modes[i][j].cpu_C_period_sec;
+			mode_info.cpu_C_period_nsec = yaml_object->parsed_modes[i][j].cpu_C_period_nsec;
+			mode_info.gpu_D_work_sec = yaml_object->parsed_modes[i][j].gpu_D_work_sec;
+			mode_info.gpu_D_work_nsec = yaml_object->parsed_modes[i][j].gpu_D_work_nsec;
+			mode_info.gpu_D_span_sec = yaml_object->parsed_modes[i][j].gpu_D_span_sec;
+			mode_info.gpu_D_span_nsec = yaml_object->parsed_modes[i][j].gpu_D_span_nsec;
+			mode_info.gpu_D_period_sec = yaml_object->parsed_modes[i][j].gpu_D_period_sec;
+			mode_info.gpu_D_period_nsec = yaml_object->parsed_modes[i][j].gpu_D_period_nsec;
 
 			task_info.modes.push_back(mode_info);
 
@@ -680,10 +738,10 @@ int main(int argc, char *argv[])
 
 	//create the scheduling object
 	//(retain CPU 0 for the scheduler)
-	scheduler = new Scheduler(parsed_tasks.size(),(int) NUMCPUS, explicit_sync, FPTAS);
+	scheduler = new Scheduler(parsed_tasks.size(),(int) NUM_PROCESSOR_A, explicit_sync, FPTAS);
 
 	//warn if set higher than real cpu amount
-	if ((NUMCPUS > std::thread::hardware_concurrency()) && !simulated_task_mode){
+	if ((NUM_PROCESSOR_A > std::thread::hardware_concurrency()) && !simulated_task_mode){
 	
 		print_module::print(std::cerr, "\n\nMORE CPUS ARE BEING USED THAN ACTUALLY EXIST. WHILE THIS IS ALLOWED FOR TESTING PURPOSES, IT IS NOT RECOMMENDED. YOUR EXECUTION WILL BE HALTED FOR 2 SECONDS TO MAKE SURE YOU SEE THIS!!!\n\n");
 	
@@ -762,6 +820,12 @@ int main(int argc, char *argv[])
 		std::vector <timespec> gpu_span;
 		std::vector <timespec> gpu_work;
 		std::vector <timespec> gpu_period;
+		std::vector <timespec> cpu_C_span;
+		std::vector <timespec> cpu_C_work;
+		std::vector <timespec> cpu_C_period;
+		std::vector <timespec> gpu_D_span;
+		std::vector <timespec> gpu_D_work;
+		std::vector <timespec> gpu_D_period;
 
 		for (struct parsed_task_mode_info info : task_info.modes) {
 			work.push_back({info.work_sec, info.work_nsec});
@@ -770,12 +834,18 @@ int main(int argc, char *argv[])
 			gpu_work.push_back({info.gpu_work_sec, info.gpu_work_nsec});
 			gpu_span.push_back({info.gpu_span_sec, info.gpu_span_nsec});
 			gpu_period.push_back({info.gpu_period_sec, info.gpu_period_nsec});
+			cpu_C_work.push_back({info.cpu_C_work_sec, info.cpu_C_work_nsec});
+			cpu_C_span.push_back({info.cpu_C_span_sec, info.cpu_C_span_nsec});
+			cpu_C_period.push_back({info.cpu_C_period_sec, info.cpu_C_period_nsec});
+			gpu_D_work.push_back({info.gpu_D_work_sec, info.gpu_D_work_nsec});
+			gpu_D_span.push_back({info.gpu_D_span_sec, info.gpu_D_span_nsec});
+			gpu_D_period.push_back({info.gpu_D_period_sec, info.gpu_D_period_nsec});
 		}
 
 		//Insert the task data into shared memory
 		TaskData * td;
-    
-		td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), gpu_work.data(), gpu_span.data(), gpu_period.data(), safe_calculation);
+
+		td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), gpu_work.data(), gpu_span.data(), gpu_period.data(), cpu_C_work.data(), cpu_C_span.data(), cpu_C_period.data(), gpu_D_work.data(), gpu_D_span.data(), gpu_D_period.data(), safe_calculation);
 		task_manager_argvector.push_back(std::to_string(td->get_index()));
 		
 		// Add the barrier name to the argument vector
@@ -830,14 +900,14 @@ int main(int argc, char *argv[])
 		//add the scheduler itself to the task table at the end
 		if (t == parsed_tasks.size() - 1)
 		{
-			td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), gpu_work.data(), gpu_span.data(), gpu_period.data(), false);
+			td = scheduler->add_task(task_info.elasticity, task_info.modes.size(), work.data(), span.data(), period.data(), gpu_work.data(), gpu_span.data(), gpu_period.data(), cpu_C_work.data(), cpu_C_span.data(), cpu_C_period.data(), gpu_D_work.data(), gpu_D_span.data(), gpu_D_period.data(), false);
 			print_module::print(std::cerr, "Scheduler added to task table (parameters do not matter)\n");
 		}
 
 	}
 
 	//tell scheduler to calculate schedule for tasks
-	scheduler->do_schedule(NUMCPUS - 1);
+	scheduler->do_schedule(NUM_PROCESSOR_A - 1);
 
 	//if we are not simulating the run
 	if (!simulated_task_mode){
@@ -895,6 +965,8 @@ int main(int argc, char *argv[])
 
 		__uint128_t current_cpu_mask[parsed_tasks.size()];
 		__uint128_t current_gpu_mask[parsed_tasks.size()];
+		__uint128_t current_cpu_C_mask[parsed_tasks.size()];
+		__uint128_t current_gpu_D_mask[parsed_tasks.size()];
 
 		//for testing select 5 random tasks to be the instigators
 		int task_count = parsed_tasks.size();
@@ -941,7 +1013,7 @@ int main(int argc, char *argv[])
 		for (size_t i = 0; i < parsed_tasks.size(); i++){
 
 			//call the simulated task start
-			simulated_task_start(i, &current_period[i], &current_work[i], &current_mode[i], &deadline[i], &percentile[i], &current_cpu_mask[i], &current_gpu_mask[i], scheduler->get_schedule());
+			simulated_task_start(i, &current_period[i], &current_work[i], &current_mode[i], &deadline[i], &percentile[i], &current_cpu_mask[i], &current_gpu_mask[i], &current_cpu_C_mask[i], &current_gpu_D_mask[i], scheduler->get_schedule());
 
 		}
 
@@ -1027,7 +1099,7 @@ int main(int argc, char *argv[])
 					if (reschedule_in_progress && !task_has_transitioned[i]){
 
 						//call the simulated reschedule (completely fine to call this multiple times)
-						task_has_transitioned[i] |= simulated_reschedule(i, &current_period[i], &current_work[i], &current_mode[i], &deadline[i], &percentile[i], &current_cpu_mask[i], &current_gpu_mask[i], scheduler->get_schedule());
+						task_has_transitioned[i] |= simulated_reschedule(i, &current_period[i], &current_work[i], &current_mode[i], &deadline[i], &percentile[i], &current_cpu_mask[i], &current_gpu_mask[i], &current_cpu_C_mask[i], &current_gpu_D_mask[i], scheduler->get_schedule());
 
 					}
 

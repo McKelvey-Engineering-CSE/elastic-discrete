@@ -36,21 +36,21 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
     for (const auto& [id, node] : nodes) {
 
 		if (id == (int) nodes.size() - 1)
-			print_module::buffered_print(mode_strings, "Free Node <", node.x, ",", node.y, ">\n");
+			print_module::buffered_print(mode_strings, "Free Node <", node.a, ",", node.b, ",", node.c, ",", node.d, ">\n");
 	
 		else
-			print_module::buffered_print(mode_strings, "Node ", id, " <", node.x, ",", node.y, ">\n");
+			print_module::buffered_print(mode_strings, "Node ", id, " <", node.a, ",", node.b, ",", node.c, ",", node.d, ">\n");
 
-		if (node.x == 0 && node.y == 0)
+		if (node.a == 0 && node.b == 0 && node.c == 0 && node.d == 0)
 			continue;
     
-	    if (node.x >= 0 && node.y >= 0)
+	    if (node.a >= 0 && node.b >= 0 && node.c >= 0 && node.d >= 0)
             provider_order += 1;
     
-	    if (node.x <= 0 && node.y <= 0)
+	    if (node.a <= 0 && node.b <= 0 && node.c <= 0 && node.d <= 0)
             consumer_order += 1;
 
-		if ((node.x < 0 && node.y > 0) || (node.x > 0 && node.y < 0))
+		if ((node.a < 0 && node.b > 0) || (node.a > 0 && node.b < 0) || (node.c < 0 && node.d > 0) || (node.c > 0 && node.d < 0) || (node.a < 0 && node.c > 0) || (node.a > 0 && node.c < 0) || (node.a < 0 && node.d > 0) || (node.a > 0 && node.d < 0) || (node.b < 0 && node.c > 0) || (node.b > 0 && node.c < 0) || (node.b < 0 && node.d > 0) || (node.b > 0 && node.d < 0))
 			transfer_order += 1;
 
     }
@@ -66,33 +66,55 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 		for (int consumer_id = 0; consumer_id < (int) nodes.size(); consumer_id++){
 
 			Node& consumer = nodes[consumer_id];
-			int needed_x = -consumer.x;
-			int needed_y = -consumer.y;
+			int needed_a = -consumer.a;
+			int needed_b = -consumer.b;
+			int needed_c = -consumer.c;
+			int needed_d = -consumer.d;
 			
 			for (int provider_id = 0; provider_id < (int) nodes.size(); provider_id++) {
 
 				if (provider_id == consumer_id) continue;
 				
 				Node& provider = nodes[provider_id];
-				Edge new_edge{consumer_id, 0, 0};
+				Edge new_edge{consumer_id, 0, 0, 0, 0};
 				bool edge_needed = false;
 				
-				//Try to satisfy x resource need
-				if (needed_x > 0 && provider.x > 0) {
+				//Try to satisfy a resource need
+				if (needed_a > 0 && provider.a > 0) {
 
-					int transfer = std::min(needed_x, provider.x);
-					new_edge.x_amount = transfer;
-					needed_x -= transfer;
+					int transfer = std::min(needed_a, provider.a);
+					new_edge.a_amount = transfer;
+					needed_a -= transfer;
 					edge_needed = true;
 
 				}
 				
-				//Try to satisfy y resource need
-				if (needed_y > 0 && provider.y > 0) {
+				//Try to satisfy b resource need
+				if (needed_b > 0 && provider.b > 0) {
 
-					int transfer = std::min(needed_y, provider.y);
-					new_edge.y_amount = transfer;
-					needed_y -= transfer;
+					int transfer = std::min(needed_b, provider.b);
+					new_edge.b_amount = transfer;
+					needed_b -= transfer;
+					edge_needed = true;
+
+				}
+				
+				//Try to satisfy c resource need
+				if (needed_c > 0 && provider.c > 0) {
+
+					int transfer = std::min(needed_c, provider.c);
+					new_edge.c_amount = transfer;
+					needed_c -= transfer;
+					edge_needed = true;
+
+				}
+				
+				//Try to satisfy d resource need
+				if (needed_d > 0 && provider.d > 0) {
+
+					int transfer = std::min(needed_d, provider.d);
+					new_edge.d_amount = transfer;
+					needed_d -= transfer;
 					edge_needed = true;
 
 				}
@@ -103,8 +125,10 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 					provider.edges.push_back(new_edge);
 
 					//Update provider's available resources
-					provider.x -= new_edge.x_amount;
-					provider.y -= new_edge.y_amount;
+					provider.a -= new_edge.a_amount;
+					provider.b -= new_edge.b_amount;
+					provider.c -= new_edge.c_amount;
+					provider.d -= new_edge.d_amount;
 				
 
 				}
@@ -135,11 +159,11 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 
 		Node& node = nodes[i];
 
-		if (node.x == 0 && node.y == 0)
+		if (node.a == 0 && node.b == 0 && node.c == 0 && node.d == 0)
 			discovered_consumers.push_back(i);
 
 		//if a pure provider, add it to the list
-		else if (node.x >= 0 && node.y >= 0){
+		else if (node.a >= 0 && node.b >= 0 && node.c >= 0 && node.d >= 0){
 
 			discovered_providers.push_back(i);
 
@@ -148,7 +172,7 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 		}
 
 		//if it's a consumer, just add it to the discovered
-		else if (node.x <= 0 && node.y <= 0){
+		else if (node.a <= 0 && node.b <= 0 && node.c <= 0 && node.d <= 0){
 
 			discovered_consumers.push_back(i);
 
@@ -157,7 +181,7 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 		}
 
 		//if it's a transformer, add it to the transformer list
-		else if ((node.x < 0 && node.y > 0) || (node.y < 0 && node.x > 0)){
+		else if ((node.a < 0 && node.b > 0) || (node.b < 0 && node.a > 0) || (node.c < 0 && node.d > 0) || (node.d < 0 && node.c > 0) || (node.a < 0 && node.c > 0) || (node.c < 0 && node.a > 0) || (node.a < 0 && node.d > 0) || (node.d < 0 && node.a > 0) || (node.b < 0 && node.c > 0) || (node.c < 0 && node.b > 0) || (node.b < 0 && node.d > 0) || (node.d < 0 && node.b > 0)){
 
 			discovered_transformers.push_back(i);
 
@@ -216,18 +240,20 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 					task_modes[original_provider_or_consumer] = lowest_modes[original_provider_or_consumer];
 
 					//if the task is a consumer we need to add it to the discovered providers and remove it from the consumers
-					if (node.x == 0 && node.y == 0){
+					if (node.a == 0 && node.b == 0 && node.c == 0 && node.d == 0){
 
 						discovered_providers.push_back(original_provider_or_consumer);
 						discovered_consumers.erase(std::remove(discovered_consumers.begin(), discovered_consumers.end(), original_provider_or_consumer), discovered_consumers.end());
 
 					}
 
-					//update the x and y values of the node
+					//update the a, b, c, and d values of the node
 					//(we subtract the difference between the current mode and the lowest mode
 					//to get the amount of resources we need to add back to the graph)
-					node.x = static_nodes[original_provider_or_consumer].x - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).cores; 
-					node.y = static_nodes[original_provider_or_consumer].y - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).sms;
+					node.a = static_nodes[original_provider_or_consumer].a - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).cores; 
+					node.b = static_nodes[original_provider_or_consumer].b - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).sms;
+					node.c = static_nodes[original_provider_or_consumer].c - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).cores_C;
+					node.d = static_nodes[original_provider_or_consumer].d - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).sms_D;
 
 					//only do one at a time
 					break;
@@ -253,52 +279,84 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 			//Node& node = nodes[current_transformer];
 
 			Node& consumer = nodes[current_transformer];
-			int needed_x = -consumer.x;
-			int needed_y = -consumer.y;
+			int needed_a = -consumer.a;
+			int needed_b = -consumer.b;
+			int needed_c = -consumer.c;
+			int needed_d = -consumer.d;
 
-			int possible_x = 0;
-			int possible_y = 0;
+			int possible_a = 0;
+			int possible_b = 0;
+			int possible_c = 0;
+			int possible_d = 0;
 
 			//check if it's even possible to satisfy the transformer
 			for (int& provider_id : discovered_providers) {
 
 				Node& provider = nodes[provider_id];
 
-				possible_x += provider.x;
-				possible_y += provider.y;
+				possible_a += provider.a;
+				possible_b += provider.b;
+				possible_c += provider.c;
+				possible_d += provider.d;
 
 			}
 
 			//if not, then return
-			if (needed_x > 0 && possible_x < needed_x)
+			if (needed_a > 0 && possible_a < needed_a)
 				continue;
 
-			else if (needed_y > 0 && possible_y < needed_y)
+			else if (needed_b > 0 && possible_b < needed_b)
+				continue;
+
+			else if (needed_c > 0 && possible_c < needed_c)
+				continue;
+
+			else if (needed_d > 0 && possible_d < needed_d)
 				continue;
 
 			//otherwise satisfy the requirements
 			for (int provider_id : discovered_providers) {
 			
 				Node& provider = nodes[provider_id];
-				Edge new_edge{current_transformer, 0, 0};
+				Edge new_edge{current_transformer, 0, 0, 0, 0};
 				bool edge_needed = false;
 				
-				//Try to satisfy x resource need
-				if (needed_x > 0 && provider.x > 0) {
+				//Try to satisfy a resource need
+				if (needed_a > 0 && provider.a > 0) {
 
-					int transfer = std::min(needed_x, provider.x);
-					new_edge.x_amount = transfer;
-					needed_x -= transfer;
+					int transfer = std::min(needed_a, provider.a);
+					new_edge.a_amount = transfer;
+					needed_a -= transfer;
 					edge_needed = true;
 
 				}
 				
-				//Try to satisfy y resource need
-				if (needed_y > 0 && provider.y > 0) {
+				//Try to satisfy b resource need
+				if (needed_b > 0 && provider.b > 0) {
 
-					int transfer = std::min(needed_y, provider.y);
-					new_edge.y_amount = transfer;
-					needed_y -= transfer;
+					int transfer = std::min(needed_b, provider.b);
+					new_edge.b_amount = transfer;
+					needed_b -= transfer;
+					edge_needed = true;
+
+				}
+				
+				//Try to satisfy c resource need
+				if (needed_c > 0 && provider.c > 0) {
+
+					int transfer = std::min(needed_c, provider.c);
+					new_edge.c_amount = transfer;
+					needed_c -= transfer;
+					edge_needed = true;
+
+				}
+				
+				//Try to satisfy d resource need
+				if (needed_d > 0 && provider.d > 0) {
+
+					int transfer = std::min(needed_d, provider.d);
+					new_edge.d_amount = transfer;
+					needed_d -= transfer;
 					edge_needed = true;
 
 				}
@@ -309,18 +367,24 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 					provider.edges.push_back(new_edge);
 
 					//Update provider's available resources
-					provider.x -= new_edge.x_amount;
-					provider.y -= new_edge.y_amount;
+					provider.a -= new_edge.a_amount;
+					provider.b -= new_edge.b_amount;
+					provider.c -= new_edge.c_amount;
+					provider.d -= new_edge.d_amount;
 
 				}
 
 			}
 
 			//now this once transformer is a provider
-			if (consumer.x < 0)
-				consumer.x = 0;
-			if (consumer.y < 0)
-				consumer.y = 0;
+			if (consumer.a < 0)
+				consumer.a = 0;
+			if (consumer.b < 0)
+				consumer.b = 0;
+			if (consumer.c < 0)
+				consumer.c = 0;
+			if (consumer.d < 0)
+				consumer.d = 0;
 
 			discovered_providers.push_back(current_transformer);
 
@@ -337,31 +401,53 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 	for (int consumer_id : discovered_consumers){
 
 		Node& consumer = nodes[consumer_id];
-		int needed_x = -consumer.x;
-		int needed_y = -consumer.y;
+		int needed_a = -consumer.a;
+		int needed_b = -consumer.b;
+		int needed_c = -consumer.c;
+		int needed_d = -consumer.d;
 
 		for (int provider_id : discovered_providers) {
 		
 			Node& provider = nodes[provider_id];
-			Edge new_edge{consumer_id, 0, 0};
+			Edge new_edge{consumer_id, 0, 0, 0, 0};
 			bool edge_needed = false;
 			
-			//Try to satisfy x resource need
-			if (needed_x > 0 && provider.x > 0) {
+			//Try to satisfy a resource need
+			if (needed_a > 0 && provider.a > 0) {
 
-				int transfer = std::min(needed_x, provider.x);
-				new_edge.x_amount = transfer;
-				needed_x -= transfer;
+				int transfer = std::min(needed_a, provider.a);
+				new_edge.a_amount = transfer;
+				needed_a -= transfer;
 				edge_needed = true;
 
 			}
 			
-			//Try to satisfy y resource need
-			if (needed_y > 0 && provider.y > 0) {
+			//Try to satisfy b resource need
+			if (needed_b > 0 && provider.b > 0) {
 
-				int transfer = std::min(needed_y, provider.y);
-				new_edge.y_amount = transfer;
-				needed_y -= transfer;
+				int transfer = std::min(needed_b, provider.b);
+				new_edge.b_amount = transfer;
+				needed_b -= transfer;
+				edge_needed = true;
+
+			}
+			
+			//Try to satisfy c resource need
+			if (needed_c > 0 && provider.c > 0) {
+
+				int transfer = std::min(needed_c, provider.c);
+				new_edge.c_amount = transfer;
+				needed_c -= transfer;
+				edge_needed = true;
+
+			}
+			
+			//Try to satisfy d resource need
+			if (needed_d > 0 && provider.d > 0) {
+
+				int transfer = std::min(needed_d, provider.d);
+				new_edge.d_amount = transfer;
+				needed_d -= transfer;
 				edge_needed = true;
 
 			}
@@ -372,8 +458,10 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 				provider.edges.push_back(new_edge);
 
 				//Update provider's available resources
-				provider.x -= new_edge.x_amount;
-				provider.y -= new_edge.y_amount;
+				provider.a -= new_edge.a_amount;
+				provider.b -= new_edge.b_amount;
+				provider.c -= new_edge.c_amount;
+				provider.d -= new_edge.d_amount;
 
 			}
 
@@ -425,23 +513,25 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 		for (int consumer_id = 0; consumer_id < (int) nodes.size(); consumer_id++){
 
 			Node& consumer = nodes[consumer_id];
-			int needed_x = -consumer.x;
-			int needed_y = -consumer.y;
+			int needed_a = -consumer.a;
+			int needed_b = -consumer.b;
+			int needed_c = -consumer.c;
+			int needed_d = -consumer.d;
 			
 			for (int provider_id = 0; provider_id < (int) nodes.size(); provider_id++) {
 
 				if (provider_id == consumer_id) continue;
 				
 				Node& provider = nodes[provider_id];
-				Edge new_edge{consumer_id, 0, 0};
+				Edge new_edge{consumer_id, 0, 0, 0, 0};
 				
-				//Try to satisfy x resource need
-				if (needed_x > 0 && provider.x > 0) {
+				//Try to satisfy a resource need
+				if (needed_a > 0 && provider.a > 0) {
 
-					int transfer = std::min(needed_x, provider.x);
-					new_edge.x_amount = transfer;
-					needed_x -= transfer;
-					provider.x -= new_edge.x_amount;
+					int transfer = std::min(needed_a, provider.a);
+					new_edge.a_amount = transfer;
+					needed_a -= transfer;
+					provider.a -= new_edge.a_amount;
 
 					//place message in queue for the task giving up processors
 					if (provider_id != (int) nodes.size() - 1)
@@ -452,18 +542,53 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 
 				}
 				
-				//Try to satisfy y resource need
-				if (needed_y > 0 && provider.y > 0) {
+				//Try to satisfy b resource need
+				if (needed_b > 0 && provider.b > 0) {
 
-					int transfer = std::min(needed_y, provider.y);
-					new_edge.y_amount = transfer;
-					needed_y -= transfer;
-					provider.y -= new_edge.y_amount;
+					int transfer = std::min(needed_b, provider.b);
+					new_edge.b_amount = transfer;
+					needed_b -= transfer;
+					provider.b -= new_edge.b_amount;
 					
 
 					//place message in queue for the task giving up processors
 					if (provider_id != (int) nodes.size() - 1)
 						schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(consumer_id, 1, transfer);
+
+					//store the mask
+					task_masks[consumer_id] |= ((__uint128_t) 1 << provider_id);
+
+				}
+				
+				//Try to satisfy c resource need
+				if (needed_c > 0 && provider.c > 0) {
+
+					int transfer = std::min(needed_c, provider.c);
+					new_edge.c_amount = transfer;
+					needed_c -= transfer;
+					provider.c -= new_edge.c_amount;
+
+					//place message in queue for the task giving up processors
+					if (provider_id != (int) nodes.size() - 1)
+						schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(consumer_id, 2, transfer);
+
+					//store the mask
+					task_masks[consumer_id] |= ((__uint128_t) 1 << provider_id);
+
+				}
+				
+				//Try to satisfy d resource need
+				if (needed_d > 0 && provider.d > 0) {
+
+					int transfer = std::min(needed_d, provider.d);
+					new_edge.d_amount = transfer;
+					needed_d -= transfer;
+					provider.d -= new_edge.d_amount;
+					
+
+					//place message in queue for the task giving up processors
+					if (provider_id != (int) nodes.size() - 1)
+						schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(consumer_id, 3, transfer);
 
 					//store the mask
 					task_masks[consumer_id] |= ((__uint128_t) 1 << provider_id);
@@ -498,20 +623,20 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 
 			Node& node = nodes[i];
 
-			if (node.x == 0 && node.y == 0)
+			if (node.a == 0 && node.b == 0 && node.c == 0 && node.d == 0)
 				discovered_consumers.push_back(i);
 
 			//if a pure provider, add it to the list
-			else if (node.x >= 0 && node.y >= 0)
+			else if (node.a >= 0 && node.b >= 0 && node.c >= 0 && node.d >= 0)
 				discovered_providers.push_back(i);
 
 			//if it's a consumer, just add it to the discovered
-			else if (node.x <= 0 && node.y <= 0)
+			else if (node.a <= 0 && node.b <= 0 && node.c <= 0 && node.d <= 0)
 				discovered_consumers.push_back(i);
 
 
 			//if it's a transformer, add it to the transformer list
-			else if ((node.x < 0 && node.y > 0) || (node.y < 0 && node.x > 0))
+			else if ((node.a < 0 && node.b > 0) || (node.b < 0 && node.a > 0) || (node.c < 0 && node.d > 0) || (node.d < 0 && node.c > 0) || (node.a < 0 && node.c > 0) || (node.c < 0 && node.a > 0) || (node.a < 0 && node.d > 0) || (node.d < 0 && node.a > 0) || (node.b < 0 && node.c > 0) || (node.c < 0 && node.b > 0) || (node.b < 0 && node.d > 0) || (node.d < 0 && node.b > 0))
 				discovered_transformers.push_back(i);
 
 		}
@@ -531,42 +656,54 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 				//Node& node = nodes[current_transformer];
 
 				Node& consumer = nodes[current_transformer];
-				int needed_x = -consumer.x;
-				int needed_y = -consumer.y;
+				int needed_a = -consumer.a;
+				int needed_b = -consumer.b;
+				int needed_c = -consumer.c;
+				int needed_d = -consumer.d;
 
-				int possible_x = 0;
-				int possible_y = 0;
+				int possible_a = 0;
+				int possible_b = 0;
+				int possible_c = 0;
+				int possible_d = 0;
 
 				//check if it's even possible to satisfy the transformer
 				for (int& provider_id : discovered_providers) {
 
 					Node& provider = nodes[provider_id];
 
-					possible_x += provider.x;
-					possible_y += provider.y;
+					possible_a += provider.a;
+					possible_b += provider.b;
+					possible_c += provider.c;
+					possible_d += provider.d;
 
 				}
 
 				//if not, then return
-				if (needed_x > 0 && possible_x < needed_x)
+				if (needed_a > 0 && possible_a < needed_a)
 					continue;
 
-				else if (needed_y > 0 && possible_y < needed_y)
+				else if (needed_b > 0 && possible_b < needed_b)
+					continue;
+
+				else if (needed_c > 0 && possible_c < needed_c)
+					continue;
+
+				else if (needed_d > 0 && possible_d < needed_d)
 					continue;
 
 				//otherwise satisfy the requirements
 				for (int provider_id : discovered_providers) {
 				
 					Node& provider = nodes[provider_id];
-					Edge new_edge{current_transformer, 0, 0};
+					Edge new_edge{current_transformer, 0, 0, 0, 0};
 					
-					//Try to satisfy x resource need
-					if (needed_x > 0 && provider.x > 0) {
+					//Try to satisfy a resource need
+					if (needed_a > 0 && provider.a > 0) {
 
-						int transfer = std::min(needed_x, provider.x);
-						new_edge.x_amount = transfer;
-						needed_x -= transfer;
-						provider.x -= new_edge.x_amount;
+						int transfer = std::min(needed_a, provider.a);
+						new_edge.a_amount = transfer;
+						needed_a -= transfer;
+						provider.a -= new_edge.a_amount;
 
 						//place message in queue for the task giving up processors
 						schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(current_transformer, 0, transfer);
@@ -578,16 +715,52 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 
 					}
 					
-					//Try to satisfy y resource need
-					if (needed_y > 0 && provider.y > 0) {
+					//Try to satisfy b resource need
+					if (needed_b > 0 && provider.b > 0) {
 
-						int transfer = std::min(needed_y, provider.y);
-						new_edge.y_amount = transfer;
-						needed_y -= transfer;
-						provider.y -= new_edge.y_amount;
+						int transfer = std::min(needed_b, provider.b);
+						new_edge.b_amount = transfer;
+						needed_b -= transfer;
+						provider.b -= new_edge.b_amount;
 
 						//place message in queue for the task giving up processors
 						schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(current_transformer, 1, transfer);
+
+						//std::cerr << "Sending " << transfer << " processors from " << provider_id << " to " << current_transformer << std::endl;
+
+						//store the mask
+						task_masks[current_transformer] |= ((__uint128_t) 1 << provider_id);
+
+					}
+					
+					//Try to satisfy c resource need
+					if (needed_c > 0 && provider.c > 0) {
+
+						int transfer = std::min(needed_c, provider.c);
+						new_edge.c_amount = transfer;
+						needed_c -= transfer;
+						provider.c -= new_edge.c_amount;
+
+						//place message in queue for the task giving up processors
+						schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(current_transformer, 2, transfer);
+
+						//std::cerr << "Sending " << transfer << " processors from " << provider_id << " to " << current_transformer << std::endl;
+
+						//store the mask
+						task_masks[current_transformer] |= ((__uint128_t) 1 << provider_id);
+
+					}
+					
+					//Try to satisfy d resource need
+					if (needed_d > 0 && provider.d > 0) {
+
+						int transfer = std::min(needed_d, provider.d);
+						new_edge.d_amount = transfer;
+						needed_d -= transfer;
+						provider.d -= new_edge.d_amount;
+
+						//place message in queue for the task giving up processors
+						schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(current_transformer, 3, transfer);
 
 						//std::cerr << "Sending " << transfer << " processors from " << provider_id << " to " << current_transformer << std::endl;
 
@@ -599,10 +772,14 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 				}
 
 				//now this once transformer is a provider
-				if (consumer.x < 0)
-					consumer.x = 0;
-				if (consumer.y < 0)
-					consumer.y = 0;
+				if (consumer.a < 0)
+					consumer.a = 0;
+				if (consumer.b < 0)
+					consumer.b = 0;
+				if (consumer.c < 0)
+					consumer.c = 0;
+				if (consumer.d < 0)
+					consumer.d = 0;
 
 				discovered_providers.push_back(current_transformer);
 
@@ -619,21 +796,23 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 		for (int consumer_id : discovered_consumers){
 
 			Node& consumer = nodes[consumer_id];
-			int needed_x = -consumer.x;
-			int needed_y = -consumer.y;
+			int needed_a = -consumer.a;
+			int needed_b = -consumer.b;
+			int needed_c = -consumer.c;
+			int needed_d = -consumer.d;
 
 			for (int provider_id : discovered_providers) {
 			
 				Node& provider = nodes[provider_id];
-				Edge new_edge{consumer_id, 0, 0};
+				Edge new_edge{consumer_id, 0, 0, 0, 0};
 				
-				//Try to satisfy x resource need
-				if (needed_x > 0 && provider.x > 0) {
+				//Try to satisfy a resource need
+				if (needed_a > 0 && provider.a > 0) {
 
-					int transfer = std::min(needed_x, provider.x);
-					new_edge.x_amount = transfer;
-					needed_x -= transfer;
-					provider.x -= new_edge.x_amount;
+					int transfer = std::min(needed_a, provider.a);
+					new_edge.a_amount = transfer;
+					needed_a -= transfer;
+					provider.a -= new_edge.a_amount;
 
 					//place message in queue for the task giving up processors
 					schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(consumer_id, 0, transfer);
@@ -645,16 +824,52 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 
 				}
 				
-				//Try to satisfy y resource need
-				if (needed_y > 0 && provider.y > 0) {
+				//Try to satisfy b resource need
+				if (needed_b > 0 && provider.b > 0) {
 
-					int transfer = std::min(needed_y, provider.y);
-					new_edge.y_amount = transfer;
-					needed_y -= transfer;
-					provider.y -= new_edge.y_amount;
+					int transfer = std::min(needed_b, provider.b);
+					new_edge.b_amount = transfer;
+					needed_b -= transfer;
+					provider.b -= new_edge.b_amount;
 
 					//place message in queue for the task giving up processors
 					schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(consumer_id, 1, transfer);
+
+					//std::cerr << "Sending " << transfer << " processors from " << provider_id << " to " << consumer_id << std::endl;
+
+					//store the mask
+					task_masks[consumer_id] |= ((__uint128_t) 1 << provider_id);
+
+				}
+				
+				//Try to satisfy c resource need
+				if (needed_c > 0 && provider.c > 0) {
+
+					int transfer = std::min(needed_c, provider.c);
+					new_edge.c_amount = transfer;
+					needed_c -= transfer;
+					provider.c -= new_edge.c_amount;
+
+					//place message in queue for the task giving up processors
+					schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(consumer_id, 2, transfer);
+
+					//std::cerr << "Sending " << transfer << " processors from " << provider_id << " to " << consumer_id << std::endl;
+
+					//store the mask
+					task_masks[consumer_id] |= ((__uint128_t) 1 << provider_id);
+
+				}
+				
+				//Try to satisfy d resource need
+				if (needed_d > 0 && provider.d > 0) {
+
+					int transfer = std::min(needed_d, provider.d);
+					new_edge.d_amount = transfer;
+					needed_d -= transfer;
+					provider.d -= new_edge.d_amount;
+
+					//place message in queue for the task giving up processors
+					schedule.get_task(provider_id)->set_processors_to_send_to_other_processes(consumer_id, 3, transfer);
 
 					//std::cerr << "Sending " << transfer << " processors from " << provider_id << " to " << consumer_id << std::endl;
 
@@ -677,21 +892,39 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
 			if (discovered_providers[i] == (int) nodes.size() - 1)
 				continue;
 
-			if (provider.x > 0){
+			if (provider.a > 0){
 
 				//place message in queue for the task giving up processors
-				schedule.get_task(discovered_providers[i])->set_processors_to_send_to_other_processes(nodes.size() - 1, 0, provider.x);
+				schedule.get_task(discovered_providers[i])->set_processors_to_send_to_other_processes(nodes.size() - 1, 0, provider.a);
 
-				//std::cerr << "Sending " << provider.x << " processors from " << discovered_providers[i] << " to free pool" << std::endl;
+				//std::cerr << "Sending " << provider.a << " processors from " << discovered_providers[i] << " to free pool" << std::endl;
 
 			}
 
-			if (provider.y > 0){
+			if (provider.b > 0){
 
 				//place message in queue for the task giving up processors
-				schedule.get_task(discovered_providers[i])->set_processors_to_send_to_other_processes(nodes.size() - 1, 1, provider.y);
+				schedule.get_task(discovered_providers[i])->set_processors_to_send_to_other_processes(nodes.size() - 1, 1, provider.b);
 
-				//std::cerr << "Sending " << provider.y << " processors from " << discovered_providers[i] << " to free pool" << std::endl;
+				//std::cerr << "Sending " << provider.b << " processors from " << discovered_providers[i] << " to free pool" << std::endl;
+
+			}
+			
+			if (provider.c > 0){
+
+				//place message in queue for the task giving up processors
+				schedule.get_task(discovered_providers[i])->set_processors_to_send_to_other_processes(nodes.size() - 1, 2, provider.c);
+
+				//std::cerr << "Sending " << provider.c << " processors from " << discovered_providers[i] << " to free pool" << std::endl;
+
+			}
+			
+			if (provider.d > 0){
+
+				//place message in queue for the task giving up processors
+				schedule.get_task(discovered_providers[i])->set_processors_to_send_to_other_processes(nodes.size() - 1, 3, provider.d);
+
+				//std::cerr << "Sending " << provider.d << " processors from " << discovered_providers[i] << " to free pool" << std::endl;
 
 			}
 
@@ -721,9 +954,9 @@ void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes, std::uno
 	for (const auto& [id, node] : nodes) {
 
 		if (id != ((int) nodes.size() - 1))
-			print_module::buffered_print(mode_strings, "Node ", id, " <", static_nodes[id].x, ",", static_nodes[id].y, "> → ");
+			print_module::buffered_print(mode_strings, "Node ", id, " <", static_nodes[id].a, ",", static_nodes[id].b, ",", static_nodes[id].c, ",", static_nodes[id].d, "> → ");
 		else
-			print_module::buffered_print(mode_strings, "Free Resources", " <", static_nodes[id].x, ",", static_nodes[id].y, "> → ");
+			print_module::buffered_print(mode_strings, "Free Resources", " <", static_nodes[id].a, ",", static_nodes[id].b, ",", static_nodes[id].c, ",", static_nodes[id].d, "> → ");
 
 		if (node.edges.empty())
 			print_module::buffered_print(mode_strings, "no edges");
@@ -735,17 +968,31 @@ void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes, std::uno
 				print_module::buffered_print(mode_strings, edge.to_node, "(");
 				bool first = true;
 
-				if (edge.x_amount > 0) {
+				if (edge.a_amount > 0) {
 				
-				    print_module::buffered_print(mode_strings, "x:", edge.x_amount);
+				    print_module::buffered_print(mode_strings, "a:", edge.a_amount);
 					first = false;
 				
 				}
 
-				if (edge.y_amount > 0) {
+				if (edge.b_amount > 0) {
 				
 				    if (!first) print_module::buffered_print(mode_strings, ",");
-					print_module::buffered_print(mode_strings, "y:", edge.y_amount);
+					print_module::buffered_print(mode_strings, "b:", edge.b_amount);
+				
+				}
+				
+				if (edge.c_amount > 0) {
+				
+				    if (!first) print_module::buffered_print(mode_strings, ",");
+					print_module::buffered_print(mode_strings, "c:", edge.c_amount);
+				
+				}
+				
+				if (edge.d_amount > 0) {
+				
+				    if (!first) print_module::buffered_print(mode_strings, ",");
+					print_module::buffered_print(mode_strings, "d:", edge.d_amount);
 				
 				}
 				

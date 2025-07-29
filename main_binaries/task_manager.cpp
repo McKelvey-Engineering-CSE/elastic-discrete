@@ -35,7 +35,7 @@
 
 	#include "omp_replacement.hpp"
 
-	ThreadPool<> omp(NUMCPUS);
+	ThreadPool<> omp(NUM_PROCESSOR_A);
 
 #endif
 
@@ -61,7 +61,7 @@ void exit_on_signal(int sig){
 }
 
 //task and cpu params
-extern const int NUMCPUS;
+extern const int NUM_PROCESSOR_A;
 extern const int MAXTASKS;
 
 //There are one trillion nanoseconds in a second, or one with nine zeroes
@@ -109,6 +109,8 @@ struct sched_param global_param;
 //omp replacement thread pool
 __uint128_t current_cpu_mask;
 __uint128_t current_gpu_mask;
+__uint128_t current_cpu_C_mask;
+__uint128_t current_gpu_D_mask;
 
 enum rt_gomp_task_manager_error_codes
 { 
@@ -165,7 +167,7 @@ p_mutex* rescheduling_lock;
 
 //vector representing pool of threads associated with
 //this task that are sleeping on cores we gave up
-std::vector<pthread_t> thread_handles(NUMCPUS, pthread_t());
+std::vector<pthread_t> thread_handles(NUM_PROCESSOR_A, pthread_t());
 
 void sigrt0_handler(int signum){}
 
@@ -338,6 +340,14 @@ void reschedule(){
 	current_gpu_mask = schedule.get_task(task_index)->get_gpu_mask();
 	task.update_core_B(current_gpu_mask);
 
+	//update our cpu C mask
+	current_cpu_C_mask = schedule.get_task(task_index)->get_cpu_C_mask();
+	task.update_core_C(current_cpu_C_mask);
+
+	//update our gpu D mask
+	current_gpu_D_mask = schedule.get_task(task_index)->get_gpu_D_mask();
+	task.update_core_D(current_gpu_D_mask);
+
 	//all pretty printing crap
 	#ifdef PRETTY_PRINTING
 
@@ -358,6 +368,24 @@ void reschedule(){
 		std::bitset<128> gpu_mask(current_gpu_mask);
 		for (int i = 0 ; i < 128; i++)
 			print_module::buffered_print(reschedule_buffer, gpu_mask.test(i) ? std::to_string(i) + " " : "");
+
+		print_module::buffered_print(reschedule_buffer, "]\n");
+
+		//core C
+		print_module::buffered_print(reschedule_buffer, "Core C Owned: [ ");
+
+		std::bitset<128> cpu_C_mask(current_cpu_C_mask);
+		for (int i = 0 ; i < 128; i++)
+			print_module::buffered_print(reschedule_buffer, cpu_C_mask.test(i) ? std::to_string(i) + " " : "");
+
+		print_module::buffered_print(reschedule_buffer, "]\n");
+
+		//core D
+		print_module::buffered_print(reschedule_buffer, "Core D Owned: [ ");
+
+		std::bitset<128> gpu_D_mask(current_gpu_D_mask);
+		for (int i = 0 ; i < 128; i++)
+			print_module::buffered_print(reschedule_buffer, gpu_D_mask.test(i) ? std::to_string(i) + " " : "");
 
 		print_module::buffered_print(reschedule_buffer, "]\n");
 
@@ -532,7 +560,7 @@ int main(int argc, char *argv[])
  		print_module::print(std::cerr,  "WARNING: " , getpid() , " Could not set priority. Returned: " , errno , "  (" , strerror(errno) , ")\n");
 	
 	#ifndef OMP_OVERRIDE
-		omp_set_num_threads(NUMCPUS);
+		omp_set_num_threads(NUM_PROCESSOR_A);
 	#endif
 
 	#ifdef OMP_OVERRIDE
@@ -570,7 +598,7 @@ int main(int argc, char *argv[])
 	std::string passive_cpu_string = "";
 
 	//for CPUs that we MAY have at some point (practical max)
-	for (int j = 1; j < NUMCPUS; j++){
+	for (int j = 1; j < NUM_PROCESSOR_A; j++){
 
 		//Our first CPU is our permanent CPU 
 		if (j == schedule.get_task(task_index)->get_current_lowest_CPU()){
@@ -644,6 +672,12 @@ int main(int argc, char *argv[])
 	//update our gpu mask
 	current_gpu_mask = schedule.get_task(task_index)->get_gpu_mask();
 
+	//update our cpu C mask
+	current_cpu_C_mask = schedule.get_task(task_index)->get_cpu_C_mask();
+
+	//update our gpu D mask
+	current_gpu_D_mask = schedule.get_task(task_index)->get_gpu_D_mask();
+
 	// Initialize the task
 	if (schedule.get_task(task_index) && task.init != NULL){
 
@@ -659,6 +693,12 @@ int main(int argc, char *argv[])
 
 	//call the core B update
 	task.update_core_B(current_gpu_mask);
+
+	//call the core C update
+	task.update_core_C(current_cpu_C_mask);
+
+	//call the core D update
+	task.update_core_D(current_gpu_D_mask);
 	
 	// Wait at barrier for the other tasks
 	if ((ret_val = process_barrier::await_and_rearm_barrier(barrier_name)) != 0){

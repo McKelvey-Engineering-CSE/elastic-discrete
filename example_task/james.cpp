@@ -107,6 +107,24 @@ void update_core_B(__uint128_t mask) {
 
 }
 
+void update_core_C(__uint128_t mask) {
+
+    //for now just pretend
+    return;
+
+    //example of how to use core C masks
+    //Similar to update_core_B but for processor type C
+}
+
+void update_core_D(__uint128_t mask) {
+
+    //for now just pretend
+    return;
+
+    //example of how to use core D masks
+    //Similar to update_core_B but for processor type D
+}
+
 int init(int argc, char *argv[])
 {
 
@@ -200,4 +218,4 @@ int finalize(int argc, char *argv[])
    return 0;
 }
 
-task_t task = { init, run, finalize, update_core_B };
+task_t task = { init, run, finalize, update_core_B, update_core_C, update_core_D };

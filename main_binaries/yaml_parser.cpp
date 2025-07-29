@@ -106,6 +106,22 @@ struct parsed_task_mode_info {
 	int gpu_period_sec = 0;
 	int gpu_period_nsec = 0;
 
+	//CPU C stuff
+	int cpu_C_work_sec = 0;
+	int cpu_C_work_nsec = 0;
+	int cpu_C_span_sec = 0;
+	int cpu_C_span_nsec = 0;
+	int cpu_C_period_sec = 0;
+	int cpu_C_period_nsec = 0;
+
+	//GPU D stuff
+	int gpu_D_work_sec = 0;
+	int gpu_D_work_nsec = 0;
+	int gpu_D_span_sec = 0;
+	int gpu_D_span_nsec = 0;
+	int gpu_D_period_sec = 0;
+	int gpu_D_period_nsec = 0;
+
 };
 
 struct parsed_task_info {
@@ -276,6 +292,54 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 
 				}
 
+				//check for CPU C params
+				if (yaml_is_time(mode["cpu_C_work"]) && yaml_is_time(mode["cpu_C_span"])){
+
+					mode_info.cpu_C_work_sec = mode["cpu_C_work"]["sec"].as<int>();
+					mode_info.cpu_C_work_nsec = mode["cpu_C_work"]["nsec"].as<int>();
+					mode_info.cpu_C_span_sec = mode["cpu_C_span"]["sec"].as<int>();
+					mode_info.cpu_C_span_nsec = mode["cpu_C_span"]["nsec"].as<int>();
+
+					//if an arbitrary period has been set for modifying the CPU C assignment
+					if (yaml_is_time(mode["cpu_C_period"])){
+
+						mode_info.cpu_C_period_sec = mode["cpu_C_period"]["sec"].as<int>();
+						mode_info.cpu_C_period_nsec = mode["cpu_C_period"]["nsec"].as<int>();
+
+					}
+
+					else{
+
+						mode_info.cpu_C_period_sec = mode_info.period_sec;
+						mode_info.cpu_C_period_nsec = mode_info.period_nsec;
+					}
+
+				}
+
+				//check for GPU D params
+				if (yaml_is_time(mode["gpu_D_work"]) && yaml_is_time(mode["gpu_D_span"])){
+
+					mode_info.gpu_D_work_sec = mode["gpu_D_work"]["sec"].as<int>();
+					mode_info.gpu_D_work_nsec = mode["gpu_D_work"]["nsec"].as<int>();
+					mode_info.gpu_D_span_sec = mode["gpu_D_span"]["sec"].as<int>();
+					mode_info.gpu_D_span_nsec = mode["gpu_D_span"]["nsec"].as<int>();
+
+					//if an arbitrary period has been set for modifying the GPU D assignment
+					if (yaml_is_time(mode["gpu_D_period"])){
+
+						mode_info.gpu_D_period_sec = mode["gpu_D_period"]["sec"].as<int>();
+						mode_info.gpu_D_period_nsec = mode["gpu_D_period"]["nsec"].as<int>();
+
+					}
+
+					else{
+
+						mode_info.gpu_D_period_sec = mode_info.period_sec;
+						mode_info.gpu_D_period_nsec = mode_info.period_nsec;
+					}
+
+				}
+
 				task_info.modes.push_back(mode_info);
 			}
 
@@ -329,6 +393,54 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 
 						mode_info.gpu_period_sec = mode_info.period_sec;
 						mode_info.gpu_period_nsec = mode_info.period_nsec;
+					}
+
+				}
+
+				//check for CPU C params
+				if (yaml_is_time(mode["cpu_C_work"]) && yaml_is_time(mode["cpu_C_span"])){
+
+					mode_info.cpu_C_work_sec = mode["cpu_C_work"]["sec"].as<int>();
+					mode_info.cpu_C_work_nsec = mode["cpu_C_work"]["nsec"].as<int>();
+					mode_info.cpu_C_span_sec = mode["cpu_C_span"]["sec"].as<int>();
+					mode_info.cpu_C_span_nsec = mode["cpu_C_span"]["nsec"].as<int>();
+
+					//if an arbitrary period has been set for modifying the CPU C assignment
+					if (yaml_is_time(mode["cpu_C_period"])){
+
+						mode_info.cpu_C_period_sec = mode["cpu_C_period"]["sec"].as<int>();
+						mode_info.cpu_C_period_nsec = mode["cpu_C_period"]["nsec"].as<int>();
+
+					}
+
+					else{
+
+						mode_info.cpu_C_period_sec = mode_info.period_sec;
+						mode_info.cpu_C_period_nsec = mode_info.period_nsec;
+					}
+
+				}
+
+				//check for GPU D params
+				if (yaml_is_time(mode["gpu_D_work"]) && yaml_is_time(mode["gpu_D_span"])){
+
+					mode_info.gpu_D_work_sec = mode["gpu_D_work"]["sec"].as<int>();
+					mode_info.gpu_D_work_nsec = mode["gpu_D_work"]["nsec"].as<int>();
+					mode_info.gpu_D_span_sec = mode["gpu_D_span"]["sec"].as<int>();
+					mode_info.gpu_D_span_nsec = mode["gpu_D_span"]["nsec"].as<int>();
+
+					//if an arbitrary period has been set for modifying the GPU D assignment
+					if (yaml_is_time(mode["gpu_D_period"])){
+
+						mode_info.gpu_D_period_sec = mode["gpu_D_period"]["sec"].as<int>();
+						mode_info.gpu_D_period_nsec = mode["gpu_D_period"]["nsec"].as<int>();
+
+					}
+
+					else{
+
+						mode_info.gpu_D_period_sec = mode_info.period_sec;
+						mode_info.gpu_D_period_nsec = mode_info.period_nsec;
 					}
 
 				}

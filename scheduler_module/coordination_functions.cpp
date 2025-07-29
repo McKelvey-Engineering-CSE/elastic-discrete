@@ -39,11 +39,11 @@ int Scheduler::get_num_tasks(){
 
 void Scheduler::generate_unsafe_combinations(size_t maxCPU){}
 
-TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, bool safe){
+TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, timespec * cpu_C_work_, timespec * cpu_C_span_, timespec * cpu_C_period_, timespec * gpu_D_work_, timespec * gpu_D_span_, timespec * gpu_D_period_, bool safe){
 
 	//add the task to the legacy schedule object, but also add to vector
 	//to make the scheduler much easier to read and work with.
-	auto taskData_object = schedule.add_task(elasticity_, num_modes_, work_, span_, period_, gpu_work_, gpu_span_, gpu_period_, safe);
+	auto taskData_object = schedule.add_task(elasticity_, num_modes_, work_, span_, period_, gpu_work_, gpu_span_, gpu_period_, cpu_C_work_, cpu_C_span_, cpu_C_period_, gpu_D_work_, gpu_D_span_, gpu_D_period_, safe);
 
 	task_table.push_back(std::vector<task_mode>());
 
@@ -63,11 +63,15 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 		else 
 			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - ((taskData_object->get_work(j) / taskData_object->get_period(j)) + (taskData_object->get_GPU_work(j) / taskData_object->get_period(j))), 2)));// * 1000;
 
-		std::cout << "Mode "<< j << " Loss: " << item.cpuLoss << " Cores: " << taskData_object->get_CPUs(j) << " SMS: " << taskData_object->get_GPUs(j) << std::endl;
+		std::cout << "Mode "<< j << " Loss: " << item.cpuLoss << " Core A: " << taskData_object->get_CPUs(j) << " Core B: " << taskData_object->get_GPUs(j) << " Core C: " << taskData_object->get_CPUs_C(j) << " Core D: " << taskData_object->get_GPUs_D(j) << std::endl;
 
 		item.gpuLoss = 0;
+		item.cpuCLoss = 0;
+		item.gpuDLoss = 0;
 		item.cores = taskData_object->get_CPUs(j);
 		item.sms = taskData_object->get_GPUs(j);
+		item.cores_C = taskData_object->get_CPUs_C(j);
+		item.sms_D = taskData_object->get_GPUs_D(j);
 
 		task_table.at(task_table.size() - 1).push_back(item);
 
@@ -82,6 +86,12 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 					task_table.at(task_table.size() - 1).at(i).unsafe_mode = true;
 
 				else if (task_table.at(task_table.size() - 1).at(i).cores > task_table.at(task_table.size() - 1).at(k).cores && task_table.at(task_table.size() - 1).at(i).sms < task_table.at(task_table.size() - 1).at(k).sms)
+					task_table.at(task_table.size() - 1).at(i).unsafe_mode = true;
+
+				else if (task_table.at(task_table.size() - 1).at(i).cores_C < task_table.at(task_table.size() - 1).at(k).cores_C && task_table.at(task_table.size() - 1).at(i).sms_D > task_table.at(task_table.size() - 1).at(k).sms_D)
+					task_table.at(task_table.size() - 1).at(i).unsafe_mode = true;
+
+				else if (task_table.at(task_table.size() - 1).at(i).cores_C > task_table.at(task_table.size() - 1).at(k).cores_C && task_table.at(task_table.size() - 1).at(i).sms_D < task_table.at(task_table.size() - 1).at(k).sms_D)
 					task_table.at(task_table.size() - 1).at(i).unsafe_mode = true;
 
 			}
@@ -248,6 +258,8 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 		int total_cores = 0;
 		int total_gpus = 0;
+		int total_cores_C = 0;
+		int total_gpus_D = 0;
 
 		//collect all the resources that the free pool was given
 		//via it's TaskData entry in the scheduler
@@ -264,7 +276,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			if (((previous_modes.at(i).cores - 1) != (int) task_owned_cpus.size())){
 				
-				std::cout << "CPU Count Mismatch. Process:" << i << " | Cores assigned: " << previous_modes.at(i).cores << " | Cores found: " << task_owned_cpus.size() << " | Cannot Continue" << std::endl;
+				std::cout << "CPU Count Mismatch. Process:" << i << " | Core A assigned: " << previous_modes.at(i).cores << " | Core A found: " << task_owned_cpus.size() << " | Cannot Continue" << std::endl;
 				killpg(process_group, SIGINT);
 				return;
 
@@ -280,25 +292,65 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			}
 
+			auto task_owned_cpus_C = (schedule.get_task(i))->get_cpu_C_owned_by_process();
+
+			if ((previous_modes.at(i).cores_C) != (int) task_owned_cpus_C.size()){
+
+				std::cout << "CPU C Count Mismatch. Process:" << i << " | Cores C assigned: " << previous_modes.at(i).cores_C << " | Cores C found: " << task_owned_cpus_C.size() << " | Cannot Continue" << std::endl;
+				killpg(process_group, SIGINT);
+				return;
+
+			}
+
+			auto task_owned_gpus_D = (schedule.get_task(i))->get_gpu_D_owned_by_process();
+
+			if ((previous_modes.at(i).sms_D) != (int) task_owned_gpus_D.size()){
+
+				std::cout << "GPU D Count Mismatch. Process:" << i << " | GPUs D assigned: " << previous_modes.at(i).sms_D << " | GPUs D found: " << task_owned_gpus_D.size() << " | Cannot Continue" << std::endl;
+				killpg(process_group, SIGINT);
+				return;
+
+			}
+
 			//add to total
 			total_cores += previous_modes.at(i).cores;
 			total_gpus += previous_modes.at(i).sms;
+			total_cores_C += previous_modes.at(i).cores_C;
+			total_gpus_D += previous_modes.at(i).sms_D;
 
 		}
 
 		//check that the total cores in the system - the total found is the free count
 		if (((int) maxCPU - total_cores) != (int) schedule.get_task(previous_modes.size())->get_cpu_owned_by_process().size()){
 
-			std::cout << "CPU Count Mismatch. Total Cores: " << maxCPU << " | Total Found: " << total_cores << " | Free Cores: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_cpu_mask()).count() << " | Cannot Continue" << std::endl;
+			std::cout << "CPU Count Mismatch. Total Core A: " << maxCPU << " | Total Found: " << total_cores << " | Free Core A: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_cpu_mask()).count() << " | Cannot Continue" << std::endl;
 			killpg(process_group, SIGINT);
 			return;
 
 		}
 
 		//check that the total gpus in the system - the total found is the free count
-		if (((int) NUMGPUS - total_gpus) != (int) schedule.get_task(previous_modes.size())->get_gpu_owned_by_process().size()){
+		if (((int) NUM_PROCESSOR_B - total_gpus) != (int) schedule.get_task(previous_modes.size())->get_gpu_owned_by_process().size()){
 
-			std::cout << "GPU Count Mismatch. Total GPUs: " << NUMGPUS << " | Total Found: " << total_gpus << " | Free GPUs: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_gpu_mask()).count() << " | Cannot Continue" << std::endl;
+			std::cout << "GPU Count Mismatch. Total GPUs: " << NUM_PROCESSOR_B << " | Total Found: " << total_gpus << " | Free GPUs: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_gpu_mask()).count() << " | Cannot Continue" << std::endl;
+			killpg(process_group, SIGINT);
+			return;
+
+		}
+
+		//check that the total cores C in the system - the total found is the free count
+		if (((int) NUM_PROCESSOR_C - total_cores_C) != (int) schedule.get_task(previous_modes.size())->get_cpu_C_owned_by_process().size()){
+
+			std::cout << "CPU C Count Mismatch. Total Cores C: " << NUM_PROCESSOR_C << " | Total Found: " << total_cores_C << " | Free Cores C: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_cpu_C_mask()).count() << " | Cannot Continue" << std::endl;
+			killpg(process_group, SIGINT);
+			return;
+
+		}
+
+		//check that the total gpus D in the system - the total found is the free count
+		if (((int) NUM_PROCESSOR_D - total_gpus_D) != (int) schedule.get_task(previous_modes.size())->get_gpu_D_owned_by_process().size()){
+
+			std::cout << "GPU D Count Mismatch. Total GPUs D: " << NUM_PROCESSOR_D << " | Total Found: " << total_gpus_D << " | Free GPUs D: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_gpu_D_mask()).count() << " | Cannot Continue" << std::endl;
 			killpg(process_group, SIGINT);
 			return;
 
@@ -367,7 +419,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 	//on the host
 
 	int slack_A = maxCPU;
-	int slack_B = NUMGPUS;
+	int slack_B = NUM_PROCESSOR_B;
 
 	if (first_time) {
 		
@@ -400,7 +452,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
 
 		//Execute exact solution
-		device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 0);
+		device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUM_PROCESSOR_B, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 0);
 
 		//peek for launch errors
 		CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
@@ -419,7 +471,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		if (check_max_possible){
 
 			//first check just the constrained version of the problem
-			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 1);
+			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUM_PROCESSOR_B, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 1);
 
 			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
 
@@ -435,7 +487,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, optimal_modes, sizeof(int) * MAXTASKS * 2, cudaMemcpyHostToDevice));
 
-			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUMGPUS, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 0);
+			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, maxCPU, NUM_PROCESSOR_B, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, 0);
 
 			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
 
@@ -468,7 +520,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	#else
 
-		device_do_schedule(N - 1, maxCPU, NUMGPUS, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution, slack_A, slack_B, 0);
+		device_do_schedule(N - 1, maxCPU, NUM_PROCESSOR_B, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution, slack_A, slack_B, 0);
 
 		loss = *d_final_loss;
 
@@ -482,7 +534,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			int* toss_d_final_solution = (int*)malloc(sizeof(int) * MAXTASKS);
 
-			device_do_schedule(N - 1, maxCPU, NUMGPUS, host_current_modes, d_losses, d_final_loss, host_uncooperative, toss_d_final_solution, slack_A, slack_B, 1);
+			device_do_schedule(N - 1, maxCPU, NUM_PROCESSOR_B, host_current_modes, d_losses, d_final_loss, host_uncooperative, toss_d_final_solution, slack_A, slack_B, 1);
 
 			//copy the error
 			double max_possible_value = *d_final_loss;
@@ -581,7 +633,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 	//print resources now held by each task
 	print_module::buffered_print(mode_strings, "\n========================= \n", "New Resource Layout:\n");
 	for (size_t i = 0; i < result.size(); i++)
-		print_module::buffered_print(mode_strings, "Task ", i, " now has: ", task_table.at(i).at(result.at(i)).cores, " Core A | ", task_table.at(i).at(result.at(i)).sms, " Core B\n");
+		print_module::buffered_print(mode_strings, "Task ", i, " now has: ", task_table.at(i).at(result.at(i)).cores, " Core A | ", task_table.at(i).at(result.at(i)).sms, " Core B | ", task_table.at(i).at(result.at(i)).cores_C, " Core C | ", task_table.at(i).at(result.at(i)).sms_D, " Core D\n");
 	print_module::buffered_print(mode_strings, "=========================\n\n");
 	print_module::flush(std::cerr, mode_strings);
 
@@ -656,9 +708,9 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 				for (int j = 0; j < (schedule.get_task(i))->get_current_GPUs(); j++)
 					(schedule.get_task(i))->push_back_gpu(next_TPC ++);
 
-				if (next_TPC > (int)(NUMGPUS) + 1){
+				if (next_TPC > (int)(NUM_PROCESSOR_B) + 1){
 
-					print_module::print(std::cerr, "Error in task ", i, ": too many GPUs have been allocated.", next_TPC, " ", NUMGPUS, " \n");
+					print_module::print(std::cerr, "Error in task ", i, ": too many GPUs have been allocated.", next_TPC, " ", NUM_PROCESSOR_B, " \n");
 					killpg(process_group, SIGINT);
 					return;
 
@@ -668,8 +720,42 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		}
 
 		//assign all the unassigned gpus to the scheduler to hold
-		for (int i = next_TPC; i < (int)(NUMGPUS); i++)
+		for (int i = next_TPC; i < (int)(NUM_PROCESSOR_B); i++)
 			schedule.get_task(result.size())->push_back_gpu(i);
+
+		//assign all the cpu_C units to tasks as needed
+		int next_CPU_C = 0;
+
+		for (int i = 0; i < schedule.count(); i++){
+
+			for (int j = 0; j < (schedule.get_task(i))->get_current_CPUs_C(); j++){
+
+				(schedule.get_task(i))->push_back_cpu_C(next_CPU_C ++);
+
+			}
+
+		}
+
+		//assign all the unassigned cpu_C units to the scheduler to hold
+		for (int i = next_CPU_C; i < (int)(NUM_PROCESSOR_C); i++)
+			schedule.get_task(result.size())->push_back_cpu_C(i);
+
+		//assign all the gpu_D units to tasks as needed
+		int next_GPU_D = 0;
+
+		for (int i = 0; i < schedule.count(); i++){
+
+			for (int j = 0; j < (schedule.get_task(i))->get_current_GPUs_D(); j++){
+
+				(schedule.get_task(i))->push_back_gpu_D(next_GPU_D ++);
+
+			}
+
+		}
+
+		//assign all the unassigned gpu_D units to the scheduler to hold
+		for (int i = next_GPU_D; i < (int)(NUM_PROCESSOR_D); i++)
+			schedule.get_task(result.size())->push_back_gpu_D(i);
 
 	}
 

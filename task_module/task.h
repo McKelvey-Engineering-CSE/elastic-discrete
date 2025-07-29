@@ -45,6 +45,8 @@ typedef struct
 	int (*run)(int argc, char *argv[]);
 	int (*finalize)(int argc, char *argv[]);
 	void (*update_core_B)(__uint128_t mask);
+	void (*update_core_C)(__uint128_t mask);
+	void (*update_core_D)(__uint128_t mask);
 }
 task_t;
 
@@ -64,7 +66,7 @@ extern bool missed_dl;
 // Task struct that should be defined by the real time task.
 extern task_t task;
 
-extern const int NUMCPUS;
+extern const int NUM_PROCESSOR_A;
 extern const int MAXTASKS;
 
 extern timespec current_period;
@@ -100,4 +102,11 @@ void mode_change_finish();
 
 extern void allow_change();
 extern bool modify_self(int new_mode);
+
+//omp replacement thread pool
+extern __uint128_t current_cpu_mask;
+extern __uint128_t current_gpu_mask;
+extern __uint128_t current_cpu_C_mask;
+extern __uint128_t current_gpu_D_mask;
+
 #endif /* RT_GOMP_TASK_H */

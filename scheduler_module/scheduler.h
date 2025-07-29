@@ -59,14 +59,18 @@ Class : shared_mem
 
 class Scheduler{
 
-	enum resource_type {CORE_A, CORE_B};
+	enum resource_type {CORE_A, CORE_B, CORE_C, CORE_D};
 
 	//structure for internal knapsack scheduler
 	struct task_mode {
 		double cpuLoss = 0.0;
 		double gpuLoss = 0.0;
+		double cpuCLoss = 0.0;
+		double gpuDLoss = 0.0;
 		int cores = 0;
 		int sms = 0;
+		int cores_C = 0;
+		int sms_D = 0;
 		bool unsafe_mode = false;
 	};
 
@@ -75,6 +79,8 @@ class Scheduler{
 
 		//0 for A core
 		//1 for B core
+		//2 for C core
+		//3 for D core
 		int resource_type = 0;
 
 		int resource_amount = -1;
@@ -85,13 +91,15 @@ class Scheduler{
 	//structure for RAG vertices
 	struct Edge {
 		int to_node;
-		int x_amount;  // amount of resource x transferred (0 if none)
-		int y_amount;  // amount of resource y transferred (0 if none)
+		int a_amount;  // amount of resource A transferred (0 if none)
+		int b_amount;  // amount of resource B transferred (0 if none)
+		int c_amount;  // amount of resource C transferred (0 if none)
+		int d_amount;  // amount of resource D transferred (0 if none)
 	};
 
 	struct Node {
 		int id;
-		int x, y;  // resources (negative means needed)
+		int a, b, c, d;  // resources (negative means needed)
 		std::vector<Edge> edges;  // outgoing edges with resource amounts
 	};
 
@@ -122,6 +130,8 @@ class Scheduler{
 	//each entry corresponds to a core which is held by a task
 	std::vector<int> free_cores_A;
 	std::vector<int> free_cores_B;
+	std::vector<int> free_cores_C;
+	std::vector<int> free_cores_D;
 
 	//taskData structure for the free resource pool
 	TaskData free_pool;
@@ -171,7 +181,9 @@ public:
 		task_table.clear();
 
 		free_cores_A.reserve(num_CPUs);
-		free_cores_B.reserve(NUMGPUS);
+		free_cores_B.reserve(NUM_PROCESSOR_B);
+		free_cores_C.reserve(NUM_PROCESSOR_C);
+		free_cores_D.reserve(NUM_PROCESSOR_D);
 
 		//reserve the backtrack table
 
@@ -179,7 +191,7 @@ public:
 
 	~Scheduler(){}
 
-	void generate_unsafe_combinations(size_t maxCPU = NUMCPUS - 1);
+	void generate_unsafe_combinations(size_t maxCPU = NUM_PROCESSOR_A - 1);
 
 	void do_schedule(size_t maxCPU, bool check_max_possible = false);
 
@@ -206,7 +218,7 @@ public:
 
 	void print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes);
 
-	TaskData * add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, bool safe);
+	TaskData * add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, timespec * cpu_C_work_, timespec * cpu_C_span_, timespec * cpu_C_period_, timespec * gpu_D_work_, timespec * gpu_D_span_, timespec * gpu_D_period_, bool safe);
 };
 
 

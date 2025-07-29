@@ -57,7 +57,7 @@ HOST_DEVICE_CONSTANT int constant_task_table[MAXTASKS * MAXMODES * 3];
 
 HOST_DEVICE_CONSTANT float constant_losses[MAXTASKS * MAXMODES];
 
-HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPUS, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution, int slack_A, int slack_B, int constricted){
+HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUM_PROCESSOR_B, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution, int slack_A, int slack_B, int constricted){
 
 	//shared variables for determining the start and end of 
 	//the indices for uncooperative tasks
@@ -94,7 +94,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 	#endif
 
 	//assume 1 block of 1024 threads for now
-	const int pass_count = ceil(((maxCPU + 1) * (NUMGPUS + 1)) / HOST_DEVICE_BLOCK_DIM) + 1;
+	const int pass_count = ceil(((maxCPU + 1) * (NUM_PROCESSOR_B + 1)) / HOST_DEVICE_BLOCK_DIM) + 1;
 
 	//store the indices we will be using
 	#ifdef __NVCC__
@@ -150,10 +150,10 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 				if (i == 1){
 
 					//w = cpu
-					indices[k][0] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) / (NUMGPUS + 1));
+					indices[k][0] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) / (NUM_PROCESSOR_B + 1));
 					
 					//v = gpu
-					indices[k][1] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) % (NUMGPUS + 1));
+					indices[k][1] = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) % (NUM_PROCESSOR_B + 1));
 
 				}
 
@@ -166,14 +166,14 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 			#else
 
 				//w = cpu
-				int w = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) / (NUMGPUS + 1));
+				int w = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) / (NUM_PROCESSOR_B + 1));
 				
 				//v = gpu
-				int v = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) % (NUMGPUS + 1));
+				int v = (((k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_DIM) % (NUM_PROCESSOR_B + 1));
 
 			#endif
 
-			if (w > maxCPU || v > NUMGPUS)
+			if (w > maxCPU || v > NUM_PROCESSOR_B)
 				continue;
 
 			//invalid state
@@ -310,7 +310,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 
 		bool valid_solution = true;
 		int current_w = maxCPU;
-		int current_v = NUMGPUS;
+		int current_v = NUM_PROCESSOR_B;
 
 		for (int i = num_tasks; i > 0; i--){
 
@@ -343,7 +343,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int maxCPU, int NUMGPU
 		//print the final loss 
 		if (valid_solution){
 
-			*final_loss = shared_dp_two[num_tasks & 1][maxCPU][NUMGPUS];
+			*final_loss = shared_dp_two[num_tasks & 1][maxCPU][NUM_PROCESSOR_B];
 
 		} else {
 
