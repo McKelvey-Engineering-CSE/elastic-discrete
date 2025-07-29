@@ -86,30 +86,30 @@ static std::vector<std::pair<int,int>> computeModeResources(double CpA, double L
 }
 
 TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, 
-														timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, 
-														timespec * cpu_C_work_, timespec * cpu_C_span_, timespec * cpu_C_period_, 
-														timespec * gpu_D_work_, timespec * gpu_D_span_, timespec * gpu_D_period_, bool safe) : 	
+														timespec * processor_B_work_, timespec * processor_B_span_, timespec * processor_B_period_, 
+														timespec * processor_C_work_, timespec * processor_C_span_, timespec * processor_C_period_, 
+														timespec * processor_D_work_, timespec * processor_D_span_, timespec * processor_D_period_, bool safe) : 	
 																													
 																													index(counter++), changeable(true), 
 																													can_reschedule(false), num_adaptations(0),  
 																													elasticity(elasticity_), num_modes(num_modes_), 
-																													max_utilization(0), max_CPUs(0), min_CPUs(NUM_PROCESSOR_A), 
-																													max_GPUs(0), min_GPUs(NUM_PROCESSOR_A), 
-																													max_CPUs_C(0), min_CPUs_C(NUM_PROCESSOR_C),
-																													max_GPUs_D(0), min_GPUs_D(NUM_PROCESSOR_D),
-																													CPUs_gained(0), GPUs_gained(0),
-																													CPUs_C_gained(0), GPUs_D_gained(0),
-																													practical_max_CPUs(max_CPUs), current_lowest_CPU(-1), 
-																													practical_max_GPUs(max_GPUs), current_lowest_GPU(0),
-																													practical_max_CPUs_C(max_CPUs_C), current_lowest_CPU_C(-1),
-																													practical_max_GPUs_D(max_GPUs_D), current_lowest_GPU_D(0),
+																													max_utilization(0), max_processors_A(0), min_processors_A(NUM_PROCESSOR_A), 
+																													max_processors_B(0), min_processors_B(NUM_PROCESSOR_A), 
+																													max_processors_C(0), min_processors_C(NUM_PROCESSOR_C),
+																													max_processors_D(0), min_processors_D(NUM_PROCESSOR_D),
+																													processors_A_gained(0), processors_B_gained(0),
+																													processors_C_gained(0), processors_D_gained(0),
+																													practical_max_processors_A(max_processors_A), current_lowest_processor_A(-1), 
+																													practical_max_processors_B(max_processors_B), current_lowest_processor_B(0),
+																													practical_max_processors_C(max_processors_C), current_lowest_processor_C(-1),
+																													practical_max_processors_D(max_processors_D), current_lowest_processor_D(0),
 																													percentage_workload(1.0), current_period({0,0}), 
 																													current_work({0,0}), current_span({0,0}), 
-																													current_utilization(0.0), current_CPUs(0), previous_CPUs(0), 
-																													current_GPUs(0), previous_GPUs(0),
-																													current_CPUs_C(0), previous_CPUs_C(0),
-																													current_GPUs_D(0), previous_GPUs_D(0),
-																													permanent_CPU(-1), max_work({0,0}), current_virtual_mode(0){
+																													current_utilization(0.0), current_processors_A(0), previous_processors_A(0), 
+																													current_processors_B(0), previous_processors_B(0),
+																													current_processors_C(0), previous_processors_C(0),
+																													current_processors_D(0), previous_processors_D(0),
+																													permanent_processor_A(-1), max_work({0,0}), current_virtual_mode(0){
 	
 	if (num_modes > MAXMODES){
 
@@ -128,84 +128,84 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 		timespec work_l = work_[i];
 		timespec span_l = span_[i];
 		timespec period_l = period_[i];
-		timespec GPU_work_l = gpu_work_[i];
-		timespec GPU_span_l = gpu_span_[i];
-		timespec GPU_period_l = gpu_period_[i];
-		timespec CPU_C_work_l = cpu_C_work_[i];
-		timespec CPU_C_span_l = cpu_C_span_[i];
-		timespec CPU_C_period_l = cpu_C_period_[i];
-		timespec GPU_D_work_l = gpu_D_work_[i];
-		timespec GPU_D_span_l = gpu_D_span_[i];
-		timespec GPU_D_period_l = gpu_D_period_[i];
+		timespec processor_B_work_l = processor_B_work_[i];
+		timespec processor_B_span_l = processor_B_span_[i];
+		timespec processor_B_period_l = processor_B_period_[i];
+		timespec processor_C_work_l = processor_C_work_[i];
+		timespec processor_C_span_l = processor_C_span_[i];
+		timespec processor_C_period_l = processor_C_period_[i];
+		timespec processor_D_work_l = processor_D_work_[i];
+		timespec processor_D_span_l = processor_D_span_[i];
+		timespec processor_D_period_l = processor_D_period_[i];
 
 		//fetch each mode parameter as a long
 		double work_long = get_timespec_in_ns(work_l);
 		double span_long = get_timespec_in_ns(span_l);
 		double period_long = get_timespec_in_ns(period_l);
-		double GPU_work_long = get_timespec_in_ns(GPU_work_l);
-		double GPU_span_long = get_timespec_in_ns(GPU_span_l);
+		double processor_B_work_long = get_timespec_in_ns(processor_B_work_l);
+		double processor_B_span_long = get_timespec_in_ns(processor_B_span_l);
 
 		//pass to the computeModeResources function
-		auto resources = computeModeResources(work_long, span_long, GPU_work_long, GPU_span_long, period_long);
+		auto resources = computeModeResources(work_long, span_long, processor_B_work_long, processor_B_span_long, period_long);
 		mode_options += resources.size();
 
 		//loop over the resources and store them in the table
 		for (auto res : resources){
 
-			//store the CPU and GPU resources
+			//store the processor A and processor B resources
 			//FIXME: REPLAC EWITH REAL C AND D
-			CPUs[next_position] = res.first;
-			GPUs[next_position] = res.second;
-			CPUs_C[next_position] = 0;  // For now, use same as A
-			GPUs_D[next_position] = 0;  // For now, use same as A
+			processors_A[next_position] = res.first;
+			processors_B[next_position] = res.second;
+			processors_C[next_position] = 0;  // For now, use same as A
+			processors_D[next_position] = 0;  // For now, use same as A
 			//map the mode
 			mode_map[next_position] = i;
 
 			//update the parameters
-			if (CPUs[next_position] > max_CPUs)
-				max_CPUs = CPUs[next_position];
+			if (processors_A[next_position] > max_processors_A)
+				max_processors_A = processors_A[next_position];
 
-			if (CPUs[next_position] < min_CPUs)
-				min_CPUs = CPUs[next_position];
+			if (processors_A[next_position] < min_processors_A)
+				min_processors_A = processors_A[next_position];
 
-			if (GPUs[next_position] > max_GPUs)
-				max_GPUs = GPUs[next_position];
+			if (processors_B[next_position] > max_processors_B)
+				max_processors_B = processors_B[next_position];
 
-			if (GPUs[next_position] < min_GPUs)
-				min_GPUs = GPUs[next_position];
+			if (processors_B[next_position] < min_processors_B)
+				min_processors_B = processors_B[next_position];
 
-			if (CPUs_C[next_position] > max_CPUs_C)
-				max_CPUs_C = CPUs_C[next_position];
+			if (processors_C[next_position] > max_processors_C)
+				max_processors_C = processors_C[next_position];
 
-			if (CPUs_C[next_position] < min_CPUs_C)
-				min_CPUs_C = CPUs_C[next_position];
+			if (processors_C[next_position] < min_processors_C)
+				min_processors_C = processors_C[next_position];
 
-			if (GPUs_D[next_position] > max_GPUs_D)
-				max_GPUs_D = GPUs_D[next_position];
+			if (processors_D[next_position] > max_processors_D)
+				max_processors_D = processors_D[next_position];
 
-			if (GPUs_D[next_position] < min_GPUs_D)
-				min_GPUs_D = GPUs_D[next_position];
+			if (processors_D[next_position] < min_processors_D)
+				min_processors_D = processors_D[next_position];
 
 			//set the params for this mode
 			work[next_position] = work_l;
 			span[next_position] = span_l;
 			period[next_position] = period_l;
-			GPU_work[next_position] = GPU_work_l;
-			GPU_span[next_position] = GPU_span_l;
-			GPU_period[next_position] = GPU_period_l;
-			CPU_C_work[next_position] = CPU_C_work_l;
-			CPU_C_span[next_position] = CPU_C_span_l;
-			CPU_C_period[next_position] = CPU_C_period_l;
-			GPU_D_work[next_position] = GPU_D_work_l;
-			GPU_D_span[next_position] = GPU_D_span_l;
-			GPU_D_period[next_position] = GPU_D_period_l;
+			processor_B_work[next_position] = processor_B_work_l;
+			processor_B_span[next_position] = processor_B_span_l;
+			processor_B_period[next_position] = processor_B_period_l;
+			processor_C_work[next_position] = processor_C_work_l;
+			processor_C_span[next_position] = processor_C_span_l;
+			processor_C_period[next_position] = processor_C_period_l;
+			processor_D_work[next_position] = processor_D_work_l;
+			processor_D_span[next_position] = processor_D_span_l;
+			processor_D_period[next_position] = processor_D_period_l;
 
 			//note which mode this came from
 			owning_modes[next_position] = i;
 
 			//update max utilization
-			if (((work_l / period_l) + (GPU_work_l / period_l) + (CPU_C_work_l / period_l) + (GPU_D_work_l / period_l)) > max_utilization)
-				max_utilization = ((work_l / period_l) + (GPU_work_l / period_l) + (CPU_C_work_l / period_l) + (GPU_D_work_l / period_l));
+			if (((work_l / period_l) + (processor_B_work_l / period_l) + (processor_C_work_l / period_l) + (processor_D_work_l / period_l)) > max_utilization)
+				max_utilization = ((work_l / period_l) + (processor_B_work_l / period_l) + (processor_C_work_l / period_l) + (processor_D_work_l / period_l));
 
 			if (++next_position >= MAXMODES){
 
@@ -219,16 +219,16 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 		if (work[i] > max_work)
 			max_work = work[i];
 
-		if ((GPU_work[i] != timespec({0, 0}) &&  GPU_span[i] != timespec({0, 0})) ||
-			(CPU_C_work[i] != timespec({0, 0}) &&  CPU_C_span[i] != timespec({0, 0})) ||
-			(GPU_D_work[i] != timespec({0, 0}) &&  GPU_D_span[i] != timespec({0, 0})))
-			is_pure_cpu_task = false;
+		if ((processor_B_work[i] != timespec({0, 0}) &&  processor_B_span[i] != timespec({0, 0})) ||
+			(processor_C_work[i] != timespec({0, 0}) &&  processor_C_span[i] != timespec({0, 0})) ||
+			(processor_D_work[i] != timespec({0, 0}) &&  processor_D_span[i] != timespec({0, 0})))
+			is_pure_A_task = false;
 
 	}
 
 	print_module::print(std::cout, "Task ", index, " has ", num_modes, " modes:\n");
 	for (int i = 0; i < num_modes; i++)
-		print_module::print(std::cout, work_[i], " ", span_[i], " ", period_[i], " ", gpu_work_[i], " ", gpu_span_[i], " ", cpu_C_work_[i], " ", cpu_C_span_[i], " ", cpu_C_period_[i], " ", gpu_D_work_[i], " ", gpu_D_span_[i], " ", gpu_D_period_[i], "\n");
+		print_module::print(std::cout, work_[i], " ", span_[i], " ", period_[i], " ", processor_B_work_[i], " ", processor_B_span_[i], " ", processor_C_work_[i], " ", processor_C_span_[i], " ", processor_C_period_[i], " ", processor_D_work_[i], " ", processor_D_span_[i], " ", processor_D_period_[i], "\n");
 	print_module::print(std::cout, "\n");
 	
 	modes_originally_passed = num_modes;
@@ -251,8 +251,8 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 		for (int i = 0; i < num_modes; i++){
 
-			int current_cpu = CPUs[i];
-			int current_gpu = GPUs[i];
+			int current_processor_A = processors_A[i];
+			int current_processor_B = processors_B[i];
 
 			int distinct_modes_seen = 0;
 			int seen_modes_utilizations[modes_originally_passed] = {0};
@@ -264,7 +264,7 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 				if (i != j){
 
-					if (CPUs[j] >= current_cpu && GPUs[j] >= current_gpu){
+					if (processors_A[j] >= current_processor_A && processors_B[j] >= current_processor_B){
 
 						distinct_modes_seen++;
 						seen_modes_utilizations[owning_modes[j]] += 1;
@@ -304,17 +304,17 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 			for (int i = 0; i < num_modes; i++){
 
-				if (CPUs[i] < CPUs[best_base_mode])
-					CPUs[i] = CPUs[best_base_mode];
+				if (processors_A[i] < processors_A[best_base_mode])
+					processors_A[i] = processors_A[best_base_mode];
 
-				if (GPUs[i] < GPUs[best_base_mode])
-					GPUs[i] = GPUs[best_base_mode];
+				if (processors_B[i] < processors_B[best_base_mode])
+					processors_B[i] = processors_B[best_base_mode];
 
-				if (CPUs_C[i] < CPUs_C[best_base_mode])
-					CPUs_C[i] = CPUs_C[best_base_mode];
+				if (processors_C[i] < processors_C[best_base_mode])
+					processors_C[i] = processors_C[best_base_mode];
 
-				if (GPUs_D[i] < GPUs_D[best_base_mode])
-					GPUs_D[i] = GPUs_D[best_base_mode];
+				if (processors_D[i] < processors_D[best_base_mode])
+					processors_D[i] = processors_D[best_base_mode];
 
 			}
 
@@ -334,7 +334,7 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 	//loop over all modes, and compare the allocated processor A
 	//and processor B to all other modes in the task. If the task
-	//has any mode where it gains cpus and loses gpus compared to 
+	//has any mode where it gains processor A and loses processor B compared to 
 	//any other mode in the task or vice versa, then the task is
 	//combinatorially elastic
 	for (int i = 0; i < num_modes; i++){
@@ -343,28 +343,28 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 			if (i != j){
 
-				if (CPUs[i] > CPUs[j] && GPUs[i] < GPUs[j]){
+				if (processors_A[i] > processors_A[j] && processors_B[i] < processors_B[j]){
 
 					combinatorially_elastic = true;
 					break;
 
 				}
 
-				if (CPUs[i] < CPUs[j] && GPUs[i] > GPUs[j]){
+				if (processors_A[i] < processors_A[j] && processors_B[i] > processors_B[j]){
 
 					combinatorially_elastic = true;
 					break;
 
 				}
 
-				if (CPUs_C[i] > CPUs_C[j] && GPUs_D[i] < GPUs_D[j]){
+				if (processors_C[i] > processors_C[j] && processors_D[i] < processors_D[j]){
 
 					combinatorially_elastic = true;
 					break;
 
 				}
 
-				if (CPUs_C[i] < CPUs_C[j] && GPUs_D[i] > GPUs_D[j]){
+				if (processors_C[i] < processors_C[j] && processors_D[i] > processors_D[j]){
 
 					combinatorially_elastic = true;
 					break;
@@ -377,35 +377,35 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 	}
 
-	current_CPUs = min_CPUs;
-	current_GPUs = min_GPUs;
-	current_CPUs_C = min_CPUs_C;
-	current_GPUs_D = min_GPUs_D;
+	current_processors_A = min_processors_A;
+	current_processors_B = min_processors_B;
+	current_processors_C = min_processors_C;
+	current_processors_D = min_processors_D;
 
 	//clear the tables so I can actually read them when needed
 	for (int i  = 0; i < MAXTASKS + 1; i++){
 
 		for (int j = 0; j < NUM_PROCESSOR_B + 1; j++){
 
-			gpus_granted_from_other_tasks[i][j] = -1;
+			processors_B_granted_from_other_tasks[i][j] = -1;
 
 		}
 
 		for (int j = 0; j < NUM_PROCESSOR_A + 1; j++){
 
-			cpus_granted_from_other_tasks[i][j] = -1;
+			processors_A_granted_from_other_tasks[i][j] = -1;
 
 		}
 
 		for (int j = 0; j < NUM_PROCESSOR_C + 1; j++){
 
-			cpus_C_granted_from_other_tasks[i][j] = -1;
+			processors_C_granted_from_other_tasks[i][j] = -1;
 
 		}
 
 		for (int j = 0; j < NUM_PROCESSOR_D + 1; j++){
 
-			gpus_D_granted_from_other_tasks[i][j] = -1;
+			processors_D_granted_from_other_tasks[i][j] = -1;
 
 		}
 
@@ -451,36 +451,36 @@ int TaskData::get_number_of_modes(){
 	return number_of_modes;
 }
 
-int TaskData::get_CPUs_gained(){
-	return CPUs_gained;
+int TaskData::get_processors_A_gained(){
+	return processors_A_gained;
 }
 
-void TaskData::set_CPUs_gained(int new_CPUs_gained){
-	CPUs_gained = new_CPUs_gained;
+void TaskData::set_processors_A_gained(int new_processors_A_gained){
+	processors_A_gained = new_processors_A_gained;
 }
 
-int TaskData::get_GPUs_gained(){
-	return GPUs_gained;
+int TaskData::get_processors_B_gained(){
+	return processors_B_gained;
 }
 
-void TaskData::set_GPUs_gained(int new_GPUs_gained){
-	GPUs_gained = new_GPUs_gained;
+void TaskData::set_processors_B_gained(int new_processors_B_gained){
+	processors_B_gained = new_processors_B_gained;
 }
 
-int TaskData::get_CPUs_C_gained(){
-	return CPUs_C_gained;
+int TaskData::get_processors_C_gained(){
+	return processors_C_gained;
 }
 
-void TaskData::set_CPUs_C_gained(int new_CPUs_C_gained){
-	CPUs_C_gained = new_CPUs_C_gained;
+void TaskData::set_processors_C_gained(int new_processors_C_gained){
+	processors_C_gained = new_processors_C_gained;
 }
 
-int TaskData::get_GPUs_D_gained(){
-	return GPUs_D_gained;
+int TaskData::get_processors_D_gained(){
+	return processors_D_gained;
 }
 
-void TaskData::set_GPUs_D_gained(int new_GPUs_D_gained){
-	GPUs_D_gained = new_GPUs_D_gained;
+void TaskData::set_processors_D_gained(int new_processors_D_gained){
+	processors_D_gained = new_processors_D_gained;
 }
 
 double TaskData::get_elasticity(){
@@ -491,98 +491,98 @@ double TaskData::get_max_utilization(){
 	return max_utilization;
 }
 
-int TaskData::get_max_CPUs(){
-	return max_CPUs;
+int TaskData::get_max_processors_A(){
+	return max_processors_A;
 }
 
-int TaskData::get_min_CPUs(){
-	return min_CPUs;
+int TaskData::get_min_processors_A(){
+	return min_processors_A;
 }
 
-timespec TaskData::get_GPU_work(int index){
-	return GPU_work[index];
+timespec TaskData::get_processor_B_work(int index){
+	return processor_B_work[index];
 }
 
-timespec TaskData::get_GPU_span(int index){
-	return GPU_span[index];
+timespec TaskData::get_processor_B_span(int index){
+	return processor_B_span[index];
 }
 
-timespec TaskData::get_GPU_period(int index){
-	return GPU_period[index];
+timespec TaskData::get_processor_B_period(int index){
+	return processor_B_period[index];
 }
 
-int TaskData::get_GPUs(int index){
-	return GPUs[index];
+int TaskData::get_processors_B(int index){
+	return processors_B[index];
 }
 
-//CPU C functions that can be compiled regardless of compiler
-timespec TaskData::get_CPU_C_work(int index){
-	return CPU_C_work[index];
+//processor C functions that can be compiled regardless of compiler
+timespec TaskData::get_processor_C_work(int index){
+	return processor_C_work[index];
 }
 
-timespec TaskData::get_CPU_C_span(int index){
-	return CPU_C_span[index];
+timespec TaskData::get_processor_C_span(int index){
+	return processor_C_span[index];
 }
 
-timespec TaskData::get_CPU_C_period(int index){
-	return CPU_C_period[index];
+timespec TaskData::get_processor_C_period(int index){
+	return processor_C_period[index];
 }
 
-int TaskData::get_CPUs_C(int index){
-	return CPUs_C[index];
+int TaskData::get_processors_C(int index){
+	return processors_C[index];
 }
 
-//GPU D functions that can be compiled regardless of compiler
-timespec TaskData::get_GPU_D_work(int index){
-	return GPU_D_work[index];
+//processor D functions that can be compiled regardless of compiler
+timespec TaskData::get_processor_D_work(int index){
+	return processor_D_work[index];
 }
 
-timespec TaskData::get_GPU_D_span(int index){
-	return GPU_D_span[index];
+timespec TaskData::get_processor_D_span(int index){
+	return processor_D_span[index];
 }
 
-timespec TaskData::get_GPU_D_period(int index){
-	return GPU_D_period[index];
+timespec TaskData::get_processor_D_period(int index){
+	return processor_D_period[index];
 }
 
-int TaskData::get_GPUs_D(int index){
-	return GPUs_D[index];
+int TaskData::get_processors_D(int index){
+	return processors_D[index];
 }
 
-int TaskData::get_current_GPUs(){
-	return current_GPUs;
+int TaskData::get_current_processors_B(){
+	return current_processors_B;
 }
 
-int TaskData::get_current_CPUs_C(){
-	return current_CPUs_C;
+int TaskData::get_current_processors_C(){
+   return current_processors_C;
 }
 
-int TaskData::get_current_GPUs_D(){
-	return current_GPUs_D;
+int TaskData::get_current_processors_D(){
+	return current_processors_D;
 }
 
-int TaskData::get_max_GPUs(){
-	return max_GPUs;
+int TaskData::get_max_processors_B(){
+	return max_processors_B;
 }
 
-int TaskData::get_min_GPUs(){
-	return min_GPUs;
+int TaskData::get_min_processors_B(){
+	return min_processors_B;
 }
 
-int TaskData::get_max_CPUs_C(){
-	return max_CPUs_C;
+int TaskData::get_max_processors_C(){
+	return max_processors_C;
 }
 
-int TaskData::get_min_CPUs_C(){
-	return min_CPUs_C;
+int TaskData::get_min_processors_C(){
+	return min_processors_C;
 }
 
-int TaskData::get_max_GPUs_D(){
-	return max_GPUs_D;
+int TaskData::get_max_processors_D(){
+	return max_processors_D;
 }
 
-int TaskData::get_min_GPUs_D(){
-	return min_GPUs_D;
+int TaskData::get_min_processors_D(){
+	return min_processors_D;
 }
 
 timespec TaskData::get_current_span(){
@@ -597,8 +597,8 @@ timespec TaskData::get_current_period(){
 	return current_period;
 }
 
-int TaskData::get_current_CPUs(){
-	return current_CPUs;
+int TaskData::get_current_processors_A(){
+	return current_processors_A;
 }
 
 double TaskData::get_percentage_workload(){
@@ -609,68 +609,68 @@ bool TaskData::get_changeable(){
 	return changeable;
 }
 
-int TaskData::get_current_lowest_CPU(){
-	return current_lowest_CPU;
+int TaskData::get_current_lowest_processor_A(){
+   return current_lowest_processor_A;
 }
 
-void TaskData::set_practical_max_CPUs(int new_value){
-	practical_max_CPUs = new_value;
+void TaskData::set_practical_max_processors_A(int new_value){
+   practical_max_processors_A = new_value;
 }
 
-int TaskData::get_practical_max_CPUs(){
-	return practical_max_CPUs;
+int TaskData::get_practical_max_processors_A(){
+   return practical_max_processors_A;
 }
 
-void TaskData::set_current_lowest_CPU(int _lowest){
-	current_lowest_CPU = _lowest;
+void TaskData::set_current_lowest_processor_A(int _lowest){
+   current_lowest_processor_A = _lowest;
 }
 
-void TaskData::set_practical_max_GPUs(int new_value){
-	practical_max_GPUs = new_value;
+void TaskData::set_practical_max_processors_B(int new_value){
+   practical_max_processors_B = new_value;
 }
 
-int TaskData::get_practical_max_GPUs(){
-	return practical_max_GPUs;
+int TaskData::get_practical_max_processors_B(){
+   return practical_max_processors_B;
 }
 
-void TaskData::set_current_lowest_GPU(int _lowest){
-	current_lowest_GPU = _lowest;
+void TaskData::set_current_lowest_processor_B(int _lowest){
+   current_lowest_processor_B = _lowest;
 }
 
-int TaskData::get_current_lowest_GPU(){
-	return current_lowest_GPU;
+int TaskData::get_current_lowest_processor_B(){
+   return current_lowest_processor_B;
 }
 
-void TaskData::set_practical_max_CPUs_C(int new_value){
-	practical_max_CPUs_C = new_value;
+void TaskData::set_practical_max_processors_C(int new_value){
+   practical_max_processors_C = new_value;
 }
 
-int TaskData::get_practical_max_CPUs_C(){
-	return practical_max_CPUs_C;
+int TaskData::get_practical_max_processors_C(){
+   return practical_max_processors_C;
 }
 
-void TaskData::set_current_lowest_CPU_C(int _lowest){
-	current_lowest_CPU_C = _lowest;
+void TaskData::set_current_lowest_processor_C(int _lowest){
+   current_lowest_processor_C = _lowest;
 }
 
-int TaskData::get_current_lowest_CPU_C(){
-	return current_lowest_CPU_C;
+int TaskData::get_current_lowest_processor_C(){
+   return current_lowest_processor_C;
 }
 
-void TaskData::set_practical_max_GPUs_D(int new_value){
-	practical_max_GPUs_D = new_value;
+void TaskData::set_practical_max_processors_D(int new_value){
+   practical_max_processors_D = new_value;
 }
 
-int TaskData::get_practical_max_GPUs_D(){
-	return practical_max_GPUs_D;
+int TaskData::get_practical_max_processors_D(){
+   return practical_max_processors_D;
 }
 
-void TaskData::set_current_lowest_GPU_D(int _lowest){
-	current_lowest_GPU_D = _lowest;
+void TaskData::set_current_lowest_processor_D(int _lowest){
+   current_lowest_processor_D = _lowest;
 }
 
-int TaskData::get_current_lowest_GPU_D(){
-	return current_lowest_GPU_D;
+int TaskData::get_current_lowest_processor_D(){
+   return current_lowest_processor_D;
 }
 
 int TaskData::get_real_mode(int mode){
@@ -685,10 +685,10 @@ void TaskData::reset_mode_to_previous(){
 	current_period = period[current_virtual_mode];
 	current_utilization = current_work / current_period;
 	percentage_workload = current_work / max_work;
-	current_CPUs = previous_CPUs;
-	current_GPUs = previous_GPUs;
-	current_CPUs_C = previous_CPUs_C;
-	current_GPUs_D = previous_GPUs_D;
+	current_processors_A = previous_processors_A;
+	current_processors_B = previous_processors_B;
+	current_processors_C = previous_processors_C;
+	current_processors_D = previous_processors_D;
 
 }
 
@@ -706,20 +706,20 @@ void TaskData::set_current_virtual_mode(int new_mode, bool disable)
 		current_period = period[current_virtual_mode];
 		current_utilization = current_work / current_period;
 		percentage_workload = current_work / max_work;
-		previous_CPUs = current_CPUs;
-		current_CPUs = CPUs[current_virtual_mode];
+		previous_processors_A = current_processors_A;
+		current_processors_A = processors_A[current_virtual_mode];
 		
 		//update GPU parameters
-		previous_GPUs = current_GPUs;
-		current_GPUs = GPUs[current_virtual_mode];
+		previous_processors_B = current_processors_B;
+		current_processors_B = processors_B[current_virtual_mode];
 
 		//update CPU C parameters
-		previous_CPUs_C = current_CPUs_C;
-		current_CPUs_C = CPUs_C[current_virtual_mode];
+		previous_processors_C = current_processors_C;
+		current_processors_C = processors_C[current_virtual_mode];
 
 		//update GPU D parameters
-		previous_GPUs_D = current_GPUs_D;
-		current_GPUs_D = GPUs_D[current_virtual_mode];
+		previous_processors_D = current_processors_D;
+		current_processors_D = processors_D[current_virtual_mode];
 
 		//update the changeable flag
 		changeable = (disable) ? false : true;
@@ -742,12 +742,12 @@ void TaskData::reset_changeable(){
 	changeable = true;
 }
 
-int TaskData::get_permanent_CPU(){
-	return permanent_CPU;
+int TaskData::get_permanent_processor_A(){
+	return permanent_processor_A;
 }
 	
-void TaskData::set_permanent_CPU(int perm){
-	permanent_CPU = perm;
+void TaskData::set_permanent_processor_A(int perm){
+	permanent_processor_A = perm;
 }
 
 int TaskData::get_num_adaptations(){
@@ -770,48 +770,48 @@ timespec TaskData::get_period(int index){
 	return period[index];
 }
 
-int TaskData::get_CPUs(int index){
-	return CPUs[index];
+int TaskData::get_processors_A(int index){
+	return processors_A[index];
 }
 
-bool TaskData::pure_cpu_task(){
-	return is_pure_cpu_task;
+bool TaskData::pure_A_task(){
+	return is_pure_A_task;
 }
 
 int TaskData::get_original_modes_passed(){
 	return modes_originally_passed;
 }
 
-void TaskData::set_CPUs_change(int num_cpus_to_return){
-	cpus_to_return = num_cpus_to_return;
+void TaskData::set_processors_A_change(int num_processors_A_to_return){
+	processors_A_to_return = num_processors_A_to_return;
 }
 
-void TaskData::set_GPUs_change(int num_gpus_to_return){
-	gpus_to_return = num_gpus_to_return;
+void TaskData::set_processors_B_change(int num_processors_B_to_return){
+	processors_B_to_return = num_processors_B_to_return;
 }
 
-void TaskData::set_CPUs_C_change(int num_cpus_C_to_return){
-	cpus_C_to_return = num_cpus_C_to_return;
+void TaskData::set_processors_C_change(int num_processors_C_to_return){
+	processors_C_to_return = num_processors_C_to_return;
 }
 
-void TaskData::set_GPUs_D_change(int num_gpus_D_to_return){
-	gpus_D_to_return = num_gpus_D_to_return;
+void TaskData::set_processors_D_change(int num_processors_D_to_return){
+	processors_D_to_return = num_processors_D_to_return;
 }
 
-int TaskData::get_CPUs_change(){
-	return cpus_to_return;
+int TaskData::get_processors_A_change(){
+	return processors_A_to_return;
 }
 
-int TaskData::get_GPUs_change(){
-	return gpus_to_return;
+int TaskData::get_processors_B_change(){
+	return processors_B_to_return;
 }
 
-int TaskData::get_CPUs_C_change(){
-	return cpus_C_to_return;
+int TaskData::get_processors_C_change(){
+	return processors_C_to_return;
 }
 
-int TaskData::get_GPUs_D_change(){
-	return gpus_D_to_return;
+int TaskData::get_processors_D_change(){
+	return processors_D_to_return;
 }
 
 bool TaskData::check_mode_transition(){
@@ -822,9 +822,9 @@ void TaskData::set_mode_transition(bool state){
 	mode_transitioned = state;
 }
 
-int TaskData::pop_back_cpu(){
+int TaskData::pop_back_processor_A(){
     // Handle empty vector case
-    if (CPU_mask == 0) {
+    if (processor_A_mask == 0) {
         return -1;
     }
 
@@ -832,32 +832,32 @@ int TaskData::pop_back_cpu(){
     __uint128_t test_bit = (__uint128_t)1 << 127;
 
     // Find the most significant 1 bit
-    while ((CPU_mask & test_bit) == 0) {
+    while ((processor_A_mask & test_bit) == 0) {
         msb--;
         test_bit >>= 1;
     }
 
 	//check if it's our permanent
-	if (msb == get_permanent_CPU()){
+	if (msb == get_permanent_processor_A()){
 		//skip the current bit
 		msb--;
 		test_bit >>= 1;
 
-		while ((CPU_mask & test_bit) == 0) {
+		while ((processor_A_mask & test_bit) == 0) {
 			msb--;
 			test_bit >>= 1;
 		}
 	}
 
     // Clear the MSB
-    CPU_mask ^= test_bit;
+    processor_A_mask ^= test_bit;
 
     return msb;
 }
 
-int TaskData::pop_back_gpu(){
+int TaskData::pop_back_processor_B(){
     // Handle empty vector case
-    if (TPC_mask == 0) {
+    if (processor_B_mask == 0) {
         return -1;
     }
 
@@ -865,18 +865,18 @@ int TaskData::pop_back_gpu(){
     __uint128_t test_bit = (__uint128_t)1 << 127;
 
     // Find the most significant 1 bit
-    while ((TPC_mask & test_bit) == 0) {
+    while ((processor_B_mask & test_bit) == 0) {
         msb--;
         test_bit >>= 1;
     }
 
     // Clear the MSB
-    TPC_mask ^= test_bit;
+    processor_B_mask ^= test_bit;
 
     return msb;
 }
 
-int TaskData::push_back_cpu(int value){
+int TaskData::push_back_processor_A(int value){
     // Check if value is in valid range
     if (value < 0 || value > 127) {
         return false;
@@ -884,16 +884,16 @@ int TaskData::push_back_cpu(int value){
     
     // Check if bit is already set
     __uint128_t bit = (__uint128_t)1 << value;
-    if (CPU_mask & bit) {
+    if (processor_A_mask & bit) {
         return false;
     }
     
     // Set the bit
-    CPU_mask |= bit;
+    processor_A_mask |= bit;
     return true;
 }
 
-int TaskData::push_back_gpu(int value){
+int TaskData::push_back_processor_B(int value){
     // Check if value is in valid range
     if (value < 0 || value > 127) {
         return false;
@@ -901,28 +901,28 @@ int TaskData::push_back_gpu(int value){
     
     // Check if bit is already set
     __uint128_t bit = (__uint128_t)1 << value;
-    if (TPC_mask & bit) {
+    if (processor_B_mask & bit) {
         return false;
     }
     
     // Set the bit
-    TPC_mask |= bit;
+    processor_B_mask |= bit;
     return true;
 }
 
-int TaskData::pop_back_cpu_C(){
+int TaskData::pop_back_processor_C(){
     // Find the highest set bit and clear it
     for (int i = 127; i >= 0; i--) {
         __uint128_t bit = (__uint128_t)1 << i;
-        if (CPU_C_mask & bit) {
-            CPU_C_mask &= ~bit;
+        if (processor_C_mask & bit) {
+            processor_C_mask &= ~bit;
             return i;
         }
     }
     return -1; // No bits set
 }
 
-int TaskData::push_back_cpu_C(int value){
+int TaskData::push_back_processor_C(int value){
     // Check if value is in valid range
     if (value < 0 || value > 127) {
         return false;
@@ -930,28 +930,28 @@ int TaskData::push_back_cpu_C(int value){
     
     // Check if bit is already set
     __uint128_t bit = (__uint128_t)1 << value;
-    if (CPU_C_mask & bit) {
+    if (processor_C_mask & bit) {
         return false;
     }
     
     // Set the bit
-    CPU_C_mask |= bit;
+    processor_C_mask |= bit;
     return true;
 }
 
-int TaskData::pop_back_gpu_D(){
+int TaskData::pop_back_processor_D(){
     // Find the highest set bit and clear it
     for (int i = 127; i >= 0; i--) {
         __uint128_t bit = (__uint128_t)1 << i;
-        if (GPU_D_mask & bit) {
-            GPU_D_mask &= ~bit;
+        if (processor_D_mask & bit) {
+            processor_D_mask &= ~bit;
             return i;
         }
     }
     return -1; // No bits set
 }
 
-int TaskData::push_back_gpu_D(int value){
+int TaskData::push_back_processor_D(int value){
     // Check if value is in valid range
     if (value < 0 || value > 127) {
         return false;
@@ -959,123 +959,123 @@ int TaskData::push_back_gpu_D(int value){
     
     // Check if bit is already set
     __uint128_t bit = (__uint128_t)1 << value;
-    if (GPU_D_mask & bit) {
+    if (processor_D_mask & bit) {
         return false;
     }
     
     // Set the bit
-    GPU_D_mask |= bit;
+    processor_D_mask |= bit;
     return true;
 }
 
-std::vector<int> TaskData::get_cpu_owned_by_process(){
+std::vector<int> TaskData::get_processor_A_owned_by_process(){
     std::vector<int> result;
     result.reserve(128);
     
     for (int i = 0; i < 128; i++) {
-        if (CPU_mask & ((__uint128_t)1 << i)) {
-			//do not allow our permanent CPU to be returned as
-			//a cpu we can pass or keep
-			if (i != get_permanent_CPU())
+        if (processor_A_mask & ((__uint128_t)1 << i)) {
+			//do not allow our permanent processor A to be returned as
+			//a processor A we can pass or keep
+			if (i != get_permanent_processor_A())
             	result.push_back(i);
         }
     }
     return result;
 }
 
-std::vector<int> TaskData::get_gpu_owned_by_process(){
+std::vector<int> TaskData::get_processor_B_owned_by_process(){
 
-	//loop over our TPC mask and if a bit is set to 1, add it to the vector
-	std::vector<int> TPCS_owned_by_task;
+	//loop over our processor B mask and if a bit is set to 1, add it to the vector
+	std::vector<int> processors_B_owned_by_task;
 
 	for (int i = 0; i < 128; i++){
 
-		if (TPC_mask & ((__uint128_t)1 << i)) {
+		if (processor_B_mask & ((__uint128_t)1 << i)) {
 
-			TPCS_owned_by_task.push_back(i);
+			processors_B_owned_by_task.push_back(i);
 
 		}
 	}
 
-	return TPCS_owned_by_task;
+	return processors_B_owned_by_task;
 
 }
 
-std::vector<int> TaskData::get_cpu_C_owned_by_process(){
+std::vector<int> TaskData::get_processor_C_owned_by_process(){
     std::vector<int> result;
     result.reserve(128);
     
     for (int i = 0; i < 128; i++) {
-        if (CPU_C_mask & ((__uint128_t)1 << i)) {
+        if (processor_C_mask & ((__uint128_t)1 << i)) {
             result.push_back(i);
         }
     }
     return result;
 }
 
-std::vector<int> TaskData::get_gpu_D_owned_by_process(){
+std::vector<int> TaskData::get_processor_D_owned_by_process(){
 
-	//loop over our GPU D mask and if a bit is set to 1, add it to the vector
-	std::vector<int> GPUS_D_owned_by_task;
+	//loop over our processor D mask and if a bit is set to 1, add it to the vector
+	std::vector<int> processors_D_owned_by_task;
 
 	for (int i = 0; i < 128; i++){
 
-		if (GPU_D_mask & ((__uint128_t)1 << i)) {
+		if (processor_D_mask & ((__uint128_t)1 << i)) {
 
-			GPUS_D_owned_by_task.push_back(i);
+			processors_D_owned_by_task.push_back(i);
 
 		}
 	}
 
-	return GPUS_D_owned_by_task;
+	return processors_D_owned_by_task;
 
 }
 
-//retrieve the number of CPUs or GPUs we have been given	
-std::vector<std::pair<int, std::vector<int>>> TaskData::get_cpus_granted_from_other_tasks(){
+//retrieve the number of processor A or processor B we have been given	
+std::vector<std::pair<int, std::vector<int>>> TaskData::get_processors_A_granted_from_other_tasks(){
 
-	std::vector<std::pair<int, std::vector<int>>> returning_cpus_granted_from_other_tasks;
+	std::vector<std::pair<int, std::vector<int>>> returning_processors_A_granted_from_other_tasks;
 
 	//stupid conversion to make the vectors
 	for (int i = 0; i < MAXTASKS + 1; i++){
-		if (cpus_granted_from_other_tasks[i][0] != -1){
+		if (processors_A_granted_from_other_tasks[i][0] != -1){
 
 			auto current = std::make_pair(i, std::vector<int>());
 
-			for (int j = 1; j < cpus_granted_from_other_tasks[i][0] + 1; j++)
-				current.second.push_back(cpus_granted_from_other_tasks[i][j]);
+			for (int j = 1; j < processors_A_granted_from_other_tasks[i][0] + 1; j++)
+				current.second.push_back(processors_A_granted_from_other_tasks[i][j]);
 
-			returning_cpus_granted_from_other_tasks.push_back(current);
+			returning_processors_A_granted_from_other_tasks.push_back(current);
 
 		}
 
 	}
 
-	return returning_cpus_granted_from_other_tasks;
+	return returning_processors_A_granted_from_other_tasks;
 
 }
 
-std::vector<std::pair<int, std::vector<int>>> TaskData::get_gpus_granted_from_other_tasks(){
+std::vector<std::pair<int, std::vector<int>>> TaskData::get_processors_B_granted_from_other_tasks(){
 
 	std::vector<std::pair<int, std::vector<int>>> result;
 
 	for (int i = 0; i < MAXTASKS + 1; i++){
 
-		if (gpus_granted_from_other_tasks[i][0] != -1){
+		if (processors_B_granted_from_other_tasks[i][0] != -1){
 
-			std::vector<int> gpus;
+			std::vector<int> processors_B;
 
 			for (int j = 1; j < NUM_PROCESSOR_B + 1; j++){
 
-				if (gpus_granted_from_other_tasks[i][j] != -1){
+				if (processors_B_granted_from_other_tasks[i][j] != -1){
 
-					gpus.push_back(gpus_granted_from_other_tasks[i][j]);
+					processors_B.push_back(processors_B_granted_from_other_tasks[i][j]);
 
 				}
 
 			}
 
-			result.push_back(std::make_pair(i, gpus));
+			result.push_back(std::make_pair(i, processors_B));
 
 		}
 
@@ -1085,27 +1085,27 @@ std::vector<std::pair<int, std::vector<int>>> TaskData::get_gpus_granted_from_ot
 
 }
 
-std::vector<std::pair<int, std::vector<int>>> TaskData::get_cpus_C_granted_from_other_tasks(){
+std::vector<std::pair<int, std::vector<int>>> TaskData::get_processors_C_granted_from_other_tasks(){
 
 	std::vector<std::pair<int, std::vector<int>>> result;
 
 	for (int i = 0; i < MAXTASKS + 1; i++){
 
-		if (cpus_C_granted_from_other_tasks[i][0] != -1){
+		if (processors_C_granted_from_other_tasks[i][0] != -1){
 
-			std::vector<int> cpus_C;
+			std::vector<int> processors_C;
 
 			for (int j = 1; j < NUM_PROCESSOR_C + 1; j++){
 
-				if (cpus_C_granted_from_other_tasks[i][j] != -1){
+				if (processors_C_granted_from_other_tasks[i][j] != -1){
 
-					cpus_C.push_back(cpus_C_granted_from_other_tasks[i][j]);
+					processors_C.push_back(processors_C_granted_from_other_tasks[i][j]);
 
 				}
 
 			}
 
-			result.push_back(std::make_pair(i, cpus_C));
+			result.push_back(std::make_pair(i, processors_C));
 
 		}
 
@@ -1115,27 +1115,27 @@ std::vector<std::pair<int, std::vector<int>>> TaskData::get_cpus_C_granted_from_
 
 }
 
-std::vector<std::pair<int, std::vector<int>>> TaskData::get_gpus_D_granted_from_other_tasks(){
+std::vector<std::pair<int, std::vector<int>>> TaskData::get_processors_D_granted_from_other_tasks(){
 
 	std::vector<std::pair<int, std::vector<int>>> result;
 
 	for (int i = 0; i < MAXTASKS + 1; i++){
 
-		if (gpus_D_granted_from_other_tasks[i][0] != -1){
+		if (processors_D_granted_from_other_tasks[i][0] != -1){
 
-			std::vector<int> gpus_D;
+			std::vector<int> processors_D;
 
 			for (int j = 1; j < NUM_PROCESSOR_D + 1; j++){
 
-				if (gpus_D_granted_from_other_tasks[i][j] != -1){
+				if (processors_D_granted_from_other_tasks[i][j] != -1){
 
-					gpus_D.push_back(gpus_D_granted_from_other_tasks[i][j]);
+					processors_D.push_back(processors_D_granted_from_other_tasks[i][j]);
 
 				}
 
 			}
 
-			result.push_back(std::make_pair(i, gpus_D));
+			result.push_back(std::make_pair(i, processors_D));
 
 		}
 
@@ -1306,7 +1306,7 @@ bool TaskData::get_processors_granted_from_other_tasks(){
 
 }
 
-void TaskData::set_cpus_to_send_to_other_processes(std::pair<int, int> entry){
+void TaskData::set_processors_A_to_send_to_other_processes(std::pair<int, int> entry){
 
 	//send message into queue 2
 	struct queue_two_message message;
@@ -1319,9 +1319,9 @@ void TaskData::set_cpus_to_send_to_other_processes(std::pair<int, int> entry){
 	//always grabs from the back of the vector
 	for (int i = 0; i < entry.second; i++){
 
-		int cpus_selected_to_send = pop_back_cpu();
+		int processors_A_selected_to_send = pop_back_processor_A();
 
-		message.processors |= ((__uint128_t)1 << cpus_selected_to_send);
+		message.processors |= ((__uint128_t)1 << processors_A_selected_to_send);
 	}
 
 	if (msgsnd(queue_two, &message, sizeof(message) - sizeof(long), 0) == -1){
@@ -1333,7 +1333,7 @@ void TaskData::set_cpus_to_send_to_other_processes(std::pair<int, int> entry){
 
 }
 
-void TaskData::set_gpus_to_send_to_other_processes(std::pair<int, int> entry){
+void TaskData::set_processors_B_to_send_to_other_processes(std::pair<int, int> entry){
 
 	//send message into queue 2
 	struct queue_two_message message;
@@ -1346,11 +1346,11 @@ void TaskData::set_gpus_to_send_to_other_processes(std::pair<int, int> entry){
 	//always grabs from the back of the vector
 	for (int i = 0; i < entry.second; i++){
 
-		int gpus_selected_to_send = pop_back_gpu();
+		int processors_B_selected_to_send = pop_back_processor_B();
 
-		//std::cerr << "Task " << get_index() << " is sending GPU " << gpus_selected_to_send << " to task " << entry.first << ".\n";
+		//std::cerr << "Task " << get_index() << " is sending processor B " << processors_B_selected_to_send << " to task " << entry.first << ".\n";
 
-		message.processors |= ((__uint128_t)1 << gpus_selected_to_send);
+		message.processors |= ((__uint128_t)1 << processors_B_selected_to_send);
 
 	}
 
@@ -1363,7 +1363,7 @@ void TaskData::set_gpus_to_send_to_other_processes(std::pair<int, int> entry){
 
 }
 
-void TaskData::set_cpus_C_to_send_to_other_processes(std::pair<int, int> entry){
+void TaskData::set_processors_C_to_send_to_other_processes(std::pair<int, int> entry){
 
 	//send message into queue 2
 	struct queue_two_message message;
@@ -1376,9 +1376,9 @@ void TaskData::set_cpus_C_to_send_to_other_processes(std::pair<int, int> entry){
 	//always grabs from the back of the vector
 	for (int i = 0; i < entry.second; i++){
 
-		int cpus_C_selected_to_send = pop_back_cpu_C();
+		int processors_C_selected_to_send = pop_back_processor_C();
 
-		message.processors |= ((__uint128_t)1 << cpus_C_selected_to_send);
+		message.processors |= ((__uint128_t)1 << processors_C_selected_to_send);
 
 	}
 
@@ -1391,7 +1391,7 @@ void TaskData::set_cpus_C_to_send_to_other_processes(std::pair<int, int> entry){
 
 }
 
-void TaskData::set_gpus_D_to_send_to_other_processes(std::pair<int, int> entry){
+void TaskData::set_processors_D_to_send_to_other_processes(std::pair<int, int> entry){
 
 	//send message into queue 2
 	struct queue_two_message message;
@@ -1404,9 +1404,9 @@ void TaskData::set_gpus_D_to_send_to_other_processes(std::pair<int, int> entry){
 	//always grabs from the back of the vector
 	for (int i = 0; i < entry.second; i++){
 
-		int gpus_D_selected_to_send = pop_back_gpu_D();
+		int processors_D_selected_to_send = pop_back_processor_D();
 
-		message.processors |= ((__uint128_t)1 << gpus_D_selected_to_send);
+		message.processors |= ((__uint128_t)1 << processors_D_selected_to_send);
 
 	}
 
@@ -1422,10 +1422,10 @@ void TaskData::set_gpus_D_to_send_to_other_processes(std::pair<int, int> entry){
 void TaskData::acquire_all_processors(){
 	
 	//if we have been given processors, then we can acquire them
-	CPU_mask |= processors_A_received;
-	TPC_mask |= processors_B_received;
-	CPU_C_mask |= processors_C_received;
-	GPU_D_mask |= processors_D_received;
+	processor_A_mask |= processors_A_received;
+	processor_B_mask |= processors_B_received;
+	processor_C_mask |= processors_C_received;
+	processor_D_mask |= processors_D_received;
 
 	//clear the variables
 	processors_A_received = 0;
@@ -1443,35 +1443,35 @@ void TaskData::give_processors_to_other_tasks(){
 
 	while (msgrcv(queue_three, &message, sizeof(message) - sizeof(long), get_index() + 1, IPC_NOWAIT) != -1){
 
-		//if the message is for CPUs
+		//if the message is for processors A
 		if (message.processor_type == 0){
 
-			set_cpus_to_send_to_other_processes(std::make_pair(message.task_index, message.processor_ct));
+			set_processors_A_to_send_to_other_processes(std::make_pair(message.task_index, message.processor_ct));
 
-			//std::cerr<< "Task " << get_index() << " is giving " << message.processor_ct << " CPUs to task " << message.task_index << ".\n";
+			//std::cerr<< "Task " << get_index() << " is giving " << message.processor_ct << " processors A to task " << message.task_index << ".\n";
 
 		}
 
-		//if the message is for GPUs
+		//if the message is for processors B
 		else if (message.processor_type == 1){
 
-			set_gpus_to_send_to_other_processes(std::make_pair(message.task_index, message.processor_ct));
+			set_processors_B_to_send_to_other_processes(std::make_pair(message.task_index, message.processor_ct));
 
-			//std::cerr<< "Task " << get_index() << " is giving " << message.processor_ct << " GPUs to task " << message.task_index << ".\n";
+			//std::cerr<< "Task " << get_index() << " is giving " << message.processor_ct << " processors B to task " << message.task_index << ".\n";
 
 		}
 
-		//if the message is for CPUs C
+		//if the message is for processors C
 		else if (message.processor_type == 2){
 
-			set_cpus_C_to_send_to_other_processes(std::make_pair(message.task_index, message.processor_ct));
+			set_processors_C_to_send_to_other_processes(std::make_pair(message.task_index, message.processor_ct));
 
 		}
 
-		//if the message is for GPUs D
+		//if the message is for processors D
 		else if (message.processor_type == 3){
 
-			set_gpus_D_to_send_to_other_processes(std::make_pair(message.task_index, message.processor_ct));
+			set_processors_D_to_send_to_other_processes(std::make_pair(message.task_index, message.processor_ct));
 
 		}
 
@@ -1482,31 +1482,31 @@ void TaskData::give_processors_to_other_tasks(){
 }
 
 //make a function which clears these vectors like they are cleared in the constructor
-void TaskData::clear_cpus_granted_from_other_tasks(){
+void TaskData::clear_processors_A_granted_from_other_tasks(){
 
 	for (size_t i = 0; i < MAXTASKS + 1; i++)
-		cpus_granted_from_other_tasks[i][0] = -1;
+		processors_A_granted_from_other_tasks[i][0] = -1;
 
 }
 
-void TaskData::clear_gpus_granted_from_other_tasks(){
+void TaskData::clear_processors_B_granted_from_other_tasks(){
 
 	for (size_t i = 0; i < MAXTASKS + 1; i++)
-		gpus_granted_from_other_tasks[i][0] = -1;
+		processors_B_granted_from_other_tasks[i][0] = -1;
 
 }
 
-void TaskData::clear_cpus_C_granted_from_other_tasks(){
+void TaskData::clear_processors_C_granted_from_other_tasks(){
 
 	for (size_t i = 0; i < MAXTASKS + 1; i++)
-		cpus_C_granted_from_other_tasks[i][0] = -1;
+		processors_C_granted_from_other_tasks[i][0] = -1;
 
 }
 
-void TaskData::clear_gpus_D_granted_from_other_tasks(){
+void TaskData::clear_processors_D_granted_from_other_tasks(){
 
 	for (size_t i = 0; i < MAXTASKS + 1; i++)
-		gpus_D_granted_from_other_tasks[i][0] = -1;
+		processors_D_granted_from_other_tasks[i][0] = -1;
 
 }
 
@@ -1535,27 +1535,23 @@ void TaskData::set_real_current_mode(int new_mode, bool disable){
 
 }
 
-__uint128_t TaskData::get_cpu_mask() {
+__uint128_t TaskData::get_processor_A_mask() {
+	return processor_A_mask;
+}
+
+__uint128_t TaskData::get_processor_B_mask() {
+	return processor_B_mask;
+}
+
+__uint128_t TaskData::get_processor_C_mask() {
 	
-	return CPU_mask;
+	return processor_C_mask;
 
 }
 
-__uint128_t TaskData::get_gpu_mask() {
+__uint128_t TaskData::get_processor_D_mask() {
 	
-	return TPC_mask;
-
-}
-
-__uint128_t TaskData::get_cpu_C_mask() {
-	
-	return CPU_C_mask;
-
-}
-
-__uint128_t TaskData::get_gpu_D_mask() {
-	
-	return GPU_D_mask;
+	return processor_D_mask;
 
 }
 

@@ -55,8 +55,8 @@ class TaskData{
 
 private:
 
-	//variable to track if this task is a pure CPU task
-	bool is_pure_cpu_task = true;
+	//variable to track if this task is a pure A processor task
+	bool is_pure_A_task = true;
 
 	//variable to track if the task is combinatorially elastic
 	bool combinatorially_elastic = false;
@@ -74,22 +74,22 @@ private:
 	timespec work[MAXMODES];
 	timespec span[MAXMODES];
 	timespec period[MAXMODES];
-	int CPUs[MAXMODES];
+	int processors_A[MAXMODES];
 
-	timespec GPU_work[MAXMODES];
-	timespec GPU_span[MAXMODES];
-	timespec GPU_period[MAXMODES];
-	int GPUs[MAXMODES];
+	timespec processor_B_work[MAXMODES];
+	timespec processor_B_span[MAXMODES];
+	timespec processor_B_period[MAXMODES];
+	int processors_B[MAXMODES];
 
-	timespec CPU_C_work[MAXMODES];
-	timespec CPU_C_span[MAXMODES];
-	timespec CPU_C_period[MAXMODES];
-	int CPUs_C[MAXMODES];
+	timespec processor_C_work[MAXMODES];
+	timespec processor_C_span[MAXMODES];
+	timespec processor_C_period[MAXMODES];
+	int processors_C[MAXMODES];
 
-	timespec GPU_D_work[MAXMODES];
-	timespec GPU_D_span[MAXMODES];
-	timespec GPU_D_period[MAXMODES];
-	int GPUs_D[MAXMODES];
+	timespec processor_D_work[MAXMODES];
+	timespec processor_D_span[MAXMODES];
+	timespec processor_D_period[MAXMODES];
+	int processors_D[MAXMODES];
 
 	int owning_modes[MAXMODES];
 
@@ -100,34 +100,34 @@ private:
 
 	//These are computed.
 	double max_utilization;
-	int max_CPUs;
-	int min_CPUs;
+	int max_processors_A;
+	int min_processors_A;
 
-	int max_GPUs;
-	int min_GPUs;
+	int max_processors_B;
+	int min_processors_B;
 
-	int max_CPUs_C;
-	int min_CPUs_C;
+	int max_processors_C;
+	int min_processors_C;
 
-	int max_GPUs_D;
-	int min_GPUs_D;
+	int max_processors_D;
+	int min_processors_D;
 
-	int CPUs_gained;
-	int GPUs_gained;
-	int CPUs_C_gained;
-	int GPUs_D_gained;
+	int processors_A_gained;
+	int processors_B_gained;
+	int processors_C_gained;
+	int processors_D_gained;
 
-	int practical_max_CPUs;	
-	int current_lowest_CPU;
+	int practical_max_processors_A;	
+	int current_lowest_processor_A;
 
-	int practical_max_GPUs;	
-	int current_lowest_GPU = 0;
+	int practical_max_processors_B;	
+	int current_lowest_processor_B = 0;
 
-	int practical_max_CPUs_C;	
-	int current_lowest_CPU_C;
+	int practical_max_processors_C;	
+	int current_lowest_processor_C;
 
-	int practical_max_GPUs_D;	
-	int current_lowest_GPU_D = 0;
+	int practical_max_processors_D;	
+	int current_lowest_processor_D = 0;
 
 	double percentage_workload;
 
@@ -136,19 +136,19 @@ private:
 	timespec current_span;
 	double current_utilization;
 
-	int current_CPUs;
-	int previous_CPUs;
+	int current_processors_A;
+	int previous_processors_A;
 
-	int current_GPUs;
-	int previous_GPUs;
+	int current_processors_B;
+	int previous_processors_B;
 
-	int current_CPUs_C;
-	int previous_CPUs_C;
+	int current_processors_C;
+	int previous_processors_C;
 
-	int current_GPUs_D;
-	int previous_GPUs_D;
+	int current_processors_D;
+	int previous_processors_D;
 
-	int permanent_CPU;
+	int permanent_processor_A;
 
 	int current_logical_mode;
 	timespec max_work;
@@ -159,35 +159,35 @@ private:
 
 	int number_of_modes = 0;
 
-	//TPC mask
-	__uint128_t TPC_mask = 0;
+	//processor B mask
+	__uint128_t processor_B_mask = 0;
 
-	//CPU core mask
-	__uint128_t CPU_mask = 0;
+	//processor A mask
+	__uint128_t processor_A_mask = 0;
 
-	//CPU C core mask
-	__uint128_t CPU_C_mask = 0;
+	//processor C mask
+	__uint128_t processor_C_mask = 0;
 
-	//GPU D mask
-	__uint128_t GPU_D_mask = 0;
+	//processor D mask
+	__uint128_t processor_D_mask = 0;
 
 	//updated variables
 	bool mode_transitioned = false;
 
 	//these variables are set by the scheduler to denote
 	//how many of our resources we are supposed to return
-	int cpus_to_return = 0;
-	int gpus_to_return = 0;
-	int cpus_C_to_return = 0;
-	int gpus_D_to_return = 0;
+	int processors_A_to_return = 0;
+	int processors_B_to_return = 0;
+	int processors_C_to_return = 0;
+	int processors_D_to_return = 0;
 
 	//these denote the number of tasks we are looking for
 	//when we are collecting our resources. The scheduler 
 	//will use these more than we will as tasks
-	int other_tasks_giving_cpus = 0;
-	int other_tasks_giving_gpus = 0;
-	int other_tasks_giving_cpus_C = 0;
-	int other_tasks_giving_gpus_D = 0;
+	int other_tasks_giving_processors_A = 0;
+	int other_tasks_giving_processors_B = 0;
+	int other_tasks_giving_processors_C = 0;
+	int other_tasks_giving_processors_D = 0;
 
 	//these are the indicies of processors we are gaining
 	//and which processors they came from
@@ -195,10 +195,10 @@ private:
 	//the position MAXTASKS + 1 is the free resource pool
 	//it is treated as a task for no reason other than 
 	//consistency
-	int cpus_granted_from_other_tasks [MAXTASKS + 1][NUM_PROCESSOR_A + 1];
-	int gpus_granted_from_other_tasks [MAXTASKS + 1][NUM_PROCESSOR_B + 1];
-	int cpus_C_granted_from_other_tasks [MAXTASKS + 1][NUM_PROCESSOR_C + 1];
-	int gpus_D_granted_from_other_tasks [MAXTASKS + 1][NUM_PROCESSOR_D + 1];
+	int processors_A_granted_from_other_tasks [MAXTASKS + 1][NUM_PROCESSOR_A + 1];
+	int processors_B_granted_from_other_tasks [MAXTASKS + 1][NUM_PROCESSOR_B + 1];
+	int processors_C_granted_from_other_tasks [MAXTASKS + 1][NUM_PROCESSOR_C + 1];
+	int processors_D_granted_from_other_tasks [MAXTASKS + 1][NUM_PROCESSOR_D + 1];
 
 	//message queue ids used for resource exchange
 	int queue_one;
@@ -219,7 +219,7 @@ private:
 
 public:
 
-	TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, timespec * cpu_C_work_, timespec * cpu_C_span_, timespec * cpu_C_period_, timespec * gpu_D_work_, timespec * gpu_D_span_, timespec * gpu_D_period_, bool safe);
+	TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * processor_B_work_, timespec * processor_B_span_, timespec * processor_B_period_, timespec * processor_C_work_, timespec * processor_C_span_, timespec * processor_C_period_, timespec * processor_D_work_, timespec * processor_D_span_, timespec * processor_D_period_, bool safe);
 
 	TaskData();
 
@@ -233,33 +233,33 @@ public:
 	bool get_changeable();
 	
 	double get_max_utilization();
-	int get_max_CPUs();
-	int get_min_CPUs();
+	int get_max_processors_A();
+	int get_min_processors_A();
 
 	int get_real_mode(int mode);
 	int get_number_of_modes();
 
-	int get_practical_max_CPUs();
-	void set_practical_max_CPUs(int new_value);
+	int get_practical_max_processors_A();
+	void set_practical_max_processors_A(int new_value);
 
 	timespec get_current_period();
 	timespec get_current_work();
 	timespec get_current_span();
 
-	int get_current_CPUs();
-	int get_current_lowest_CPU();
+	int get_current_processors_A();
+	int get_current_lowest_processor_A();
 	
-	int get_CPUs_gained();
-	void set_CPUs_gained(int new_CPUs_gained);
+	int get_processors_A_gained();
+	void set_processors_A_gained(int new_processors_A_gained);
 
 	void set_current_virtual_mode(int new_mode, bool disable);
 	int get_current_virtual_mode();
 
 	void reset_changeable();
-	void set_current_lowest_CPU(int _lowest);
+	void set_current_lowest_processor_A(int _lowest);
 
-	int get_permanent_CPU();
-	void set_permanent_CPU(int perm);
+	int get_permanent_processor_A();
+	void set_permanent_processor_A(int perm);
 	
 	int get_num_adaptations();
 	void set_num_adaptations(int new_num);
@@ -267,83 +267,83 @@ public:
 	timespec get_work(int index);
 	timespec get_span(int index);
 	timespec get_period(int index);
-	int get_CPUs(int index);
+	int get_processors_A(int index);
 
-	//GPU functions that can be compiled regardless of compiler
-	timespec get_GPU_work(int index);
-	timespec get_GPU_span(int index);
-	timespec get_GPU_period(int index);
+	//processor B functions that can be compiled regardless of compiler
+	timespec get_processor_B_work(int index);
+	timespec get_processor_B_span(int index);
+	timespec get_processor_B_period(int index);
 
-	int get_GPUs(int index);
-	int get_max_GPUs();
-	int get_min_GPUs();
-	int get_current_GPUs();
+	int get_processors_B(int index);
+	int get_max_processors_B();
+	int get_min_processors_B();
+	int get_current_processors_B();
 
-	//CPU C functions that can be compiled regardless of compiler
-	timespec get_CPU_C_work(int index);
-	timespec get_CPU_C_span(int index);
-	timespec get_CPU_C_period(int index);
-	int get_CPUs_C(int index);
+	//processor C functions that can be compiled regardless of compiler
+	timespec get_processor_C_work(int index);
+	timespec get_processor_C_span(int index);
+	timespec get_processor_C_period(int index);
+	int get_processors_C(int index);
 
-	//GPU D functions that can be compiled regardless of compiler
-	timespec get_GPU_D_work(int index);
-	timespec get_GPU_D_span(int index);
-	timespec get_GPU_D_period(int index);
-	int get_GPUs_D(int index);
+	//processor D functions that can be compiled regardless of compiler
+	timespec get_processor_D_work(int index);
+	timespec get_processor_D_span(int index);
+	timespec get_processor_D_period(int index);
+	int get_processors_D(int index);
 
-	int get_max_CPUs_C();
-	int get_min_CPUs_C();
-	int get_current_CPUs_C();
+	int get_max_processors_C();
+	int get_min_processors_C();
+	int get_current_processors_C();
 
-	int get_max_GPUs_D();
-	int get_min_GPUs_D();
-	int get_current_GPUs_D();
+	int get_max_processors_D();
+	int get_min_processors_D();
+	int get_current_processors_D();
 
-	void set_practical_max_GPUs(int new_value);
-	int get_practical_max_GPUs();
-	void set_current_lowest_GPU(int _lowest);
-	int get_current_lowest_GPU();
+	void set_practical_max_processors_B(int new_value);
+	int get_practical_max_processors_B();
+	void set_current_lowest_processor_B(int _lowest);
+	int get_current_lowest_processor_B();
 
-	void set_practical_max_CPUs_C(int new_value);
-	int get_practical_max_CPUs_C();
-	void set_current_lowest_CPU_C(int _lowest);
-	int get_current_lowest_CPU_C();
+	void set_practical_max_processors_C(int new_value);
+	int get_practical_max_processors_C();
+	void set_current_lowest_processor_C(int _lowest);
+	int get_current_lowest_processor_C();
 
-	void set_practical_max_GPUs_D(int new_value);
-	int get_practical_max_GPUs_D();
-	void set_current_lowest_GPU_D(int _lowest);
-	int get_current_lowest_GPU_D();
+	void set_practical_max_processors_D(int new_value);
+	int get_practical_max_processors_D();
+	void set_current_lowest_processor_D(int _lowest);
+	int get_current_lowest_processor_D();
 
-	int get_GPUs_gained();
-	void set_GPUs_gained(int new_GPUs_gained);
+	int get_processors_B_gained();
+	void set_processors_B_gained(int new_processors_B_gained);
 
-	int get_CPUs_C_gained();
-	void set_CPUs_C_gained(int new_CPUs_C_gained);
+	int get_processors_C_gained();
+	void set_processors_C_gained(int new_processors_C_gained);
 
-	int get_GPUs_D_gained();
-	void set_GPUs_D_gained(int new_GPUs_D_gained);
+	int get_processors_D_gained();
+	void set_processors_D_gained(int new_processors_D_gained);
 
-	bool pure_cpu_task();
+	bool pure_A_task();
 
-	//reworking all the CPU and GPU handoff functions
+	//reworking all the processor A and processor B handoff functions
 	//NOTE: all return functions will work from the 
-	//highest CPU/SM unit we have down until we run
-	//out of CPUs/SMs to return
-	void set_CPUs_change(int num_cpus_to_return);
+	//highest processor A/processor B unit we have down until we run
+	//out of processor A/processor B to return
+	void set_processors_A_change(int num_processors_A_to_return);
 
-	void set_GPUs_change(int num_gpus_to_return);
+	void set_processors_B_change(int num_processors_B_to_return);
 
-	void set_CPUs_C_change(int num_cpus_C_to_return);
+	void set_processors_C_change(int num_processors_C_to_return);
 
-	void set_GPUs_D_change(int num_gpus_D_to_return);
+	void set_processors_D_change(int num_processors_D_to_return);
 
-	int get_CPUs_change();
+	int get_processors_A_change();
 
-	int get_GPUs_change();
+	int get_processors_B_change();
 
-	int get_CPUs_C_change();
+	int get_processors_C_change();
 
-	int get_GPUs_D_change();
+	int get_processors_D_change();
 
 	int get_real_current_mode();
 	
@@ -357,67 +357,67 @@ public:
 
 	int get_original_modes_passed();
 
-	//functions to work with static vector of CPU indices
-	int pop_back_cpu();
+	//functions to work with static vector of processor A indices
+	int pop_back_processor_A();
 
-	int push_back_cpu(int index);
+	int push_back_processor_A(int index);
 
-	int pop_back_gpu();
+	int pop_back_processor_B();
 
-	int push_back_gpu(int index);
+	int push_back_processor_B(int index);
 
-	int pop_back_cpu_C();
+	int pop_back_processor_C();
 
-	int push_back_cpu_C(int index);
+	int push_back_processor_C(int index);
 
-	int pop_back_gpu_D();
+	int pop_back_processor_D();
 
-	int push_back_gpu_D(int index);
+	int push_back_processor_D(int index);
 
-	int get_cpu_at_index(int index);
+	int get_processor_A_at_index(int index);
 
-	std::vector<int> get_cpu_owned_by_process();
+	std::vector<int> get_processor_A_owned_by_process();
 
-	std::vector<int> get_gpu_owned_by_process();
+	std::vector<int> get_processor_B_owned_by_process();
 
-	std::vector<int> get_cpu_C_owned_by_process();
+	std::vector<int> get_processor_C_owned_by_process();
 
-	std::vector<int> get_gpu_D_owned_by_process();
+	std::vector<int> get_processor_D_owned_by_process();
 
-	//retrieve the number of CPUs or GPUs we have been given	
-	std::vector<std::pair<int, std::vector<int>>> get_cpus_granted_from_other_tasks();
+	//retrieve the number of processor A or processor B we have been given	
+	std::vector<std::pair<int, std::vector<int>>> get_processors_A_granted_from_other_tasks();
 
-	std::vector<std::pair<int, std::vector<int>>> get_gpus_granted_from_other_tasks();
+	std::vector<std::pair<int, std::vector<int>>> get_processors_B_granted_from_other_tasks();
 
-	std::vector<std::pair<int, std::vector<int>>> get_cpus_C_granted_from_other_tasks();
+	std::vector<std::pair<int, std::vector<int>>> get_processors_C_granted_from_other_tasks();
 
-	std::vector<std::pair<int, std::vector<int>>> get_gpus_D_granted_from_other_tasks();
+	std::vector<std::pair<int, std::vector<int>>> get_processors_D_granted_from_other_tasks();
 
-	//give CPUs or GPUs to another task
-	void set_cpus_to_send_to_other_processes(std::pair<int, int> entry);
+	//give processor A or processor B to another task
+	void set_processors_A_to_send_to_other_processes(std::pair<int, int> entry);
 
-	void set_gpus_to_send_to_other_processes(std::pair<int, int> entry);
+	void set_processors_B_to_send_to_other_processes(std::pair<int, int> entry);
 
-	void set_cpus_C_to_send_to_other_processes(std::pair<int, int> entry);
+	void set_processors_C_to_send_to_other_processes(std::pair<int, int> entry);
 
-	void set_gpus_D_to_send_to_other_processes(std::pair<int, int> entry);
+	void set_processors_D_to_send_to_other_processes(std::pair<int, int> entry);
 
 	//make a function which clears these vectors like they are cleared in the constructor
-	void clear_cpus_granted_from_other_tasks();
+	void clear_processors_A_granted_from_other_tasks();
 
-	void clear_gpus_granted_from_other_tasks();
+	void clear_processors_B_granted_from_other_tasks();
 
-	void clear_cpus_C_granted_from_other_tasks();
+	void clear_processors_C_granted_from_other_tasks();
 
-	void clear_gpus_D_granted_from_other_tasks();
+	void clear_processors_D_granted_from_other_tasks();
 
-	__uint128_t get_cpu_mask();
+	__uint128_t get_processor_A_mask();
 
-	__uint128_t get_gpu_mask();
+	__uint128_t get_processor_B_mask();
 
-	__uint128_t get_cpu_C_mask();
+	__uint128_t get_processor_C_mask();
 
-	__uint128_t get_gpu_D_mask();
+	__uint128_t get_processor_D_mask();
 
 	//function to get and set combinationally elastic
 	bool is_combinatorially_elastic();
