@@ -45,6 +45,12 @@ bool first_time = true;
 
 void update_core_B(__uint128_t mask) {
 
+    return;
+
+}
+
+void update_core_C(__uint128_t mask) {
+
     //for now just pretend
     return;
 
@@ -95,25 +101,18 @@ void update_core_B(__uint128_t mask) {
 
     //if first time, print sms
     #ifdef SM_PRINT
+    
         if (display_sms) {
 
             visualize_sm_partitions_interprocess(task_green_ctx, 1, "JAMESSM");
             display_sms = false;
             
         }
-    #endif
 
     #endif
 
-}
+    #endif
 
-void update_core_C(__uint128_t mask) {
-
-    //for now just pretend
-    return;
-
-    //example of how to use core C masks
-    //Similar to update_core_B but for processor type C
 }
 
 void update_core_D(__uint128_t mask) {

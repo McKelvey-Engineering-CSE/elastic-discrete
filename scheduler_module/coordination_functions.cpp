@@ -65,9 +65,6 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 
 		std::cout << "Mode "<< j << " Loss: " << item.cpuLoss << " Processor A: " << taskData_object->get_processors_A(j) << " Processor B: " << taskData_object->get_processors_B(j) << " Processor C: " << taskData_object->get_processors_C(j) << " Processor D: " << taskData_object->get_processors_D(j) << std::endl;
 
-		item.gpuLoss = 0;
-		item.cpuCLoss = 0;
-		item.gpuDLoss = 0;
 		item.processors_A = taskData_object->get_processors_A(j);
 		item.processors_B = taskData_object->get_processors_B(j);
 		item.processors_C = taskData_object->get_processors_C(j);
@@ -454,7 +451,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	}
 
-	pm::print(std::cerr, "[Starting Slack] Slack A: ", slack_A, " Slack B: ", slack_B, "\n");
+	pm::print(std::cerr, "[Starting Slack] Slack A: ", slack_A, " Slack B: ", slack_B, " Slack C: ", slack_C, " Slack D: ", slack_D, "\n");
 
 	#ifdef __NVCC__
 
@@ -666,9 +663,9 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		for (size_t i = 0; i < result.size(); i++)
 			previous_modes.at(i) = (task_table.at(i).at(result.at(i)));
 
-		int next_CPU = 1;
+		int next_processor_A = 1;
 
-		//Actually assign CPUs to tasks. Start with 1.
+		//Actually assign Processors A to tasks. Start with 1.
 		for (int i = 0; i < schedule.count(); i++){
 
 			if ((schedule.get_task(i))->get_current_lowest_processor_A() > 0){
@@ -679,12 +676,12 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			}
 
-			(schedule.get_task(i))->set_current_lowest_processor_A(next_CPU);
-			next_CPU += (schedule.get_task(i))->get_current_processors_A();
+			(schedule.get_task(i))->set_current_lowest_processor_A(next_processor_A);
+			next_processor_A += (schedule.get_task(i))->get_current_processors_A();
 
-			if (next_CPU > num_CPUs + 1){
+			if (next_processor_A > num_CPUs + 1){
 
-				print_module::print(std::cerr, "Error in task ", i, ": too many Processors A have been allocated.", next_CPU, " ", num_CPUs, " \n");
+				print_module::print(std::cerr, "Error in task ", i, ": too many Processors A have been allocated.", next_processor_A, " ", num_CPUs, " \n");
 				killpg(process_group, SIGINT);
 				return;
 
@@ -693,12 +690,11 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		}
 
 		//assign all the unassigned cpus to the scheduler to hold
-		for (int i = next_CPU; i < num_CPUs; i++)
+		for (int i = next_processor_A; i < num_CPUs; i++)
 			schedule.get_task(result.size())->push_back_processor_A(i);
 
-		//Now assign TPC units to tasks, same method as before
-		//(don't worry about holding TPC 1) 
-		int next_TPC = 0;
+		//Now assign Processors B to tasks, same method as before
+		int next_processor_B = 0;
 
 		for (int i = 0; i < schedule.count(); i++){
 
@@ -713,14 +709,14 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 			//if this task actually has any TPCs assigned
 			if (!(schedule.get_task(i))->pure_A_task()){
 
-				(schedule.get_task(i))->set_current_lowest_processor_B(next_TPC);
+				(schedule.get_task(i))->set_current_lowest_processor_B(next_processor_B);
 
 				for (int j = 0; j < (schedule.get_task(i))->get_current_processors_B(); j++)
-					(schedule.get_task(i))->push_back_processor_B(next_TPC ++);
+					(schedule.get_task(i))->push_back_processor_B(next_processor_B ++);
 
-				if (next_TPC > (int)(NUM_PROCESSOR_B) + 1){
+				if (next_processor_B > (int)(NUM_PROCESSOR_B) + 1){
 
-					print_module::print(std::cerr, "Error in task ", i, ": too many Processors B have been allocated.", next_TPC, " ", NUM_PROCESSOR_B, " \n");
+					print_module::print(std::cerr, "Error in task ", i, ": too many Processors B have been allocated.", next_processor_B, " ", NUM_PROCESSOR_B, " \n");
 					killpg(process_group, SIGINT);
 					return;
 
@@ -730,11 +726,11 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		}
 
 		//assign all the unassigned gpus to the scheduler to hold
-		for (int i = next_TPC; i < (int)(NUM_PROCESSOR_B); i++)
+		for (int i = next_processor_B; i < (int)(NUM_PROCESSOR_B); i++)
 			schedule.get_task(result.size())->push_back_processor_B(i);
 
-		//assign all the cpu_C units to tasks as needed
-		int next_CPU_C = 0;
+		//assign all the processor_C units to tasks as needed
+		int next_processor_C = 0;
 
 		for (int i = 0; i < schedule.count(); i++){
 
@@ -748,15 +744,15 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			for (int j = 0; j < (schedule.get_task(i))->get_current_processors_C(); j++){
 
-				(schedule.get_task(i))->push_back_processor_C(next_CPU_C ++);
+				(schedule.get_task(i))->push_back_processor_C(next_processor_C ++);
 
 			}
 
-			(schedule.get_task(i))->set_current_lowest_processor_C(next_CPU_C);
+			(schedule.get_task(i))->set_current_lowest_processor_C(next_processor_C);
 
-			if (next_CPU_C > (int)(NUM_PROCESSOR_C) + 1){
+			if (next_processor_C > (int)(NUM_PROCESSOR_C) + 1){
 
-				print_module::print(std::cerr, "Error in task ", i, ": too many Processors C have been allocated.", next_CPU_C, " ", NUM_PROCESSOR_C, " \n");
+				print_module::print(std::cerr, "Error in task ", i, ": too many Processors C have been allocated.", next_processor_C, " ", NUM_PROCESSOR_C, " \n");
 				killpg(process_group, SIGINT);
 				return;
 
@@ -765,11 +761,11 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		}
 
 		//assign all the unassigned cpu_C units to the scheduler to hold
-		for (int i = next_CPU_C; i < (int)(NUM_PROCESSOR_C); i++)
+		for (int i = next_processor_C; i < (int)(NUM_PROCESSOR_C); i++)
 			schedule.get_task(result.size())->push_back_processor_C(i);
 
-		//assign all the gpu_D units to tasks as needed
-		int next_GPU_D = 0;
+		//assign all the processor_D units to tasks as needed
+		int next_processor_D = 0;
 
 		for (int i = 0; i < schedule.count(); i++){
 
@@ -783,15 +779,15 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			for (int j = 0; j < (schedule.get_task(i))->get_current_processors_D(); j++){
 
-				(schedule.get_task(i))->push_back_processor_D(next_GPU_D ++);
+				(schedule.get_task(i))->push_back_processor_D(next_processor_D ++);
 
 			}
 
-			(schedule.get_task(i))->set_current_lowest_processor_D(next_GPU_D);
+			(schedule.get_task(i))->set_current_lowest_processor_D(next_processor_D);
 
-			if (next_GPU_D > (int)(NUM_PROCESSOR_D) + 1){
+			if (next_processor_D > (int)(NUM_PROCESSOR_D) + 1){
 
-				print_module::print(std::cerr, "Error in task ", i, ": too many Processors D have been allocated.", next_GPU_D, " ", NUM_PROCESSOR_D, " \n");
+				print_module::print(std::cerr, "Error in task ", i, ": too many Processors D have been allocated.", next_processor_D, " ", NUM_PROCESSOR_D, " \n");
 				killpg(process_group, SIGINT);
 				return;
 
@@ -800,7 +796,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		}
 
 		//assign all the unassigned gpu_D units to the scheduler to hold
-		for (int i = next_GPU_D; i < (int)(NUM_PROCESSOR_D); i++)
+		for (int i = next_processor_D; i < (int)(NUM_PROCESSOR_D); i++)
 			schedule.get_task(result.size())->push_back_processor_D(i);
 
 	}

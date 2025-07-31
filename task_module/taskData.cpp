@@ -34,54 +34,196 @@ TaskData::TaskData(bool free_resources){
 
 }
 
-static std::vector<std::pair<int,int>> computeModeResources(double CpA, double L_A,
+static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA, double L_A,
    										                    double CpB, double L_B,
-        									                double T){
+        									                double T,
+															double CpC, double L_C,
+															double CpD, double L_D,
+															std::tuple<int, float> equivalent_vector[4]){
 
-    // bounds on mA:
-    int mA_min = (CpA == 0 ? 1 : std::ceil((CpA - L_A) / (T - L_A)));
-    int mA_max = (CpA == 0 ? 1 : std::ceil((CpA - L_A) / 1));
+	// We want to use A as the base processor
+	// we assume B, C, and D can all be equivalent to A
+	// if this is the case, then we need to consider the
+	// canonical form of the DAG which is the DAG with the span
+	// completed as a dependency of all other work in the DAG.
+	// From this, we can use the simple equation:
+	//
+	//       T = L_A + (CpA - L_A) / (mA * (average_processor_speed))
+	//
+	// where average_processor_speed is the average speed of the processors
+	// assigned to the DAG. Once we generate all possible combinations of
+	// processors which can be assigned to the DAG, we can then use the
+	// method we used before to check for all the ways that the other processors
+	// can be assigned when we divide the period
+	std::vector<std::pair<double, double>> processor_information = { {CpA, L_A}, {CpB, L_B}, {CpC, L_C}, {CpD, L_D} };
+	std::vector<int> system_processors = {NUM_PROCESSOR_A, NUM_PROCESSOR_B, NUM_PROCESSOR_C, NUM_PROCESSOR_D};
 
-	if (mA_max > NUM_PROCESSOR_A || mA_max < 0)
-		mA_max = NUM_PROCESSOR_A;
+	std::vector<int> processors_equivalent_to_A;
 
-    std::vector<std::pair<int,int>> result;
+	for (int i = 0; i < 4; i++){
+
+		if (std::get<0>(equivalent_vector[i]) == 0)
+			processors_equivalent_to_A.push_back(i);
+
+	}
+	
+	//now up to the number of processors we have in the system, we can generate all possible combinations of processor
+	//configurations for the "A" portion of the DAG. Use a recursive lambda function to generate all possible combinations.
+	// Define the recursive function using std::function for proper self-reference
+	std::function<std::vector<std::tuple<int,int,int,int, double>>(int, std::vector<int>)> generate_processor_combinations = 
+	
+	[&](int current_processor, std::vector<int> current_combination) -> std::vector<std::tuple<int,int,int,int, double>> {
+
+		std::vector<std::tuple<int,int,int,int, double>> new_combinations;
+
+		double processor_average_starting = 0;
+
+		for (int i = 0; i < current_combination.size(); i++)
+			processor_average_starting += std::get<1>(equivalent_vector[i]) * current_combination[i];
+
+		int total_processors_used = (current_combination[0] + current_combination[1] + current_combination[2] + current_combination[3]);
+
+		for (int i = 0; i <= system_processors[current_processor]; i++){
+
+			double new_processor_average = processor_average_starting + (std::get<1>(equivalent_vector[current_processor]) * i);
+
+			new_processor_average /= (total_processors_used + i);
+
+			//now check if we can complete the work in the window of time given
+			double time_to_complete = L_A + ((CpA - L_A) / (new_processor_average * (total_processors_used + i)));
+
+			if (time_to_complete > T)
+				continue;
+
+			//If we are not the last processor, then we can recurse
+			if (current_processor != processors_equivalent_to_A.back()){
+
+				std::vector<int> new_combination = current_combination;
+
+				new_combination[current_processor] = i;
+
+				auto new_combinations_from_recurse = generate_processor_combinations(current_processor + 1, new_combination);
+				new_combinations.insert(new_combinations.end(), new_combinations_from_recurse.begin(), new_combinations_from_recurse.end());
+
+			}
+
+			else {
+
+				//if we make it down here, then we can add this to the combinations list
+				new_combinations.push_back(std::make_tuple(current_combination[0] + (current_processor == 0 ? i : 0), current_combination[1] + (current_processor == 1 ? i : 0), current_combination[2] + (current_processor == 2 ? i : 0), current_combination[3] + (current_processor == 3 ? i : 0), time_to_complete));
+
+			}
+
+		}
+
+		return new_combinations;
+
+	};
+
+	//generate all possible combinations of processors for the "A" portion of the DAG
+	auto processor_combinations = generate_processor_combinations(0, std::vector<int>(4, 0));
+
+    std::vector<std::tuple<int,int,int,int>> result;
+
+	//determine which processor is not in the equivalent vector
+	int processor_not_in_equivalent_vector = -1;
+	for (int i = 0; i < 4; i++){
+		if (std::get<0>(equivalent_vector[i]) != 0){
+			processor_not_in_equivalent_vector = i;
+			break;
+		}
+	}
+
+	if (processor_not_in_equivalent_vector == -1){
+
+		//move all the combinations to the result vector
+		for (auto combination : processor_combinations)
+			result.push_back(std::make_tuple(std::get<0>(combination), std::get<1>(combination), std::get<2>(combination), std::get<3>(combination)));
+
+		return result;
+	
+	}
+
+	else {
     
-    for (int mA = mA_min; mA <= mA_max; ++mA) {
-        
-        // actual A-phase finish time
-        double tA = 0;
-		
-		if (mA > 0) 
-			tA = ((CpA - L_A) / mA) + L_A;
-        
-        if (tA < 0) continue;
-        
-        double tB_window = T - tA;
-        if (tB_window <= L_B) continue;
+		//For all the modes we just made, we can now generate all possible combinations of processors for the "B" portion of the DAG
+		for (auto combination : processor_combinations){
 
-        // cores needed for B
-        int mB = (CpB == 0 ? 0 : std::ceil((CpB - L_B) / (tB_window - L_B)));
-            
-        bool add = true;
-        
-        for (auto res : result){
-            if (res.second == mB && res.first <= mA)
-                add = false;
-        }
-        
-        if (add)
-            result.emplace_back(mA, mB);
-            
-        
-    }
+			//For each combination, determine how much of the period is left for the "B" portion of the DAG
+			double period_left = T - std::get<4>(combination);
+
+			//If the period left is less than the span of the "B" portion of the DAG, then we can skip this combination
+			if (period_left <= processor_information[processor_not_in_equivalent_vector].second)
+				continue;
+
+			//Otherwise, determine what the minimum number of processors needed for the "B" portion of the DAG is
+			int minimum_processors_needed_for_B = std::ceil((processor_information[processor_not_in_equivalent_vector].first - processor_information[processor_not_in_equivalent_vector].second) / (period_left - processor_information[processor_not_in_equivalent_vector].second));
+
+			//If the minimum number of processors needed for the "B" portion of the DAG is greater than the number of processors available, then we can skip this combination
+			if (minimum_processors_needed_for_B > system_processors[processor_not_in_equivalent_vector])
+				continue;
+
+			//otherwise make an entry in the result vector
+			result.push_back(std::make_tuple(std::get<0>(combination) + (0 == processor_not_in_equivalent_vector ? minimum_processors_needed_for_B : 0), std::get<1>(combination) + (1 == processor_not_in_equivalent_vector ? minimum_processors_needed_for_B : 0), std::get<2>(combination) + (2 == processor_not_in_equivalent_vector ? minimum_processors_needed_for_B : 0), std::get<3>(combination) + (3 == processor_not_in_equivalent_vector ? minimum_processors_needed_for_B : 0)));
+			
+		}
+
+	}
 
 	if (result.empty()){
 		print_module::print(std::cerr, "Error: No valid allocations found for task mode with parameters ", CpA, " ", L_A, " ", CpB, " ", L_B, " ", T, "\n");
 		exit(-1);
 	}
-    
-    return result;
+
+	//now we need to filter out the modes which are not the minimum number of processors needed for the A and B portions of the DAG
+	std::vector<std::tuple<int,int,int,int>> result_filtered;
+
+	for (int i = 0; i < result.size(); i++){
+
+		bool add = true;
+
+		//using the equivalent vector, if the mode has 0 for all the processors, then we can skip it
+		bool all_zero = true;
+		if (std::get<0>(equivalent_vector[0]) == 0)
+			if (std::get<0>(result[i]) != 0)
+				all_zero = false;
+		if (std::get<0>(equivalent_vector[1]) == 0)
+			if (std::get<1>(result[i]) != 0)
+				all_zero = false;
+		if (std::get<0>(equivalent_vector[2]) == 0)
+			if (std::get<2>(result[i]) != 0)
+				all_zero = false;
+		if (std::get<0>(equivalent_vector[3]) == 0)
+			if (std::get<3>(result[i]) != 0)
+				all_zero = false;
+
+		if (all_zero)
+			continue;
+
+		for (int j = 0; j < i; j++){
+
+			if (i != j){
+
+				if ((std::get<0>(result[i]) > std::get<0>(result[j])) && (std::get<1>(result[i]) == std::get<1>(result[j])) && (std::get<2>(result[i]) == std::get<2>(result[j])) && (std::get<3>(result[i]) == std::get<3>(result[j])) ||
+					(std::get<0>(result[i]) == std::get<0>(result[j])) && (std::get<1>(result[i]) > std::get<1>(result[j])) && (std::get<2>(result[i]) == std::get<2>(result[j])) && (std::get<3>(result[i]) == std::get<3>(result[j])) ||
+					(std::get<0>(result[i]) == std::get<0>(result[j])) && (std::get<1>(result[i]) == std::get<1>(result[j])) && (std::get<2>(result[i]) > std::get<2>(result[j])) && (std::get<3>(result[i]) == std::get<3>(result[j])) ||
+					(std::get<0>(result[i]) == std::get<0>(result[j])) && (std::get<1>(result[i]) == std::get<1>(result[j])) && (std::get<2>(result[i]) == std::get<2>(result[j])) && (std::get<3>(result[i]) > std::get<3>(result[j]))){
+
+					add = false;
+					break;
+
+				}
+
+			}
+
+		}
+
+		if (add)
+			result_filtered.push_back(result[i]);
+
+	}
+
+    return result_filtered;
     
 }
 
@@ -144,9 +286,16 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 		double period_long = get_timespec_in_ns(period_l);
 		double processor_B_work_long = get_timespec_in_ns(processor_B_work_l);
 		double processor_B_span_long = get_timespec_in_ns(processor_B_span_l);
+		double processor_C_work_long = get_timespec_in_ns(processor_C_work_l);
+		double processor_C_span_long = get_timespec_in_ns(processor_C_span_l);
+		double processor_D_work_long = get_timespec_in_ns(processor_D_work_l);
+		double processor_D_span_long = get_timespec_in_ns(processor_D_span_l);
+
+		//for testing just set the equivalent vector to this:
+		std::tuple<int, float> equivalent_vector[4] = { {0, 1}, {0, 0.75}, {2, 1}, {3, 1} };
 
 		//pass to the computeModeResources function
-		auto resources = computeModeResources(work_long, span_long, processor_B_work_long, processor_B_span_long, period_long);
+		auto resources = computeModeResources(work_long, span_long, processor_B_work_long, processor_B_span_long, period_long, processor_C_work_long, processor_C_span_long, processor_D_work_long, processor_D_span_long, equivalent_vector);
 		mode_options += resources.size();
 
 		//loop over the resources and store them in the table
@@ -154,10 +303,11 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 			//store the processor A and processor B resources
 			//FIXME: REPLAC EWITH REAL C AND D
-			processors_A[next_position] = res.first;
-			processors_B[next_position] = res.second;
-			processors_C[next_position] = 0;  // For now, use same as A
-			processors_D[next_position] = 0;  // For now, use same as A
+			processors_A[next_position] = std::get<0>(res);
+			processors_B[next_position] = std::get<1>(res);
+			processors_C[next_position] = std::get<2>(res);
+			processors_D[next_position] = std::get<3>(res);
+
 			//map the mode
 			mode_map[next_position] = i;
 

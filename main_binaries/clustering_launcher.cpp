@@ -562,6 +562,18 @@ struct parsed_shared_objects {
 	unsigned sec_to_run = 0;
 	long nsec_to_run = 0;
 
+	// Processor configuration: (processor_type, ratio) tuples
+	// processor_type: 0=A, 1=B, 2=C, 3=D
+	// ratio: scaling factor relative to the equivalent processor
+	int processor_A_type = 0;
+	double processor_A_ratio = 1.0;
+	int processor_B_type = 1;
+	double processor_B_ratio = 1.0;
+	int processor_C_type = 2;
+	double processor_C_ratio = 1.0;
+	int processor_D_type = 3;
+	double processor_D_ratio = 1.0;
+
 	int num_tasks_parsed = 0;
 	parsed_task_info parsed_tasks[50];
 
@@ -683,6 +695,21 @@ int main(int argc, char *argv[])
 	//schedulable = yaml_object->schedulable;
 	sec_to_run = yaml_object->sec_to_run;
 	nsec_to_run = yaml_object->nsec_to_run;
+
+	// Print processor configuration for testing
+	print_module::print(std::cerr, "Processor Configuration:\n");
+	print_module::print(std::cerr, "  A: type=", yaml_object->processor_A_type, " (", 
+		(yaml_object->processor_A_type == 0 ? "A" : yaml_object->processor_A_type == 1 ? "B" : 
+		 yaml_object->processor_A_type == 2 ? "C" : "D"), "), ratio=", yaml_object->processor_A_ratio, "\n");
+	print_module::print(std::cerr, "  B: type=", yaml_object->processor_B_type, " (", 
+		(yaml_object->processor_B_type == 0 ? "A" : yaml_object->processor_B_type == 1 ? "B" : 
+		 yaml_object->processor_B_type == 2 ? "C" : "D"), "), ratio=", yaml_object->processor_B_ratio, "\n");
+	print_module::print(std::cerr, "  C: type=", yaml_object->processor_C_type, " (", 
+		(yaml_object->processor_C_type == 0 ? "A" : yaml_object->processor_C_type == 1 ? "B" : 
+		 yaml_object->processor_C_type == 2 ? "C" : "D"), "), ratio=", yaml_object->processor_C_ratio, "\n");
+	print_module::print(std::cerr, "  D: type=", yaml_object->processor_D_type, " (", 
+		(yaml_object->processor_D_type == 0 ? "A" : yaml_object->processor_D_type == 1 ? "B" : 
+		 yaml_object->processor_D_type == 2 ? "C" : "D"), "), ratio=", yaml_object->processor_D_ratio, "\n");
 
 	for (int i = 0; i < yaml_object->num_tasks_parsed; i++){
 

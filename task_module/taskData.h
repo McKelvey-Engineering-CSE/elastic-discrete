@@ -28,6 +28,8 @@ Class : TaskData
 #include <string.h>
 #include <sys/msg.h>
 #include <array>
+#include <tuple>
+#include <functional>
 #include "timespec_functions.h"
 #include "include.h"
 #include "print_module.h"
