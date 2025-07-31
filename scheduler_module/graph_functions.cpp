@@ -250,10 +250,10 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
 					//update the a, b, c, and d values of the node
 					//(we subtract the difference between the current mode and the lowest mode
 					//to get the amount of resources we need to add back to the graph)
-					node.a = static_nodes[original_provider_or_consumer].a - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).cores; 
-					node.b = static_nodes[original_provider_or_consumer].b - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).sms;
-					node.c = static_nodes[original_provider_or_consumer].c - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).cores_C;
-					node.d = static_nodes[original_provider_or_consumer].d - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).sms_D;
+					node.a = static_nodes[original_provider_or_consumer].a - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).processors_A; 
+					node.b = static_nodes[original_provider_or_consumer].b - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).processors_B;
+					node.c = static_nodes[original_provider_or_consumer].c - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).processors_C;
+					node.d = static_nodes[original_provider_or_consumer].d - task_table[original_provider_or_consumer].at(lowest_modes[original_provider_or_consumer]).processors_D;
 
 					//only do one at a time
 					break;

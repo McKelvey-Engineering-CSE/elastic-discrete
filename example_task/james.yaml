@@ -8,25 +8,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 2
     modes:
-      - work: {sec: 0, nsec: 470800046}
-        span: {sec: 0, nsec: 195409155}
-        gpu_work: {sec: 0, nsec: 708725182}
-        gpu_span: {sec: 0, nsec: 192344446}
+      - work_A: {sec: 0, nsec: 470800046}
+        span_A: {sec: 0, nsec: 195409155}
+        work_B: {sec: 0, nsec: 708725182}
+        span_B: {sec: 0, nsec: 192344446}
         period: {sec: 0, nsec: 729429898}
-      - work: {sec: 0, nsec: 572253118}
-        span: {sec: 0, nsec: 195409155}
-        gpu_work: {sec: 0, nsec: 863297699}
-        gpu_span: {sec: 0, nsec: 192344446}
+      - work_A: {sec: 0, nsec: 572253118}
+        span_A: {sec: 0, nsec: 195409155}
+        work_B: {sec: 0, nsec: 863297699}
+        span_B: {sec: 0, nsec: 192344446}
         period: {sec: 0, nsec: 729429898}
-      - work: {sec: 0, nsec: 673706190}
-        span: {sec: 0, nsec: 195409155}
-        gpu_work: {sec: 1, nsec: 17870216}
-        gpu_span: {sec: 0, nsec: 192344446}
+      - work_A: {sec: 0, nsec: 673706190}
+        span_A: {sec: 0, nsec: 195409155}
+        work_B: {sec: 1, nsec: 17870216}
+        span_B: {sec: 0, nsec: 192344446}
         period: {sec: 0, nsec: 729429898}
-      - work: {sec: 0, nsec: 775159262}
-        span: {sec: 0, nsec: 195409155}
-        gpu_work: {sec: 1, nsec: 172442732}
-        gpu_span: {sec: 0, nsec: 192344446}
+      - work_A: {sec: 0, nsec: 775159262}
+        span_A: {sec: 0, nsec: 195409155}
+        work_B: {sec: 1, nsec: 172442732}
+        span_B: {sec: 0, nsec: 192344446}
         period: {sec: 0, nsec: 729429898}
 
   - program:
@@ -34,25 +34,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 2
     modes:
-      - work: {sec: 0, nsec: 196033520}
-        span: {sec: 0, nsec: 114590357}
-        gpu_work: {sec: 0, nsec: 278096673}
-        gpu_span: {sec: 0, nsec: 104052911}
+      - work_A: {sec: 0, nsec: 196033520}
+        span_A: {sec: 0, nsec: 114590357}
+        work_B: {sec: 0, nsec: 278096673}
+        span_B: {sec: 0, nsec: 104052911}
         period: {sec: 0, nsec: 379871842}
-      - work: {sec: 0, nsec: 281139881}
-        span: {sec: 0, nsec: 114590357}
-        gpu_work: {sec: 0, nsec: 350018459}
-        gpu_span: {sec: 0, nsec: 104052911}
+      - work_A: {sec: 0, nsec: 281139881}
+        span_A: {sec: 0, nsec: 114590357}
+        work_B: {sec: 0, nsec: 350018459}
+        span_B: {sec: 0, nsec: 104052911}
         period: {sec: 0, nsec: 379871842}
-      - work: {sec: 0, nsec: 366246242}
-        span: {sec: 0, nsec: 114590357}
-        gpu_work: {sec: 0, nsec: 421940246}
-        gpu_span: {sec: 0, nsec: 104052911}
+      - work_A: {sec: 0, nsec: 366246242}
+        span_A: {sec: 0, nsec: 114590357}
+        work_B: {sec: 0, nsec: 421940246}
+        span_B: {sec: 0, nsec: 104052911}
         period: {sec: 0, nsec: 379871842}
-      - work: {sec: 0, nsec: 451352603}
-        span: {sec: 0, nsec: 114590357}
-        gpu_work: {sec: 0, nsec: 493862033}
-        gpu_span: {sec: 0, nsec: 104052911}
+      - work_A: {sec: 0, nsec: 451352603}
+        span_A: {sec: 0, nsec: 114590357}
+        work_B: {sec: 0, nsec: 493862033}
+        span_B: {sec: 0, nsec: 104052911}
         period: {sec: 0, nsec: 379871842}
 
   - program:
@@ -60,25 +60,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 9
     modes:
-      - work: {sec: 0, nsec: 255194725}
-        span: {sec: 0, nsec: 124362767}
-        gpu_work: {sec: 0, nsec: 369026367}
-        gpu_span: {sec: 0, nsec: 116867170}
+      - work_A: {sec: 0, nsec: 255194725}
+        span_A: {sec: 0, nsec: 124362767}
+        work_B: {sec: 0, nsec: 369026367}
+        span_B: {sec: 0, nsec: 116867170}
         period: {sec: 0, nsec: 362565350}
-      - work: {sec: 0, nsec: 312432301}
-        span: {sec: 0, nsec: 124362767}
-        gpu_work: {sec: 0, nsec: 439704326}
-        gpu_span: {sec: 0, nsec: 116867170}
+      - work_A: {sec: 0, nsec: 312432301}
+        span_A: {sec: 0, nsec: 124362767}
+        work_B: {sec: 0, nsec: 439704326}
+        span_B: {sec: 0, nsec: 116867170}
         period: {sec: 0, nsec: 362565350}
-      - work: {sec: 0, nsec: 369669877}
-        span: {sec: 0, nsec: 124362767}
-        gpu_work: {sec: 0, nsec: 510382285}
-        gpu_span: {sec: 0, nsec: 116867170}
+      - work_A: {sec: 0, nsec: 369669877}
+        span_A: {sec: 0, nsec: 124362767}
+        work_B: {sec: 0, nsec: 510382285}
+        span_B: {sec: 0, nsec: 116867170}
         period: {sec: 0, nsec: 362565350}
-      - work: {sec: 0, nsec: 426907453}
-        span: {sec: 0, nsec: 124362767}
-        gpu_work: {sec: 0, nsec: 581060244}
-        gpu_span: {sec: 0, nsec: 116867170}
+      - work_A: {sec: 0, nsec: 426907453}
+        span_A: {sec: 0, nsec: 124362767}
+        work_B: {sec: 0, nsec: 581060244}
+        span_B: {sec: 0, nsec: 116867170}
         period: {sec: 0, nsec: 362565350}
 
   - program:
@@ -86,25 +86,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 71
     modes:
-      - work: {sec: 0, nsec: 239772324}
-        span: {sec: 0, nsec: 100075125}
-        gpu_work: {sec: 0, nsec: 249064740}
-        gpu_span: {sec: 0, nsec: 101142705}
+      - work_A: {sec: 0, nsec: 239772324}
+        span_A: {sec: 0, nsec: 100075125}
+        work_B: {sec: 0, nsec: 249064740}
+        span_B: {sec: 0, nsec: 101142705}
         period: {sec: 0, nsec: 322842339}
-      - work: {sec: 0, nsec: 275656000}
-        span: {sec: 0, nsec: 100075125}
-        gpu_work: {sec: 0, nsec: 301219386}
-        gpu_span: {sec: 0, nsec: 101142705}
+      - work_A: {sec: 0, nsec: 275656000}
+        span_A: {sec: 0, nsec: 100075125}
+        work_B: {sec: 0, nsec: 301219386}
+        span_B: {sec: 0, nsec: 101142705}
         period: {sec: 0, nsec: 322842339}
-      - work: {sec: 0, nsec: 311539677}
-        span: {sec: 0, nsec: 100075125}
-        gpu_work: {sec: 0, nsec: 353374032}
-        gpu_span: {sec: 0, nsec: 101142705}
+      - work_A: {sec: 0, nsec: 311539677}
+        span_A: {sec: 0, nsec: 100075125}
+        work_B: {sec: 0, nsec: 353374032}
+        span_B: {sec: 0, nsec: 101142705}
         period: {sec: 0, nsec: 322842339}
-      - work: {sec: 0, nsec: 347423353}
-        span: {sec: 0, nsec: 100075125}
-        gpu_work: {sec: 0, nsec: 405528678}
-        gpu_span: {sec: 0, nsec: 101142705}
+      - work_A: {sec: 0, nsec: 347423353}
+        span_A: {sec: 0, nsec: 100075125}
+        work_B: {sec: 0, nsec: 405528678}
+        span_B: {sec: 0, nsec: 101142705}
         period: {sec: 0, nsec: 322842339}
 
   - program:
@@ -112,25 +112,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 2
     modes:
-      - work: {sec: 0, nsec: 557879499}
-        span: {sec: 0, nsec: 233422005}
-        gpu_work: {sec: 0, nsec: 818309453}
-        gpu_span: {sec: 0, nsec: 236126372}
+      - work_A: {sec: 0, nsec: 557879499}
+        span_A: {sec: 0, nsec: 233422005}
+        work_B: {sec: 0, nsec: 818309453}
+        span_B: {sec: 0, nsec: 236126372}
         period: {sec: 0, nsec: 891068774}
-      - work: {sec: 0, nsec: 689038913}
-        span: {sec: 0, nsec: 233422005}
-        gpu_work: {sec: 0, nsec: 997167312}
-        gpu_span: {sec: 0, nsec: 236126372}
+      - work_A: {sec: 0, nsec: 689038913}
+        span_A: {sec: 0, nsec: 233422005}
+        work_B: {sec: 0, nsec: 997167312}
+        span_B: {sec: 0, nsec: 236126372}
         period: {sec: 0, nsec: 891068774}
-      - work: {sec: 0, nsec: 820198327}
-        span: {sec: 0, nsec: 233422005}
-        gpu_work: {sec: 1, nsec: 176025172}
-        gpu_span: {sec: 0, nsec: 236126372}
+      - work_A: {sec: 0, nsec: 820198327}
+        span_A: {sec: 0, nsec: 233422005}
+        work_B: {sec: 1, nsec: 176025172}
+        span_B: {sec: 0, nsec: 236126372}
         period: {sec: 0, nsec: 891068774}
-      - work: {sec: 0, nsec: 951357741}
-        span: {sec: 0, nsec: 233422005}
-        gpu_work: {sec: 1, nsec: 354883032}
-        gpu_span: {sec: 0, nsec: 236126372}
+      - work_A: {sec: 0, nsec: 951357741}
+        span_A: {sec: 0, nsec: 233422005}
+        work_B: {sec: 1, nsec: 354883032}
+        span_B: {sec: 0, nsec: 236126372}
         period: {sec: 0, nsec: 891068774}
 
   - program:
@@ -138,25 +138,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 2
     modes:
-      - work: {sec: 0, nsec: 483770107}
-        span: {sec: 0, nsec: 196012468}
-        gpu_work: {sec: 0, nsec: 641915364}
-        gpu_span: {sec: 0, nsec: 191024551}
+      - work_A: {sec: 0, nsec: 483770107}
+        span_A: {sec: 0, nsec: 196012468}
+        work_B: {sec: 0, nsec: 641915364}
+        span_B: {sec: 0, nsec: 191024551}
         period: {sec: 0, nsec: 661223716}
-      - work: {sec: 0, nsec: 592867813}
-        span: {sec: 0, nsec: 196012468}
-        gpu_work: {sec: 0, nsec: 780349388}
-        gpu_span: {sec: 0, nsec: 191024551}
+      - work_A: {sec: 0, nsec: 592867813}
+        span_A: {sec: 0, nsec: 196012468}
+        work_B: {sec: 0, nsec: 780349388}
+        span_B: {sec: 0, nsec: 191024551}
         period: {sec: 0, nsec: 661223716}
-      - work: {sec: 0, nsec: 701965518}
-        span: {sec: 0, nsec: 196012468}
-        gpu_work: {sec: 0, nsec: 918783411}
-        gpu_span: {sec: 0, nsec: 191024551}
+      - work_A: {sec: 0, nsec: 701965518}
+        span_A: {sec: 0, nsec: 196012468}
+        work_B: {sec: 0, nsec: 918783411}
+        span_B: {sec: 0, nsec: 191024551}
         period: {sec: 0, nsec: 661223716}
-      - work: {sec: 0, nsec: 811063224}
-        span: {sec: 0, nsec: 196012468}
-        gpu_work: {sec: 1, nsec: 57217435}
-        gpu_span: {sec: 0, nsec: 191024551}
+      - work_A: {sec: 0, nsec: 811063224}
+        span_A: {sec: 0, nsec: 196012468}
+        work_B: {sec: 1, nsec: 57217435}
+        span_B: {sec: 0, nsec: 191024551}
         period: {sec: 0, nsec: 661223716}
 
   - program:
@@ -164,25 +164,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 3
     modes:
-      - work: {sec: 0, nsec: 376571450}
-        span: {sec: 0, nsec: 159502994}
-        gpu_work: {sec: 0, nsec: 492012441}
-        gpu_span: {sec: 0, nsec: 154943298}
+      - work_A: {sec: 0, nsec: 376571450}
+        span_A: {sec: 0, nsec: 159502994}
+        work_B: {sec: 0, nsec: 492012441}
+        span_B: {sec: 0, nsec: 154943298}
         period: {sec: 0, nsec: 467441882}
-      - work: {sec: 0, nsec: 454355798}
-        span: {sec: 0, nsec: 159502994}
-        gpu_work: {sec: 0, nsec: 589112952}
-        gpu_span: {sec: 0, nsec: 154943298}
+      - work_A: {sec: 0, nsec: 454355798}
+        span_A: {sec: 0, nsec: 159502994}
+        work_B: {sec: 0, nsec: 589112952}
+        span_B: {sec: 0, nsec: 154943298}
         period: {sec: 0, nsec: 467441882}
-      - work: {sec: 0, nsec: 532140146}
-        span: {sec: 0, nsec: 159502994}
-        gpu_work: {sec: 0, nsec: 686213462}
-        gpu_span: {sec: 0, nsec: 154943298}
+      - work_A: {sec: 0, nsec: 532140146}
+        span_A: {sec: 0, nsec: 159502994}
+        work_B: {sec: 0, nsec: 686213462}
+        span_B: {sec: 0, nsec: 154943298}
         period: {sec: 0, nsec: 467441882}
-      - work: {sec: 0, nsec: 609924494}
-        span: {sec: 0, nsec: 159502994}
-        gpu_work: {sec: 0, nsec: 783313973}
-        gpu_span: {sec: 0, nsec: 154943298}
+      - work_A: {sec: 0, nsec: 609924494}
+        span_A: {sec: 0, nsec: 159502994}
+        work_B: {sec: 0, nsec: 783313973}
+        span_B: {sec: 0, nsec: 154943298}
         period: {sec: 0, nsec: 467441882}
 
   - program:
@@ -190,25 +190,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 2
     modes:
-      - work: {sec: 0, nsec: 259673568}
-        span: {sec: 0, nsec: 126055831}
-        gpu_work: {sec: 0, nsec: 427764986}
-        gpu_span: {sec: 0, nsec: 135933914}
+      - work_A: {sec: 0, nsec: 259673568}
+        span_A: {sec: 0, nsec: 126055831}
+        work_B: {sec: 0, nsec: 427764986}
+        span_B: {sec: 0, nsec: 135933914}
         period: {sec: 0, nsec: 364935220}
-      - work: {sec: 0, nsec: 317520434}
-        span: {sec: 0, nsec: 126055831}
-        gpu_work: {sec: 0, nsec: 427764986}
-        gpu_span: {sec: 0, nsec: 135933914}
+      - work_A: {sec: 0, nsec: 317520434}
+        span_A: {sec: 0, nsec: 126055831}
+        work_B: {sec: 0, nsec: 427764986}
+        span_B: {sec: 0, nsec: 135933914}
         period: {sec: 0, nsec: 389052045}
-      - work: {sec: 0, nsec: 375367300}
-        span: {sec: 0, nsec: 126055831}
-        gpu_work: {sec: 0, nsec: 427764986}
-        gpu_span: {sec: 0, nsec: 135933914}
+      - work_A: {sec: 0, nsec: 375367300}
+        span_A: {sec: 0, nsec: 126055831}
+        work_B: {sec: 0, nsec: 427764986}
+        span_B: {sec: 0, nsec: 135933914}
         period: {sec: 0, nsec: 413168870}
-      - work: {sec: 0, nsec: 433214165}
-        span: {sec: 0, nsec: 126055831}
-        gpu_work: {sec: 0, nsec: 427764986}
-        gpu_span: {sec: 0, nsec: 135933914}
+      - work_A: {sec: 0, nsec: 433214165}
+        span_A: {sec: 0, nsec: 126055831}
+        work_B: {sec: 0, nsec: 427764986}
+        span_B: {sec: 0, nsec: 135933914}
         period: {sec: 0, nsec: 437285695}
 
   - program:
@@ -216,25 +216,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 2
     modes:
-      - work: {sec: 0, nsec: 386770824}
-        span: {sec: 0, nsec: 174220481}
-        gpu_work: {sec: 0, nsec: 563001659}
-        gpu_span: {sec: 0, nsec: 174663083}
+      - work_A: {sec: 0, nsec: 386770824}
+        span_A: {sec: 0, nsec: 174220481}
+        work_B: {sec: 0, nsec: 563001659}
+        span_B: {sec: 0, nsec: 174663083}
         period: {sec: 0, nsec: 470602834}
-      - work: {sec: 0, nsec: 477870268}
-        span: {sec: 0, nsec: 174220481}
-        gpu_work: {sec: 0, nsec: 563001659}
-        gpu_span: {sec: 0, nsec: 174663083}
+      - work_A: {sec: 0, nsec: 477870268}
+        span_A: {sec: 0, nsec: 174220481}
+        work_B: {sec: 0, nsec: 563001659}
+        span_B: {sec: 0, nsec: 174663083}
         period: {sec: 0, nsec: 503924449}
-      - work: {sec: 0, nsec: 568969711}
-        span: {sec: 0, nsec: 174220481}
-        gpu_work: {sec: 0, nsec: 563001659}
-        gpu_span: {sec: 0, nsec: 174663083}
+      - work_A: {sec: 0, nsec: 568969711}
+        span_A: {sec: 0, nsec: 174220481}
+        work_B: {sec: 0, nsec: 563001659}
+        span_B: {sec: 0, nsec: 174663083}
         period: {sec: 0, nsec: 537246065}
-      - work: {sec: 0, nsec: 660069155}
-        span: {sec: 0, nsec: 174220481}
-        gpu_work: {sec: 0, nsec: 563001659}
-        gpu_span: {sec: 0, nsec: 174663083}
+      - work_A: {sec: 0, nsec: 660069155}
+        span_A: {sec: 0, nsec: 174220481}
+        work_B: {sec: 0, nsec: 563001659}
+        span_B: {sec: 0, nsec: 174663083}
         period: {sec: 0, nsec: 570567681}
 
   - program:
@@ -242,25 +242,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 2
     modes:
-      - work: {sec: 0, nsec: 350651663}
-        span: {sec: 0, nsec: 154081405}
-        gpu_work: {sec: 0, nsec: 528870782}
-        gpu_span: {sec: 0, nsec: 154540566}
+      - work_A: {sec: 0, nsec: 350651663}
+        span_A: {sec: 0, nsec: 154081405}
+        work_B: {sec: 0, nsec: 528870782}
+        span_B: {sec: 0, nsec: 154540566}
         period: {sec: 0, nsec: 453695088}
-      - work: {sec: 0, nsec: 432116206}
-        span: {sec: 0, nsec: 154081405}
-        gpu_work: {sec: 0, nsec: 528870782}
-        gpu_span: {sec: 0, nsec: 154540566}
+      - work_A: {sec: 0, nsec: 432116206}
+        span_A: {sec: 0, nsec: 154081405}
+        work_B: {sec: 0, nsec: 528870782}
+        span_B: {sec: 0, nsec: 154540566}
         period: {sec: 0, nsec: 463480452}
-      - work: {sec: 0, nsec: 513580750}
-        span: {sec: 0, nsec: 154081405}
-        gpu_work: {sec: 0, nsec: 528870782}
-        gpu_span: {sec: 0, nsec: 154540566}
+      - work_A: {sec: 0, nsec: 513580750}
+        span_A: {sec: 0, nsec: 154081405}
+        work_B: {sec: 0, nsec: 528870782}
+        span_B: {sec: 0, nsec: 154540566}
         period: {sec: 0, nsec: 473265816}
-      - work: {sec: 0, nsec: 595045293}
-        span: {sec: 0, nsec: 154081405}
-        gpu_work: {sec: 0, nsec: 528870782}
-        gpu_span: {sec: 0, nsec: 154540566}
+      - work_A: {sec: 0, nsec: 595045293}
+        span_A: {sec: 0, nsec: 154081405}
+        work_B: {sec: 0, nsec: 528870782}
+        span_B: {sec: 0, nsec: 154540566}
         period: {sec: 0, nsec: 483051180}
 
   - program:
@@ -268,25 +268,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 3
     modes:
-      - work: {sec: 0, nsec: 487573232}
-        span: {sec: 0, nsec: 193046701}
-        gpu_work: {sec: 0, nsec: 756989840}
-        gpu_span: {sec: 0, nsec: 195730829}
+      - work_A: {sec: 0, nsec: 487573232}
+        span_A: {sec: 0, nsec: 193046701}
+        work_B: {sec: 0, nsec: 756989840}
+        span_B: {sec: 0, nsec: 195730829}
         period: {sec: 0, nsec: 539106041}
-      - work: {sec: 0, nsec: 593036765}
-        span: {sec: 0, nsec: 193046701}
-        gpu_work: {sec: 0, nsec: 756989840}
-        gpu_span: {sec: 0, nsec: 195730829}
+      - work_A: {sec: 0, nsec: 593036765}
+        span_A: {sec: 0, nsec: 193046701}
+        work_B: {sec: 0, nsec: 756989840}
+        span_B: {sec: 0, nsec: 195730829}
         period: {sec: 0, nsec: 570903952}
-      - work: {sec: 0, nsec: 698500299}
-        span: {sec: 0, nsec: 193046701}
-        gpu_work: {sec: 0, nsec: 756989840}
-        gpu_span: {sec: 0, nsec: 195730829}
+      - work_A: {sec: 0, nsec: 698500299}
+        span_A: {sec: 0, nsec: 193046701}
+        work_B: {sec: 0, nsec: 756989840}
+        span_B: {sec: 0, nsec: 195730829}
         period: {sec: 0, nsec: 602701864}
-      - work: {sec: 0, nsec: 803963832}
-        span: {sec: 0, nsec: 193046701}
-        gpu_work: {sec: 0, nsec: 756989840}
-        gpu_span: {sec: 0, nsec: 195730829}
+      - work_A: {sec: 0, nsec: 803963832}
+        span_A: {sec: 0, nsec: 193046701}
+        work_B: {sec: 0, nsec: 756989840}
+        span_B: {sec: 0, nsec: 195730829}
         period: {sec: 0, nsec: 634499775}
 
   - program:
@@ -294,15 +294,15 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 14
     ranges:
-      - work: {sec: 0, nsec: 574667084}
-        span: {sec: 0, nsec: 223335972}
-        gpu_work: {sec: 0, nsec: 823995173}
-        gpu_span: {sec: 0, nsec: 217360488}
+      - work_A: {sec: 0, nsec: 574667084}
+        span_A: {sec: 0, nsec: 223335972}
+        work_B: {sec: 0, nsec: 823995173}
+        span_B: {sec: 0, nsec: 217360488}
         period: {sec: 0, nsec: 754624868}
-      - work: {sec: 0, nsec: 574667084}
-        span: {sec: 0, nsec: 223335972}
-        gpu_work: {sec: 1, nsec: 344596787}
-        gpu_span: {sec: 0, nsec: 217360488}
+      - work_A: {sec: 0, nsec: 574667084}
+        span_A: {sec: 0, nsec: 223335972}
+        work_B: {sec: 1, nsec: 344596787}
+        span_B: {sec: 0, nsec: 217360488}
         period: {sec: 0, nsec: 814472404}
 
   - program:
@@ -310,25 +310,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 2
     modes:
-      - work: {sec: 0, nsec: 400205707}
-        span: {sec: 0, nsec: 167277471}
-        gpu_work: {sec: 0, nsec: 536809511}
-        gpu_span: {sec: 0, nsec: 166798272}
+      - work_A: {sec: 0, nsec: 400205707}
+        span_A: {sec: 0, nsec: 167277471}
+        work_B: {sec: 0, nsec: 536809511}
+        span_B: {sec: 0, nsec: 166798272}
         period: {sec: 0, nsec: 953404980}
-      - work: {sec: 0, nsec: 507717466}
-        span: {sec: 0, nsec: 167277471}
-        gpu_work: {sec: 0, nsec: 664996477}
-        gpu_span: {sec: 0, nsec: 166798272}
+      - work_A: {sec: 0, nsec: 507717466}
+        span_A: {sec: 0, nsec: 167277471}
+        work_B: {sec: 0, nsec: 664996477}
+        span_B: {sec: 0, nsec: 166798272}
         period: {sec: 0, nsec: 953404980}
-      - work: {sec: 0, nsec: 615229226}
-        span: {sec: 0, nsec: 167277471}
-        gpu_work: {sec: 0, nsec: 793183444}
-        gpu_span: {sec: 0, nsec: 166798272}
+      - work_A: {sec: 0, nsec: 615229226}
+        span_A: {sec: 0, nsec: 167277471}
+        work_B: {sec: 0, nsec: 793183444}
+        span_B: {sec: 0, nsec: 166798272}
         period: {sec: 0, nsec: 953404980}
-      - work: {sec: 0, nsec: 722740985}
-        span: {sec: 0, nsec: 167277471}
-        gpu_work: {sec: 0, nsec: 921370410}
-        gpu_span: {sec: 0, nsec: 166798272}
+      - work_A: {sec: 0, nsec: 722740985}
+        span_A: {sec: 0, nsec: 167277471}
+        work_B: {sec: 0, nsec: 921370410}
+        span_B: {sec: 0, nsec: 166798272}
         period: {sec: 0, nsec: 953404980}
 
   - program:
@@ -336,25 +336,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 2
     modes:
-      - work: {sec: 0, nsec: 394877209}
-        span: {sec: 0, nsec: 167980838}
-        gpu_work: {sec: 0, nsec: 581574196}
-        gpu_span: {sec: 0, nsec: 164954034}
+      - work_A: {sec: 0, nsec: 394877209}
+        span_A: {sec: 0, nsec: 167980838}
+        work_B: {sec: 0, nsec: 581574196}
+        span_B: {sec: 0, nsec: 164954034}
         period: {sec: 0, nsec: 792405620}
-      - work: {sec: 0, nsec: 491836952}
-        span: {sec: 0, nsec: 167980838}
-        gpu_work: {sec: 0, nsec: 674177484}
-        gpu_span: {sec: 0, nsec: 164954034}
+      - work_A: {sec: 0, nsec: 491836952}
+        span_A: {sec: 0, nsec: 167980838}
+        work_B: {sec: 0, nsec: 674177484}
+        span_B: {sec: 0, nsec: 164954034}
         period: {sec: 0, nsec: 792405620}
-      - work: {sec: 0, nsec: 588796694}
-        span: {sec: 0, nsec: 167980838}
-        gpu_work: {sec: 0, nsec: 766780772}
-        gpu_span: {sec: 0, nsec: 164954034}
+      - work_A: {sec: 0, nsec: 588796694}
+        span_A: {sec: 0, nsec: 167980838}
+        work_B: {sec: 0, nsec: 766780772}
+        span_B: {sec: 0, nsec: 164954034}
         period: {sec: 0, nsec: 792405620}
-      - work: {sec: 0, nsec: 685756436}
-        span: {sec: 0, nsec: 167980838}
-        gpu_work: {sec: 0, nsec: 859384060}
-        gpu_span: {sec: 0, nsec: 164954034}
+      - work_A: {sec: 0, nsec: 685756436}
+        span_A: {sec: 0, nsec: 167980838}
+        work_B: {sec: 0, nsec: 859384060}
+        span_B: {sec: 0, nsec: 164954034}
         period: {sec: 0, nsec: 792405620}
 
   - program:
@@ -362,25 +362,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 6
     modes:
-      - work: {sec: 0, nsec: 86868561}
-        span: {sec: 0, nsec: 52217111}
-        gpu_work: {sec: 0, nsec: 140672467}
-        gpu_span: {sec: 0, nsec: 51398132}
+      - work_A: {sec: 0, nsec: 86868561}
+        span_A: {sec: 0, nsec: 52217111}
+        work_B: {sec: 0, nsec: 140672467}
+        span_B: {sec: 0, nsec: 51398132}
         period: {sec: 0, nsec: 326298861}
-      - work: {sec: 0, nsec: 112527639}
-        span: {sec: 0, nsec: 52217111}
-        gpu_work: {sec: 0, nsec: 169959650}
-        gpu_span: {sec: 0, nsec: 51398132}
+      - work_A: {sec: 0, nsec: 112527639}
+        span_A: {sec: 0, nsec: 52217111}
+        work_B: {sec: 0, nsec: 169959650}
+        span_B: {sec: 0, nsec: 51398132}
         period: {sec: 0, nsec: 326298861}
-      - work: {sec: 0, nsec: 138186717}
-        span: {sec: 0, nsec: 52217111}
-        gpu_work: {sec: 0, nsec: 199246832}
-        gpu_span: {sec: 0, nsec: 51398132}
+      - work_A: {sec: 0, nsec: 138186717}
+        span_A: {sec: 0, nsec: 52217111}
+        work_B: {sec: 0, nsec: 199246832}
+        span_B: {sec: 0, nsec: 51398132}
         period: {sec: 0, nsec: 326298861}
-      - work: {sec: 0, nsec: 163845795}
-        span: {sec: 0, nsec: 52217111}
-        gpu_work: {sec: 0, nsec: 228534015}
-        gpu_span: {sec: 0, nsec: 51398132}
+      - work_A: {sec: 0, nsec: 163845795}
+        span_A: {sec: 0, nsec: 52217111}
+        work_B: {sec: 0, nsec: 228534015}
+        span_B: {sec: 0, nsec: 51398132}
         period: {sec: 0, nsec: 326298861}
 
   - program:
@@ -388,25 +388,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 3
     modes:
-      - work: {sec: 0, nsec: 139496273}
-        span: {sec: 0, nsec: 64852841}
-        gpu_work: {sec: 0, nsec: 135500279}
-        gpu_span: {sec: 0, nsec: 48111075}
+      - work_A: {sec: 0, nsec: 139496273}
+        span_A: {sec: 0, nsec: 64852841}
+        work_B: {sec: 0, nsec: 135500279}
+        span_B: {sec: 0, nsec: 48111075}
         period: {sec: 0, nsec: 312955156}
-      - work: {sec: 0, nsec: 169479958}
-        span: {sec: 0, nsec: 64852841}
-        gpu_work: {sec: 0, nsec: 163192690}
-        gpu_span: {sec: 0, nsec: 48111075}
+      - work_A: {sec: 0, nsec: 169479958}
+        span_A: {sec: 0, nsec: 64852841}
+        work_B: {sec: 0, nsec: 163192690}
+        span_B: {sec: 0, nsec: 48111075}
         period: {sec: 0, nsec: 312955156}
-      - work: {sec: 0, nsec: 199463644}
-        span: {sec: 0, nsec: 64852841}
-        gpu_work: {sec: 0, nsec: 190885101}
-        gpu_span: {sec: 0, nsec: 48111075}
+      - work_A: {sec: 0, nsec: 199463644}
+        span_A: {sec: 0, nsec: 64852841}
+        work_B: {sec: 0, nsec: 190885101}
+        span_B: {sec: 0, nsec: 48111075}
         period: {sec: 0, nsec: 312955156}
-      - work: {sec: 0, nsec: 229447329}
-        span: {sec: 0, nsec: 64852841}
-        gpu_work: {sec: 0, nsec: 218577513}
-        gpu_span: {sec: 0, nsec: 48111075}
+      - work_A: {sec: 0, nsec: 229447329}
+        span_A: {sec: 0, nsec: 64852841}
+        work_B: {sec: 0, nsec: 218577513}
+        span_B: {sec: 0, nsec: 48111075}
         period: {sec: 0, nsec: 312955156}
 
   - program:
@@ -414,25 +414,25 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 5
     modes:
-      - work: {sec: 0, nsec: 139496273}
-        span: {sec: 0, nsec: 64852841}
-        gpu_work: {sec: 0, nsec: 135500279}
-        gpu_span: {sec: 0, nsec: 48111075}
+      - work_A: {sec: 0, nsec: 139496273}
+        span_A: {sec: 0, nsec: 64852841}
+        work_B: {sec: 0, nsec: 135500279}
+        span_B: {sec: 0, nsec: 48111075}
         period: {sec: 0, nsec: 312955156}
-      - work: {sec: 0, nsec: 169479958}
-        span: {sec: 0, nsec: 64852841}
-        gpu_work: {sec: 0, nsec: 163192690}
-        gpu_span: {sec: 0, nsec: 48111075}
+      - work_A: {sec: 0, nsec: 169479958}
+        span_A: {sec: 0, nsec: 64852841}
+        work_B: {sec: 0, nsec: 163192690}
+        span_B: {sec: 0, nsec: 48111075}
         period: {sec: 0, nsec: 312955156}
-      - work: {sec: 0, nsec: 199463644}
-        span: {sec: 0, nsec: 64852841}
-        gpu_work: {sec: 0, nsec: 190885101}
-        gpu_span: {sec: 0, nsec: 48111075}
+      - work_A: {sec: 0, nsec: 199463644}
+        span_A: {sec: 0, nsec: 64852841}
+        work_B: {sec: 0, nsec: 190885101}
+        span_B: {sec: 0, nsec: 48111075}
         period: {sec: 0, nsec: 312955156}
-      - work: {sec: 0, nsec: 229447329}
-        span: {sec: 0, nsec: 64852841}
-        gpu_work: {sec: 0, nsec: 218577513}
-        gpu_span: {sec: 0, nsec: 48111075}
+      - work_A: {sec: 0, nsec: 229447329}
+        span_A: {sec: 0, nsec: 64852841}
+        work_B: {sec: 0, nsec: 218577513}
+        span_B: {sec: 0, nsec: 48111075}
         period: {sec: 0, nsec: 312955156}
 
   - program:
@@ -440,23 +440,23 @@ tasks:
       args: "0 61428571 2 10"
     elasticity: 8
     modes:
-      - work: {sec: 0, nsec: 139496273}
-        span: {sec: 0, nsec: 64852841}
-        gpu_work: {sec: 0, nsec: 135500279}
-        gpu_span: {sec: 0, nsec: 48111075}
+      - work_A: {sec: 0, nsec: 139496273}
+        span_A: {sec: 0, nsec: 64852841}
+        work_B: {sec: 0, nsec: 135500279}
+        span_B: {sec: 0, nsec: 48111075}
         period: {sec: 0, nsec: 312955156}
-      - work: {sec: 0, nsec: 169479958}
-        span: {sec: 0, nsec: 64852841}
-        gpu_work: {sec: 0, nsec: 163192690}
-        gpu_span: {sec: 0, nsec: 48111075}
+      - work_A: {sec: 0, nsec: 169479958}
+        span_A: {sec: 0, nsec: 64852841}
+        work_B: {sec: 0, nsec: 163192690}
+        span_B: {sec: 0, nsec: 48111075}
         period: {sec: 0, nsec: 312955156}
-      - work: {sec: 0, nsec: 199463644}
-        span: {sec: 0, nsec: 64852841}
-        gpu_work: {sec: 0, nsec: 190885101}
-        gpu_span: {sec: 0, nsec: 48111075}
+      - work_A: {sec: 0, nsec: 199463644}
+        span_A: {sec: 0, nsec: 64852841}
+        work_B: {sec: 0, nsec: 190885101}
+        span_B: {sec: 0, nsec: 48111075}
         period: {sec: 0, nsec: 312955156}
-      - work: {sec: 0, nsec: 229447329}
-        span: {sec: 0, nsec: 64852841}
-        gpu_work: {sec: 0, nsec: 218577513}
-        gpu_span: {sec: 0, nsec: 48111075}
+      - work_A: {sec: 0, nsec: 229447329}
+        span_A: {sec: 0, nsec: 64852841}
+        work_B: {sec: 0, nsec: 218577513}
+        span_B: {sec: 0, nsec: 48111075}
         period: {sec: 0, nsec: 312955156}

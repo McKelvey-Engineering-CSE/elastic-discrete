@@ -332,7 +332,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int* task_table, doubl
 		//print the final loss 
 		if (valid_solution){
 
-			*final_loss = shared_dp_two[num_tasks & 1][NUM_PROCESSOR_A][NUM_PROCESSOR_B][NUM_PROCESSOR_C][NUM_PROCESSOR_D];
+			*final_loss = shared_dp_two[num_tasks & 1][NUM_PROCESSOR_A - 1][NUM_PROCESSOR_B][NUM_PROCESSOR_C][NUM_PROCESSOR_D];
 
 		} else {
 

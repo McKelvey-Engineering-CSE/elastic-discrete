@@ -245,7 +245,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 		if (has_modes){
 
 			for (YAML::Node mode : task["modes"]) {
-				if (!yaml_is_time(mode["work"]) || !yaml_is_time(mode["span"]) || !yaml_is_time(mode["period"])) {
+				if (!yaml_is_time(mode["work_A"]) || !yaml_is_time(mode["span_A"]) || !yaml_is_time(mode["period"])) {
 					return -6;
 				}
 
@@ -261,82 +261,40 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 				else
 					strcpy(mode_info.mode_type, "heavy");
 
-				mode_info.work_sec = mode["work"]["sec"].as<int>();
-				mode_info.work_nsec = mode["work"]["nsec"].as<int>();
-				mode_info.span_sec = mode["span"]["sec"].as<int>();
-				mode_info.span_nsec = mode["span"]["nsec"].as<int>();
+				mode_info.work_sec = mode["work_A"]["sec"].as<int>();
+				mode_info.work_nsec = mode["work_A"]["nsec"].as<int>();
+				mode_info.span_sec = mode["span_A"]["sec"].as<int>();
+				mode_info.span_nsec = mode["span_A"]["nsec"].as<int>();
 				mode_info.period_sec = mode["period"]["sec"].as<int>();
 				mode_info.period_nsec = mode["period"]["nsec"].as<int>();
 
 				//check for GPU params
-				if (yaml_is_time(mode["gpu_work"]) && yaml_is_time(mode["gpu_span"])){
+				if (yaml_is_time(mode["work_B"]) && yaml_is_time(mode["span_B"])){
 
-					mode_info.gpu_work_sec = mode["gpu_work"]["sec"].as<int>();
-					mode_info.gpu_work_nsec = mode["gpu_work"]["nsec"].as<int>();
-					mode_info.gpu_span_sec = mode["gpu_span"]["sec"].as<int>();
-					mode_info.gpu_span_nsec = mode["gpu_span"]["nsec"].as<int>();
-
-					//if an arbitrary period has been set for modifying the GPU assignemnt
-					if (yaml_is_time(mode["gpu_period"])){
-
-						mode_info.gpu_period_sec = mode["gpu_period"]["sec"].as<int>();
-						mode_info.gpu_period_nsec = mode["gpu_period"]["nsec"].as<int>();
-
-					}
-
-					else{
-
-						mode_info.gpu_period_sec = mode_info.period_sec;
-						mode_info.gpu_period_nsec = mode_info.period_nsec;
-					}
+					mode_info.gpu_work_sec = mode["work_B"]["sec"].as<int>();
+					mode_info.gpu_work_nsec = mode["work_B"]["nsec"].as<int>();
+					mode_info.gpu_span_sec = mode["span_B"]["sec"].as<int>();
+					mode_info.gpu_span_nsec = mode["span_B"]["nsec"].as<int>();
 
 				}
 
 				//check for CPU C params
-				if (yaml_is_time(mode["cpu_C_work"]) && yaml_is_time(mode["cpu_C_span"])){
+				if (yaml_is_time(mode["work_C"]) && yaml_is_time(mode["span_C"])){
 
-					mode_info.cpu_C_work_sec = mode["cpu_C_work"]["sec"].as<int>();
-					mode_info.cpu_C_work_nsec = mode["cpu_C_work"]["nsec"].as<int>();
-					mode_info.cpu_C_span_sec = mode["cpu_C_span"]["sec"].as<int>();
-					mode_info.cpu_C_span_nsec = mode["cpu_C_span"]["nsec"].as<int>();
-
-					//if an arbitrary period has been set for modifying the CPU C assignment
-					if (yaml_is_time(mode["cpu_C_period"])){
-
-						mode_info.cpu_C_period_sec = mode["cpu_C_period"]["sec"].as<int>();
-						mode_info.cpu_C_period_nsec = mode["cpu_C_period"]["nsec"].as<int>();
-
-					}
-
-					else{
-
-						mode_info.cpu_C_period_sec = mode_info.period_sec;
-						mode_info.cpu_C_period_nsec = mode_info.period_nsec;
-					}
+					mode_info.cpu_C_work_sec = mode["work_C"]["sec"].as<int>();
+					mode_info.cpu_C_work_nsec = mode["work_C"]["nsec"].as<int>();
+					mode_info.cpu_C_span_sec = mode["span_C"]["sec"].as<int>();
+					mode_info.cpu_C_span_nsec = mode["span_C"]["nsec"].as<int>();
 
 				}
 
 				//check for GPU D params
-				if (yaml_is_time(mode["gpu_D_work"]) && yaml_is_time(mode["gpu_D_span"])){
+				if (yaml_is_time(mode["work_D"]) && yaml_is_time(mode["span_D"])){
 
-					mode_info.gpu_D_work_sec = mode["gpu_D_work"]["sec"].as<int>();
-					mode_info.gpu_D_work_nsec = mode["gpu_D_work"]["nsec"].as<int>();
-					mode_info.gpu_D_span_sec = mode["gpu_D_span"]["sec"].as<int>();
-					mode_info.gpu_D_span_nsec = mode["gpu_D_span"]["nsec"].as<int>();
-
-					//if an arbitrary period has been set for modifying the GPU D assignment
-					if (yaml_is_time(mode["gpu_D_period"])){
-
-						mode_info.gpu_D_period_sec = mode["gpu_D_period"]["sec"].as<int>();
-						mode_info.gpu_D_period_nsec = mode["gpu_D_period"]["nsec"].as<int>();
-
-					}
-
-					else{
-
-						mode_info.gpu_D_period_sec = mode_info.period_sec;
-						mode_info.gpu_D_period_nsec = mode_info.period_nsec;
-					}
+					mode_info.gpu_D_work_sec = mode["work_D"]["sec"].as<int>();
+					mode_info.gpu_D_work_nsec = mode["work_D"]["nsec"].as<int>();
+					mode_info.gpu_D_span_sec = mode["span_D"]["sec"].as<int>();
+					mode_info.gpu_D_span_nsec = mode["span_D"]["nsec"].as<int>();
 
 				}
 
@@ -350,7 +308,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 			std::vector<struct parsed_task_mode_info> elastic_ranges;
 
 			for (YAML::Node mode : task["ranges"]) {
-				if (!yaml_is_time(mode["work"]) || !yaml_is_time(mode["span"]) || !yaml_is_time(mode["period"])) {
+				if (!yaml_is_time(mode["work_A"]) || !yaml_is_time(mode["span_A"]) || !yaml_is_time(mode["period"])) {
 					return -6;
 				}
 
@@ -366,20 +324,20 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 				else
 					strcpy(mode_info.mode_type, "heavy");
 
-				mode_info.work_sec = mode["work"]["sec"].as<int>();
-				mode_info.work_nsec = mode["work"]["nsec"].as<int>();
-				mode_info.span_sec = mode["span"]["sec"].as<int>();
-				mode_info.span_nsec = mode["span"]["nsec"].as<int>();
+				mode_info.work_sec = mode["work_A"]["sec"].as<int>();
+				mode_info.work_nsec = mode["work_A"]["nsec"].as<int>();
+				mode_info.span_sec = mode["span_A"]["sec"].as<int>();
+				mode_info.span_nsec = mode["span_A"]["nsec"].as<int>();
 				mode_info.period_sec = mode["period"]["sec"].as<int>();
 				mode_info.period_nsec = mode["period"]["nsec"].as<int>();
 
 				//check for GPU params
-				if (yaml_is_time(mode["gpu_work"]) && yaml_is_time(mode["gpu_span"])){
+				if (yaml_is_time(mode["work_B"]) && yaml_is_time(mode["span_B"])){
 
-					mode_info.gpu_work_sec = mode["gpu_work"]["sec"].as<int>();
-					mode_info.gpu_work_nsec = mode["gpu_work"]["nsec"].as<int>();
-					mode_info.gpu_span_sec = mode["gpu_span"]["sec"].as<int>();
-					mode_info.gpu_span_nsec = mode["gpu_span"]["nsec"].as<int>();
+					mode_info.gpu_work_sec = mode["work_B"]["sec"].as<int>();
+					mode_info.gpu_work_nsec = mode["work_B"]["nsec"].as<int>();
+					mode_info.gpu_span_sec = mode["span_B"]["sec"].as<int>();
+					mode_info.gpu_span_nsec = mode["span_B"]["nsec"].as<int>();
 
 					//if an arbitrary period has been set for modifying the GPU assignemnt
 					if (yaml_is_time(mode["gpu_period"])){
@@ -398,12 +356,12 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 				}
 
 				//check for CPU C params
-				if (yaml_is_time(mode["cpu_C_work"]) && yaml_is_time(mode["cpu_C_span"])){
+				if (yaml_is_time(mode["work_C"]) && yaml_is_time(mode["span_C"])){
 
-					mode_info.cpu_C_work_sec = mode["cpu_C_work"]["sec"].as<int>();
-					mode_info.cpu_C_work_nsec = mode["cpu_C_work"]["nsec"].as<int>();
-					mode_info.cpu_C_span_sec = mode["cpu_C_span"]["sec"].as<int>();
-					mode_info.cpu_C_span_nsec = mode["cpu_C_span"]["nsec"].as<int>();
+					mode_info.cpu_C_work_sec = mode["work_C"]["sec"].as<int>();
+					mode_info.cpu_C_work_nsec = mode["work_C"]["nsec"].as<int>();
+					mode_info.cpu_C_span_sec = mode["span_C"]["sec"].as<int>();
+					mode_info.cpu_C_span_nsec = mode["span_C"]["nsec"].as<int>();
 
 					//if an arbitrary period has been set for modifying the CPU C assignment
 					if (yaml_is_time(mode["cpu_C_period"])){
@@ -422,12 +380,12 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 				}
 
 				//check for GPU D params
-				if (yaml_is_time(mode["gpu_D_work"]) && yaml_is_time(mode["gpu_D_span"])){
+				if (yaml_is_time(mode["work_D"]) && yaml_is_time(mode["span_D"])){
 
-					mode_info.gpu_D_work_sec = mode["gpu_D_work"]["sec"].as<int>();
-					mode_info.gpu_D_work_nsec = mode["gpu_D_work"]["nsec"].as<int>();
-					mode_info.gpu_D_span_sec = mode["gpu_D_span"]["sec"].as<int>();
-					mode_info.gpu_D_span_nsec = mode["gpu_D_span"]["nsec"].as<int>();
+					mode_info.gpu_D_work_sec = mode["work_D"]["sec"].as<int>();
+					mode_info.gpu_D_work_nsec = mode["work_D"]["nsec"].as<int>();
+					mode_info.gpu_D_span_sec = mode["span_D"]["sec"].as<int>();
+					mode_info.gpu_D_span_nsec = mode["span_D"]["nsec"].as<int>();
 
 					//if an arbitrary period has been set for modifying the GPU D assignment
 					if (yaml_is_time(mode["gpu_D_period"])){
@@ -452,8 +410,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 			//regardless of how many ranges are provided, we only take the first two
 			//with the assumption that the first is the lightest and the second is the heaviest
 			std::vector<timespec> period;
-			std::vector<timespec> work;
-			std::vector<timespec> span;
+			std::vector<timespec> work_A;
+			std::vector<timespec> span_A;
 			std::vector<timespec> GPU_work;
 			std::vector<timespec> GPU_span;
 
@@ -463,15 +421,15 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 			for (int i = 0; i < 2; i++){
 
 				period.push_back({elastic_ranges[i].period_sec, elastic_ranges[i].period_nsec});
-				work.push_back({elastic_ranges[i].work_sec, elastic_ranges[i].work_nsec});
-				span.push_back({elastic_ranges[i].span_sec, elastic_ranges[i].span_nsec});
+				work_A.push_back({elastic_ranges[i].work_sec, elastic_ranges[i].work_nsec});
+				span_A.push_back({elastic_ranges[i].span_sec, elastic_ranges[i].span_nsec});
 				GPU_work.push_back({elastic_ranges[i].gpu_work_sec, elastic_ranges[i].gpu_work_nsec});
 				GPU_span.push_back({elastic_ranges[i].gpu_span_sec, elastic_ranges[i].gpu_span_nsec});
 
 			}
 
 			//Determine what is actually being adjusted here:
-			//the work or the period
+			//the work_A or the period
 			bool period_elastic = false;
 			bool work_elastic = false;
 			bool is_pure_cpu_task = false;
@@ -484,29 +442,29 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 			if (period[0] != period[1])
 				period_elastic = true;
 
-			//determine if the work is being adjusted
-			if (work[0] != work[1])
+			//determine if the work_A is being adjusted
+			if (work_A[0] != work_A[1])
 				work_elastic = true;
 
 			if (period_elastic && work_elastic){
 
-				print_module::print(std::cerr, "ERROR: Both period and work are being adjusted on a continuous elastic task. This is not supported.\n");
+				print_module::print(std::cerr, "ERROR: Both period and work_A are being adjusted on a continuous elastic task. This is not supported.\n");
 				return -7;
 
 			}
 
 			else if (!period_elastic && !work_elastic){
 
-				print_module::print(std::cerr, "ERROR: Neither period nor work are being adjusted on a continuous elastic task. This is not supported.\n");
+				print_module::print(std::cerr, "ERROR: Neither period nor work_A are being adjusted on a continuous elastic task. This is not supported.\n");
 				return -8;
 
 			}
 
 			//NOTE FOR LATER: this is not how period elasticity works.
-			//because the task has a cpu and gpu to work with in terms of work and span
+			//because the task has a cpu and gpu to work_A with in terms of work_A and span_A
 			//but shares a period, there are certain configurations which are locked in
 			//terms of what resources the task can use. For pure cpu tasks, what is shown
-			//below will work, and for all work elastic tasks it should work as well,
+			//below will work_A, and for all work_A elastic tasks it should work_A as well,
 			//but for period elastic tasks, we need to walk the period from min to max
 			//and find mappings for all possible configurations of cpus we can end up with.
 			else if (period_elastic){
@@ -521,8 +479,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 
 					for (int i = 0; i < 2; i++){
 
-						ts_diff(work[i], span[i], numerator);
-						ts_diff(period[i], span[i], denominator);
+						ts_diff(work_A[i], span_A[i], numerator);
+						ts_diff(period[i], span_A[i], denominator);
 
 						int CPUs = (int)ceil(numerator / denominator);
 
@@ -536,7 +494,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 
 					//set numerator again just so it's easier to see
 					//when looking back at this code
-					ts_diff(work[0], span[0], numerator);
+					ts_diff(work_A[0], span_A[0], numerator);
 
 					//now we just solve for the periods which 
 					//can make the cpu allocations which fall
@@ -550,8 +508,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						long long numerator_as_value = get_timespec_in_ns(numerator);
 						numerator_as_value /= i;
 
-						//get the span as a value
-						long long span_as_value = get_timespec_in_ns(span[0]);
+						//get the span_A as a value
+						long long span_as_value = get_timespec_in_ns(span_A[0]);
 
 						long long target_period = numerator_as_value + span_as_value;
 
@@ -560,10 +518,10 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 
 						strcpy(mode_info.mode_type, "heavy");
 
-						mode_info.work_sec = work[0].tv_sec;
-						mode_info.work_nsec = work[0].tv_nsec;
-						mode_info.span_sec = span[0].tv_sec;
-						mode_info.span_nsec = span[0].tv_nsec;
+						mode_info.work_sec = work_A[0].tv_sec;
+						mode_info.work_nsec = work_A[0].tv_nsec;
+						mode_info.span_sec = span_A[0].tv_sec;
+						mode_info.span_nsec = span_A[0].tv_nsec;
 						mode_info.period_sec = target_period / 1000000000;
 						mode_info.period_nsec = target_period % 1000000000;
 
@@ -591,8 +549,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 
 						auto modified_period = period[i] * 0.5;
 
-						ts_diff(work[i], span[i], numerator);
-						ts_diff(modified_period, span[i], denominator);
+						ts_diff(work_A[i], span_A[i], numerator);
+						ts_diff(modified_period, span_A[i], denominator);
 
 						int CPUs = (int)ceil(numerator / denominator);
 
@@ -617,7 +575,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 
 					//set numerator again just so it's easier to see
 					//when looking back at this code
-					ts_diff(work[0], span[0], numerator);
+					ts_diff(work_A[0], span_A[0], numerator);
 
 					//now we just solve for the periods which 
 					//can make the cpu allocations which fall
@@ -631,8 +589,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						long long numerator_as_value = get_timespec_in_ns(numerator);
 						numerator_as_value /= i;
 
-						//get the span as a value
-						long long span_as_value = get_timespec_in_ns(span[0]);
+						//get the span_A as a value
+						long long span_as_value = get_timespec_in_ns(span_A[0]);
 
 						long long target_period = numerator_as_value + span_as_value;
 
@@ -653,7 +611,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						long long numerator_as_value = get_timespec_in_ns(numerator);
 						numerator_as_value /= i;
 
-						//get the span as a value
+						//get the span_A as a value
 						long long span_as_value = get_timespec_in_ns(GPU_span[0]);
 
 						long long target_period = numerator_as_value + span_as_value;
@@ -671,8 +629,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						auto modified_period = timespec_from_ns(nanosecond_periods.at(i));
 
 						//calculate the number of cpus and gpus
-						ts_diff(work[0], span[0], numerator);
-						ts_diff(modified_period, span[0], denominator);
+						ts_diff(work_A[0], span_A[0], numerator);
+						ts_diff(modified_period, span_A[0], denominator);
 
 						int CPUs = (int)ceil(numerator / denominator);
 
@@ -681,7 +639,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 
 						int GPUs = (int)ceil(numerator / denominator);
 
-						if (modified_period < GPU_span[0] || modified_period < span[0])
+						if (modified_period < GPU_span[0] || modified_period < span_A[0])
 							continue;
 
 						//check if this mode is unique
@@ -699,10 +657,10 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 
 							strcpy(mode_info.mode_type, "heavy");
 
-							mode_info.work_sec = work[0].tv_sec;
-							mode_info.work_nsec = work[0].tv_nsec;
-							mode_info.span_sec = span[0].tv_sec;
-							mode_info.span_nsec = span[0].tv_nsec;
+							mode_info.work_sec = work_A[0].tv_sec;
+							mode_info.work_nsec = work_A[0].tv_nsec;
+							mode_info.span_sec = span_A[0].tv_sec;
+							mode_info.span_nsec = span_A[0].tv_nsec;
 							mode_info.period_sec = nanosecond_periods.at(i) * 2 / 1000000000;
 							mode_info.period_nsec = nanosecond_periods.at(i) * 2 % 1000000000;
 
@@ -731,7 +689,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 			else if (work_elastic){
 
 
-				//we want to walk the work from min to max and find mappings for all 
+				//we want to walk the work_A from min to max and find mappings for all 
 				//possible configurations of cpus we can end up with.
 				if (is_pure_cpu_task){
 
@@ -741,8 +699,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 
 					for (int i = 0; i < 2; i++){
 
-						ts_diff(work[i], span[i], numerator);
-						ts_diff(period[i], span[i], denominator);
+						ts_diff(work_A[i], span_A[i], numerator);
+						ts_diff(period[i], span_A[i], denominator);
 
 						int CPUs = (int)ceil(numerator / denominator);
 
@@ -756,7 +714,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 
 					//set denominator again just so it's easier to see
 					//when looking back at this code
-					ts_diff(period[0], span[0], denominator);
+					ts_diff(period[0], span_A[0], denominator);
 
 					//now we just solve for the periods which 
 					//can make the cpu allocations which fall
@@ -770,8 +728,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						long long denominator_as_value = get_timespec_in_ns(denominator);
 						denominator_as_value *= i;
 
-						//get the span as a value
-						long long span_as_value = get_timespec_in_ns(span[0]);
+						//get the span_A as a value
+						long long span_as_value = get_timespec_in_ns(span_A[0]);
 
 						long long target_work = denominator_as_value - span_as_value;
 
@@ -783,8 +741,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						mode_info.work_sec = target_work / 1000000000;
 						mode_info.work_nsec = target_work % 1000000000;
 
-						mode_info.span_sec = span[0].tv_sec;
-						mode_info.span_nsec = span[0].tv_nsec;
+						mode_info.span_sec = span_A[0].tv_sec;
+						mode_info.span_nsec = span_A[0].tv_nsec;
 
 						mode_info.period_sec = period[0].tv_sec;
 						mode_info.period_nsec = period[0].tv_nsec;
@@ -814,8 +772,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 
 						auto modified_period = period[i] * 0.5;
 
-						ts_diff(work[i], span[i], numerator);
-						ts_diff(modified_period, span[i], denominator);
+						ts_diff(work_A[i], span_A[i], numerator);
+						ts_diff(modified_period, span_A[i], denominator);
 
 						int CPUs = (int)ceil(numerator / denominator);
 
@@ -841,7 +799,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 					//set numerator again just so it's easier to see
 					//when looking back at this code
 					auto modified_period_here = period[0] * 0.5;
-					ts_diff(modified_period_here, span[0], denominator);
+					ts_diff(modified_period_here, span_A[0], denominator);
 
 					//now we just solve for the periods which 
 					//can make the cpu allocations which fall
@@ -855,8 +813,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						long long denominator_as_value = get_timespec_in_ns(denominator);
 						denominator_as_value *= i;
 
-						//get the span as a value
-						long long span_as_value = get_timespec_in_ns(span[0]);
+						//get the span_A as a value
+						long long span_as_value = get_timespec_in_ns(span_A[0]);
 
 						long long target_work = denominator_as_value - span_as_value;
 
@@ -877,7 +835,7 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						long long denominator_as_value = get_timespec_in_ns(denominator);
 						denominator_as_value *= i;
 
-						//get the span as a value
+						//get the span_A as a value
 						long long span_as_value = get_timespec_in_ns(GPU_span[0]);
 
 						long long target_work = denominator_as_value - span_as_value;
@@ -900,8 +858,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 							mode_info.work_sec = allocations_and_work_cpu[i].second / 1000000000;
 							mode_info.work_nsec = allocations_and_work_cpu[i].second % 1000000000;
 
-							mode_info.span_sec = span[0].tv_sec;
-							mode_info.span_nsec = span[0].tv_nsec;
+							mode_info.span_sec = span_A[0].tv_sec;
+							mode_info.span_nsec = span_A[0].tv_nsec;
 
 							mode_info.period_sec = period[0].tv_sec;
 							mode_info.period_nsec = period[0].tv_nsec;

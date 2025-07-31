@@ -67,10 +67,10 @@ class Scheduler{
 		double gpuLoss = 0.0;
 		double cpuCLoss = 0.0;
 		double gpuDLoss = 0.0;
-		int cores = 0;
-		int sms = 0;
-		int cores_C = 0;
-		int sms_D = 0;
+		int processors_A = 0;
+		int processors_B = 0;
+		int processors_C = 0;
+		int processors_D = 0;
 		bool unsafe_mode = false;
 	};
 
@@ -127,11 +127,11 @@ class Scheduler{
 	//each entry corresponds to a task that dictates how it will be processed in the knapsack algorithm
 	static std::vector<int> class_mappings;
 
-	//each entry corresponds to a core which is held by a task
-	std::vector<int> free_cores_A;
-	std::vector<int> free_cores_B;
-	std::vector<int> free_cores_C;
-	std::vector<int> free_cores_D;
+	//each entry corresponds to a processor which is held by a task
+	std::vector<int> free_processors_A;
+	std::vector<int> free_processors_B;
+	std::vector<int> free_processors_C;
+	std::vector<int> free_processors_D;
 
 	//taskData structure for the free resource pool
 	TaskData free_pool;
@@ -180,10 +180,10 @@ public:
 			task_table.at(i).clear();
 		task_table.clear();
 
-		free_cores_A.reserve(num_CPUs);
-		free_cores_B.reserve(NUM_PROCESSOR_B);
-		free_cores_C.reserve(NUM_PROCESSOR_C);
-		free_cores_D.reserve(NUM_PROCESSOR_D);
+		free_processors_A.reserve(num_CPUs);
+		free_processors_B.reserve(NUM_PROCESSOR_B);
+		free_processors_C.reserve(NUM_PROCESSOR_C);
+		free_processors_D.reserve(NUM_PROCESSOR_D);
 
 		//reserve the backtrack table
 
