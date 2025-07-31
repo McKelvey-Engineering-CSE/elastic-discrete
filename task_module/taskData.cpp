@@ -83,7 +83,7 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 
 		int total_processors_used = (current_combination[0] + current_combination[1] + current_combination[2] + current_combination[3]);
 
-		for (int i = 0; i <= system_processors[current_processor]; i++){
+		for (int i = (current_processor == 0 ? 1 : 0); i <= system_processors[current_processor]; i++){
 
 			double new_processor_average = processor_average_starting + (std::get<1>(equivalent_vector[current_processor]) * i);
 

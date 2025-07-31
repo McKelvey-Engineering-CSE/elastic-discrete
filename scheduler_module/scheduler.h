@@ -209,11 +209,11 @@ public:
 
 	bool has_cycle(const std::unordered_map<int, Node>& nodes, int start);
 
-	bool build_resource_graph(std::vector<std::pair<int, int>> resource_pairs, 
+	bool build_resource_graph(std::vector<std::tuple<int, int, int, int>> resource_pairs, 
                         std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node>& static_nodes, std::vector<int>& task_modes,
 						std::vector<int> lowest_modes);
 
-	void execute_resource_allocation_graph(std::vector<std::pair<int, int>> resource_pairs, 
+	void execute_resource_allocation_graph(std::vector<std::tuple<int, int, int, int>> resource_pairs, 
                         std::unordered_map<int, Node>& nodes);
 
 	void print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes);

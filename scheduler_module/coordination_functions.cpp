@@ -812,7 +812,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		//or taken from each task. This will be used to build the RAG.
 		std::unordered_map<int, Node> nodes;
 		std::unordered_map<int, Node> static_nodes;
-		std::vector<std::pair<int, int>> dependencies;
+		std::vector<std::tuple<int, int, int, int>> dependencies;
 
 		for (size_t i = 0; i < result.size(); i++){
 
@@ -823,7 +823,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 			auto previous_mode = previous_modes.at(i);
 
 			//add the new node
-			dependencies.push_back({previous_mode.processors_A - current_mode.processors_A, previous_mode.processors_B - current_mode.processors_B});
+			dependencies.push_back({previous_mode.processors_A - current_mode.processors_A, previous_mode.processors_B - current_mode.processors_B, previous_mode.processors_C - current_mode.processors_C, previous_mode.processors_D - current_mode.processors_D});
 
 		}
 
@@ -832,7 +832,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 		//for all the free cores of both types, add them to the RAG
 		//via adding a node that gives up that many resources
-		dependencies.push_back({std::bitset<128>(schedule.get_task(result.size())->get_processor_A_mask()).count(), std::bitset<128>(schedule.get_task(result.size())->get_processor_B_mask()).count()});
+		dependencies.push_back({std::bitset<128>(schedule.get_task(result.size())->get_processor_A_mask()).count(), std::bitset<128>(schedule.get_task(result.size())->get_processor_B_mask()).count(), std::bitset<128>(schedule.get_task(result.size())->get_processor_C_mask()).count(), std::bitset<128>(schedule.get_task(result.size())->get_processor_D_mask()).count()});
 
 		//build the copy of the results vector that the build resource graph function
 		//needs as well as allocating an equal size vector to hold the lowest modes
@@ -887,60 +887,6 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			//execute the RAG we proved exists
 			execute_resource_allocation_graph(dependencies, nodes);
-
-			//if we have a second mode change to bring the system back to the original state
-			if (multiple_mode_changes){
-
-				print_module::print(std::cerr, "Multiple Mode Changes Detected\n");
-
-				//update the previous modes to the current modes
-				for (size_t i = 0; i < result.size(); i++){
-
-					previous_modes.at(i) = task_table.at(i).at(result.at(i));
-
-					//notify all tasks that they should now transition
-					(schedule.get_task(i))->set_mode_transition(false);
-
-				}
-
-				//signal the child processes
-				pid_t process_group = getpgrp();
-				killpg(process_group, SIGRTMIN+1);
-
-				//wait for all tasks to finish transitioning
-				for (int i = 0; i < schedule.count(); i++)
-					while (!(schedule.get_task(i))->check_mode_transition());
-
-				//now we need to rebuild the dependencies vector
-				dependencies.clear();
-
-				for (size_t i = 0; i < result.size(); i++){
-
-					//fetch the current mode
-					auto current_mode = task_table.at(i).at(result.at(i));
-
-					//fetch the previous mode
-					auto previous_mode = previous_modes.at(i);
-
-					//add the new node
-					dependencies.push_back({previous_mode.processors_A - current_mode.processors_A, previous_mode.processors_B - current_mode.processors_B});
-
-				}
-
-				//if we have multiple mode changes, we need to bring the system back to the original state
-				//should be safe to do this without checking since we are just bringing providers and consumers
-				//back up now????
-				if (!build_resource_graph(dependencies, nodes, static_nodes, result, lowest_modes)){
-
-					print_module::print(std::cerr, "Unexpected error: resource graph could not be built after multiple mode changes.\n");
-					return;
-
-				}
-
-				//execute the RAG we proved exists
-				execute_resource_allocation_graph(dependencies, nodes);
-
-			}
 
 		}	
 

@@ -10,7 +10,7 @@ If we cannot find a solution through this method, then
 we have to use multiple mode changes to achieve it.
 
 *************************************************************/
-bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_pairs, 
+bool Scheduler::build_resource_graph(std::vector<std::tuple<int, int, int, int>> resource_pairs, 
                         std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node>& static_nodes, std::vector<int>& task_modes,
 						std::vector<int> lowest_modes) {
     nodes.clear();
@@ -18,8 +18,8 @@ bool Scheduler::build_resource_graph(std::vector<std::pair<int, int>> resource_p
     //create all nodes
     for (size_t i = 0; i < resource_pairs.size(); i++) {
 
-		auto [x, y] = resource_pairs[i];
-		nodes[i] = Node{(int)i, x, y, {}};
+		auto [x, y, z, w] = resource_pairs[i];
+		nodes[i] = Node{(int)i, x, y, z, w, {}};
 		static_nodes[i] = nodes[i];
     
 	}
@@ -489,7 +489,7 @@ tasks via the message queues to engage the exchanges
 //NEEDS TO BE INTERACTED WITH, WE NEED TO USE THE STORED REFERENCE, OR WE
 //NEED TO ADD THE TASK DATA TO THE LIST, BUT THAT REQUIRES MAKING SURE
 //WE DO NOT USE THE SIZE OF THE TASK DATA WHICH SEEMS PROBLEMATIC
-void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int>> resource_pairs, 
+void Scheduler::execute_resource_allocation_graph(std::vector<std::tuple<int, int, int, int>> resource_pairs, 
                         std::unordered_map<int, Node>& nodes) {
     nodes.clear();
 
@@ -500,8 +500,8 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::pair<int, int
     //create all nodes
     for (size_t i = 0; i < resource_pairs.size(); i++) {
 
-		auto [x, y] = resource_pairs[i];
-		nodes[i] = Node{(int)i, x, y, {}};
+		auto [x, y, z, w] = resource_pairs[i];
+		nodes[i] = Node{(int)i, x, y, z, w, {}};
 
 		task_masks.push_back(0);
     
