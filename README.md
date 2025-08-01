@@ -1,18 +1,23 @@
 # Elastic-Discrete Scheduler
 
-Readme last updated: 8 May 2025 by Tyler Martin
+Readme last updated: 31 July 2025 by Tyler Martin
 
 ## Description
 This is a runtime system to run parallel elastic tasks with discrete candidate values of period T OR work C. 
 Each task Tau has a constant span L, variable T or C, Elasticity coefficient E, and a finite set of discrete values of C or T
 
-The scheduler implements the new heterogeneous discrete elastic framework, which is optimized for use with a CPU and NVIDIA GPU hybrid 
-system. When calling the make file, if nvcc is installed, it will compile for use with the NVIDIA GPU. If nvcc is not found, it will compile
-with g++. 
+The scheduler implements the new heterogeneous discrete elastic framework, which supports **four distinct processor types**:
+- **Processor A**: Primary CPU cores managed by the OMP replacement library
+- **Processor B**: Additional processor 
+- **Processor C**: Additional processor
+- **Processor D**: Additional processor
+
+Heterogeneous CPUs: CPUs which have the A-B-C core tiering system are fully supported. For more information, see below.
+
+The system is optimized for use with heterogeneous computing environments including CPUs and NVIDIA GPUs. When calling the make file, if nvcc is installed, it will compile for use with the NVIDIA GPU. If nvcc is not found, it will compile with g++. 
 
 There are two versions of the core scheduler as well: one written in CUDA and one in standard C++. They are both contained within the same code, 
-activated by macros at compile time. The scheduler is embarassingly parallel, and thus having a GPU in the system (even a terrible, 20$ one) is likely to
-be faster than any CPU you pair with the system. 
+activated by macros at compile time. The scheduler is embarassingly parallel, and thus having a GPU in the system (even a terrible, 20$ one) is likely to be faster than any CPU you pair with the system. 
 
 Final note is that the scheduler can run in real or simulated modes. When in real mode, all tasks are unique processes and do some work as defined
 by you. In simulated mode, the task file provided to the scheduler will be read in as usual, but the tasks associated with the parameters will never
@@ -27,6 +32,8 @@ Priting is all controlled by a custom print function notated print_module::print
 (See section below for breakdown of printing module)
 
 OpenMP can be used but is not strictly supported. There is a custom library in the omp_module which replaces the openMP library. Looking at the header file contained within should give enough insight to figure out how to use OMP-like semantics. If you must use OMP, it can be compiled with OMP support. However, thread pinning is up to you to do. You can access the cores granted to a task through the TaskData structures and pin threads yourself. 
+
+**Processor Management**: Processor A is automatically managed by the OMP replacement library, while processors B, C, and D require manual management through exposed task functions.
 
 As I continue working, this readme will be updated with more information
 
@@ -49,7 +56,9 @@ Once you have this structure, compile your task against the task_manager object 
 Next define a configuration YAML file. File structure:
 ```
 schedulable: true/false
+explicit_sync: false # Optional
 maxRuntime: {sec: 0, ns: 0} # optional
+processorConfiguration: {A: 1A, B: 0.75A, C: 1C, D: 1D} # Defines processor relationships
 tasks:
   - program:
       name: "executable file name"
@@ -58,10 +67,24 @@ tasks:
     maxIterations: 100 # Optional
     priority: 1 # Optional
     modes:
-      - work: {sec: 5, nsec: 0}
-        span: {sec: 1, nsec: 0}
+      - work_A: {sec: 5, nsec: 0}    # Work for processor A
+        span_A: {sec: 1, nsec: 0}    # Span for processor A
+        work_B: {sec: 3, nsec: 0}    # Work for processor B (optional)
+        span_B: {sec: 1, nsec: 0}    # Span for processor B (optional)
+        work_C: {sec: 2, nsec: 0}    # Work for processor C (optional)
+        span_C: {sec: 1, nsec: 0}    # Span for processor C (optional)
+        work_D: {sec: 1, nsec: 0}    # Work for processor D (optional)
+        span_D: {sec: 1, nsec: 0}    # Span for processor D (optional)
         period: {sec: 0, nsec: 3000000}
 ```
+
+**Hybrid Processor Configuration**: The `processorConfiguration` field defines the relationship between processor types:
+- `A: 1A` - Processor A is independent
+- `B: 0.75A` - Processor B has 75% of the performance of processor A
+- `C: 1C` - Processor C is independent  
+- `D: 1D` - Processor D is independent
+
+If a processor is heterogeneous and contains different cores within it, often treating these cores as equivalent is not useful. In the yaml file, if you specify that core B is 75% as fast as core A, the scheduler will calculate mode resource usages considering the canonical DAG for your task and generate safe core allocations for each core type present in the CPU. In the example above, we have a system with an A-B processor like a core Ultra 9 285k and two accelerators, maybe an Nvidia GPU and an Xilinx FPGA.
 
 A task will run until either it reaches the maximum number of iterations, or the global maximum runtime is reached - if neither is specified it will run forever.
 
@@ -113,20 +136,31 @@ void allow_change();
 To be used after set_coopertative is run if you desire the system to calculate a new schedule with the task
 in question now being allowed to cooperate and have its mode changed. 
 
+**Processor Management Functions**:
+```
+void update_core_B(__uint128_t mask);
+void update_core_C(__uint128_t mask);
+void update_core_D(__uint128_t mask);
+```
+These functions allow tasks to manually update their processor assignments for processors B, C, and D.
+Processor A is automatically managed by the OMP replacement library and does not require manual updates.
+The mask parameter specifies which cores are assigned to the task (least significant bit is core 0).
+
 ## Useful Variables You Can Access From A Task
 
 Each task also has different variables that they own which reflect different parts of their current 
-execution scheme and operating mode. Two specifically useful ones are:
+execution scheme and operating mode. The processor mask variables are:
 
 ```
-__uint128_t current_cpu_mask;
-__uint128_t current_gpu_mask;
+__uint128_t processor_A_mask;
+__uint128_t processor_B_mask;
+__uint128_t processor_C_mask;
+__uint128_t processor_D_mask;
 ```
 
-These two can be called from anywhere and will always contain the current CPU and GPU (similarly processor A / B) 
-mask which details which processor cores this task currently has owned by it. Least signiicant bit is core 0 up to core
+These can be called from anywhere and will always contain the current processor core masks for each processor type.
+The masks detail which processor cores this task currently has owned by it. Least significant bit is core 0 up to core
 128 in the most significant bit.
-
 
 ## Examples
 
@@ -223,12 +257,3 @@ void print(buffer_set bufferNames, Arg&& arg, Args&&... args);
 This printing method can be imported into any object in the system and used. It ensures a process-safe and thread-ready method for printing which 
 guarantees no messages are interleaved when printing to any std::ostream interface as well as enabling a printing method for inter-process 
 communication for future endeavors
-
-## Elastic Discrete Legacy Description (For Use With Legacy Cybermech)
-```
-Author: James Orr
-Date: 5 September, 2018
-
-In order to get this running on Cybermech run the following 2 commands each session (also in init.sh): 
-export PATH=/home/james/bin:$PATH &&  export LD_LIBRARY_PATH=/home/james/lib64:$LD_LIBRARY_PATH && export GOMP_SPINCOUNT=0
-```
