@@ -8,16 +8,13 @@
 ## Table of Contents
 - [Overview](#overview)
 - [Features](#features)
-- [System Requirements](#system-requirements)
-- [Installation](#installation)
 - [Quick Start](#quick-start)
-- [Architecture](#architecture)
+- [Heterogeneous CPU Support](#heterogeneous-cpu-support)
 - [Usage](#usage)
 - [API Reference](#api-reference)
+- [System Requirements](#system-requirements)
+- [Installation](#installation)
 - [Testing](#testing)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## Overview
 
