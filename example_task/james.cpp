@@ -45,6 +45,10 @@ bool first_time = true;
 
 void update_core_B(__uint128_t mask) {
 
+    //for a hybrid CPU, omp_replacement still controls both the A and B cores
+    //but you must update the mask to reflect the B cores the task owns as well
+    omp.set_override_mask(processor_A_mask | processor_B_mask);
+
     return;
 
 }
@@ -54,7 +58,9 @@ void update_core_C(__uint128_t mask) {
     //for now just pretend
     return;
 
-    //example of how to use core B masks
+    //example of how to use an additional core mask
+    //for something like a GPU, in this case we are 
+    //using green contexts to control the GPU TPCs
     #ifdef __NVCC__
 
         //device specs

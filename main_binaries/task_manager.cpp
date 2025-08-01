@@ -35,7 +35,8 @@
 
 	#include "omp_replacement.hpp"
 
-	ThreadPool<> omp(NUM_PROCESSOR_A);
+	//-1 means use all available processors
+	ThreadPool<> omp(-1);
 
 #endif
 
@@ -103,10 +104,10 @@ cpu_set_t global_cpuset;
 struct sched_param global_param;
 
 //omp replacement thread pool
-__uint128_t current_cpu_mask;
-__uint128_t current_gpu_mask;
-__uint128_t current_cpu_C_mask;
-__uint128_t current_gpu_D_mask;
+__uint128_t processor_A_mask;
+__uint128_t processor_B_mask;
+__uint128_t processor_C_mask;
+__uint128_t processor_D_mask;
 
 enum rt_gomp_task_manager_error_codes
 { 
@@ -324,25 +325,25 @@ void reschedule(){
 	percentile = schedule.get_task(task_index)->get_percentage_workload();
 
 	//update our cpu mask
-	current_cpu_mask = schedule.get_task(task_index)->get_processor_A_mask();
+	processor_A_mask = schedule.get_task(task_index)->get_processor_A_mask();
 
 	#ifdef OMP_OVERRIDE
-		omp.set_override_mask(current_cpu_mask);
+		omp.set_override_mask(processor_A_mask);
 	#else
 		set_active_threads(schedule.get_task(task_index)->get_processor_A_owned_by_process());
 	#endif
 		
-	//update our gpu mask
-	current_gpu_mask = schedule.get_task(task_index)->get_processor_B_mask();
-	task.update_core_B(current_gpu_mask);
+	//update processor B mask and call update function
+	processor_B_mask = schedule.get_task(task_index)->get_processor_B_mask();
+	task.update_core_B(processor_B_mask);
 
-	//update our cpu C mask
-	current_cpu_C_mask = schedule.get_task(task_index)->get_processor_C_mask();
-	task.update_core_C(current_cpu_C_mask);
+	//update processor C mask and call update function
+	processor_C_mask = schedule.get_task(task_index)->get_processor_C_mask();
+	task.update_core_C(processor_C_mask);
 
-	//update our gpu D mask
-	current_gpu_D_mask = schedule.get_task(task_index)->get_processor_D_mask();
-	task.update_core_D(current_gpu_D_mask);
+	//update processor D mask and call update function
+	processor_D_mask = schedule.get_task(task_index)->get_processor_D_mask();
+	task.update_core_D(processor_D_mask);
 
 	//all pretty printing crap
 	#ifdef PRETTY_PRINTING
@@ -352,7 +353,7 @@ void reschedule(){
 		//core A
 		print_module::buffered_print(reschedule_buffer, "Core A Owned: [ ");
 
-		std::bitset<128> cpu_mask(current_cpu_mask);
+		std::bitset<128> cpu_mask(processor_A_mask);
 		for (int i = 0 ; i < 128; i++)
 			print_module::buffered_print(reschedule_buffer, cpu_mask.test(i) ? std::to_string(i) + " " : "");
 
@@ -361,7 +362,7 @@ void reschedule(){
 		//core B
 		print_module::buffered_print(reschedule_buffer, "Core B Owned: [ ");
 
-		std::bitset<128> gpu_mask(current_gpu_mask);
+		std::bitset<128> gpu_mask(processor_B_mask);
 		for (int i = 0 ; i < 128; i++)
 			print_module::buffered_print(reschedule_buffer, gpu_mask.test(i) ? std::to_string(i) + " " : "");
 
@@ -370,7 +371,7 @@ void reschedule(){
 		//core C
 		print_module::buffered_print(reschedule_buffer, "Core C Owned: [ ");
 
-		std::bitset<128> cpu_C_mask(current_cpu_C_mask);
+		std::bitset<128> cpu_C_mask(processor_C_mask);
 		for (int i = 0 ; i < 128; i++)
 			print_module::buffered_print(reschedule_buffer, cpu_C_mask.test(i) ? std::to_string(i) + " " : "");
 
@@ -379,7 +380,7 @@ void reschedule(){
 		//core D
 		print_module::buffered_print(reschedule_buffer, "Core D Owned: [ ");
 
-		std::bitset<128> gpu_D_mask(current_gpu_D_mask);
+		std::bitset<128> gpu_D_mask(processor_D_mask);
 		for (int i = 0 ; i < 128; i++)
 			print_module::buffered_print(reschedule_buffer, gpu_D_mask.test(i) ? std::to_string(i) + " " : "");
 
@@ -634,8 +635,8 @@ int main(int argc, char *argv[])
   	}
 
 	//set the cpu mask
-	current_cpu_mask = schedule.get_task(task_index)->get_processor_A_mask();
-	std::cout << "Process: " << task_index <<  " Initial Processor A Mask: " << (unsigned long long) current_cpu_mask << std::endl;
+	processor_A_mask = schedule.get_task(task_index)->get_processor_A_mask();
+	std::cout << "Process: " << task_index <<  " Initial Processor A Mask: " << (unsigned long long) processor_A_mask << std::endl;
 
 	//print active vs passive CPUs
 	print_module::buffered_print(task_info, "Processor A Core Configuration: \n");
@@ -660,19 +661,19 @@ int main(int argc, char *argv[])
 	omp_set_num_threads(schedule.get_task(task_index)->get_current_processors_A());
 
 	#ifdef OMP_OVERRIDE
-		omp.set_override_mask(current_cpu_mask);
+		omp.set_override_mask(processor_A_mask);
 	#else
 		set_active_threads(schedule.get_task(task_index)->get_processor_A_owned_by_process());
 	#endif
 		
 	//update our gpu mask
-	current_gpu_mask = schedule.get_task(task_index)->get_processor_B_mask();
+	processor_B_mask = schedule.get_task(task_index)->get_processor_B_mask();
 
 	//update our cpu C mask
-	current_cpu_C_mask = schedule.get_task(task_index)->get_processor_C_mask();
+	processor_C_mask = schedule.get_task(task_index)->get_processor_C_mask();
 
 	//update our gpu D mask
-	current_gpu_D_mask = schedule.get_task(task_index)->get_processor_D_mask();
+	processor_D_mask = schedule.get_task(task_index)->get_processor_D_mask();
 
 	// Initialize the task
 	if (schedule.get_task(task_index) && task.init != NULL){
@@ -688,13 +689,13 @@ int main(int argc, char *argv[])
 	}
 
 	//call the core B update
-	task.update_core_B(current_gpu_mask);
+	task.update_core_B(processor_B_mask);
 
 	//call the core C update
-	task.update_core_C(current_cpu_C_mask);
+	task.update_core_C(processor_C_mask);
 
 	//call the core D update
-	task.update_core_D(current_gpu_D_mask);
+	task.update_core_D(processor_D_mask);
 	
 	// Wait at barrier for the other tasks
 	if ((ret_val = process_barrier::await_and_rearm_barrier(barrier_name)) != 0){

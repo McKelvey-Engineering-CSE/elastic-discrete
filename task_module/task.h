@@ -101,9 +101,9 @@ extern void allow_change();
 extern bool modify_self(int new_mode);
 
 //omp replacement thread pool
-extern __uint128_t current_cpu_mask;
-extern __uint128_t current_gpu_mask;
-extern __uint128_t current_cpu_C_mask;
-extern __uint128_t current_gpu_D_mask;
+extern __uint128_t processor_A_mask;
+extern __uint128_t processor_B_mask;
+extern __uint128_t processor_C_mask;
+extern __uint128_t processor_D_mask;
 
 #endif /* RT_GOMP_TASK_H */

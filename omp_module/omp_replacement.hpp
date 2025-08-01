@@ -42,6 +42,16 @@ public:
         dimension(MAX_THREADS),
         rank(MAX_THREADS),
         stop(false) {
+
+        if (threads == -1) {	
+            
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);
+            sched_getaffinity(0, sizeof(cpuset), &cpuset);
+            int num_processors = CPU_COUNT(&cpuset);
+            threads = num_processors;
+            
+        }
         
         assert(threads <= MAX_THREADS && "Thread count exceeds maximum supported threads");
         

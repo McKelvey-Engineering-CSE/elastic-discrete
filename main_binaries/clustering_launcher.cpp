@@ -129,7 +129,7 @@ static std::string convertToRanges(const std::string& input) {
     return result.str();
 }
 
-void simulated_task_start(int task_index, timespec * current_period, timespec * current_work, int * current_mode, timespec * deadline, int * percentile, __uint128_t * current_cpu_mask, __uint128_t * current_gpu_mask, __uint128_t * current_cpu_C_mask, __uint128_t * current_gpu_D_mask, Schedule* schedule){
+void simulated_task_start(int task_index, timespec * current_period, timespec * current_work, int * current_mode, timespec * deadline, int * percentile, __uint128_t * processor_A_mask, __uint128_t * processor_B_mask, __uint128_t * processor_C_mask, __uint128_t * processor_D_mask, Schedule* schedule){
 
 	//Collect our first schedule and set it ups
 	*current_work = schedule->get_task(task_index)->get_current_work();
@@ -194,8 +194,8 @@ void simulated_task_start(int task_index, timespec * current_period, timespec * 
   	}
 
 	//set the cpu mask
-	*current_cpu_mask = schedule->get_task(task_index)->get_processor_A_mask();
-	std::cout << "Process: " << task_index <<  " Initial Processor A Mask: " << (unsigned long long) *current_cpu_mask << std::endl;
+	*processor_A_mask = schedule->get_task(task_index)->get_processor_A_mask();
+	std::cout << "Process: " << task_index <<  " Initial Processor A Mask: " << (unsigned long long) *processor_A_mask << std::endl;
 
 	//print active vs passive CPUs
 	print_module::buffered_print(task_info, "Processor A Core Configuration: \n");
@@ -209,17 +209,17 @@ void simulated_task_start(int task_index, timespec * current_period, timespec * 
 	print_module::flush(std::cerr, task_info);
 
 	//update our gpu mask
-	*current_gpu_mask = schedule->get_task(task_index)->get_processor_B_mask();
+	*processor_B_mask = schedule->get_task(task_index)->get_processor_B_mask();
 
 	//update our cpu C mask
-	*current_cpu_C_mask = schedule->get_task(task_index)->get_processor_C_mask();
+	*processor_C_mask = schedule->get_task(task_index)->get_processor_C_mask();
 
 	//update our gpu D mask
-	*current_gpu_D_mask = schedule->get_task(task_index)->get_processor_D_mask();
+	*processor_D_mask = schedule->get_task(task_index)->get_processor_D_mask();
 	
 }
 
-bool simulated_reschedule(int task_index, timespec* current_period, timespec* current_work, int* current_mode, timespec* deadline, int* percentile, __uint128_t* current_cpu_mask, __uint128_t* current_gpu_mask, __uint128_t* current_cpu_C_mask, __uint128_t* current_gpu_D_mask, Schedule* schedule){
+bool simulated_reschedule(int task_index, timespec* current_period, timespec* current_work, int* current_mode, timespec* deadline, int* percentile, __uint128_t* processor_A_mask, __uint128_t* processor_B_mask, __uint128_t* processor_C_mask, __uint128_t* processor_D_mask, Schedule* schedule){
 
 	//Fetch the mask of tasks which we are waiting on
 	//(safe to call multiple times)
@@ -246,16 +246,16 @@ bool simulated_reschedule(int task_index, timespec* current_period, timespec* cu
 		*current_mode = schedule->get_task(task_index)->get_current_virtual_mode();
 
 		//update our cpu mask
-		*current_cpu_mask = schedule->get_task(task_index)->get_processor_A_mask();
+		*processor_A_mask = schedule->get_task(task_index)->get_processor_A_mask();
 
 		//update our gpu mask
-		*current_gpu_mask = schedule->get_task(task_index)->get_processor_B_mask();
+		*processor_B_mask = schedule->get_task(task_index)->get_processor_B_mask();
 
 		//update our cpu C mask
-		*current_cpu_C_mask = schedule->get_task(task_index)->get_processor_C_mask();
+		*processor_C_mask = schedule->get_task(task_index)->get_processor_C_mask();
 
 		//update our gpu D mask
-		*current_gpu_D_mask = schedule->get_task(task_index)->get_processor_D_mask();
+		*processor_D_mask = schedule->get_task(task_index)->get_processor_D_mask();
 
 		std::ostringstream reschedule_buffer;
 
@@ -267,7 +267,7 @@ bool simulated_reschedule(int task_index, timespec* current_period, timespec* cu
 			//core A
 			print_module::buffered_print(reschedule_buffer, "Core A Owned: [ ");
 
-			std::bitset<128> cpu_mask(*current_cpu_mask);
+			std::bitset<128> cpu_mask(*processor_A_mask);
 			for (int i = 0 ; i < 128; i++)
 				print_module::buffered_print(reschedule_buffer, cpu_mask.test(i) ? std::to_string(i) + " " : "");
 
@@ -276,7 +276,7 @@ bool simulated_reschedule(int task_index, timespec* current_period, timespec* cu
 			//core B
 			print_module::buffered_print(reschedule_buffer, "Core B Owned: [ ");
 
-			std::bitset<128> gpu_mask(*current_gpu_mask);
+			std::bitset<128> gpu_mask(*processor_B_mask);
 			for (int i = 0 ; i < 128; i++)
 				print_module::buffered_print(reschedule_buffer, gpu_mask.test(i) ? std::to_string(i) + " " : "");
 
@@ -285,7 +285,7 @@ bool simulated_reschedule(int task_index, timespec* current_period, timespec* cu
 			//core C
 			print_module::buffered_print(reschedule_buffer, "Core C Owned: [ ");
 
-			std::bitset<128> cpu_C_mask(*current_cpu_C_mask);
+			std::bitset<128> cpu_C_mask(*processor_C_mask);
 			for (int i = 0 ; i < 128; i++)
 				print_module::buffered_print(reschedule_buffer, cpu_C_mask.test(i) ? std::to_string(i) + " " : "");
 
@@ -294,7 +294,7 @@ bool simulated_reschedule(int task_index, timespec* current_period, timespec* cu
 			//core D
 			print_module::buffered_print(reschedule_buffer, "Core D Owned: [ ");
 
-			std::bitset<128> gpu_D_mask(*current_gpu_D_mask);
+			std::bitset<128> gpu_D_mask(*processor_D_mask);
 			for (int i = 0 ; i < 128; i++)
 				print_module::buffered_print(reschedule_buffer, gpu_D_mask.test(i) ? std::to_string(i) + " " : "");
 
@@ -990,10 +990,10 @@ int main(int argc, char *argv[])
 
 		int percentile[parsed_tasks.size()];
 
-		__uint128_t current_cpu_mask[parsed_tasks.size()];
-		__uint128_t current_gpu_mask[parsed_tasks.size()];
-		__uint128_t current_cpu_C_mask[parsed_tasks.size()];
-		__uint128_t current_gpu_D_mask[parsed_tasks.size()];
+		__uint128_t processor_A_mask[parsed_tasks.size()];
+		__uint128_t processor_B_mask[parsed_tasks.size()];
+		__uint128_t processor_C_mask[parsed_tasks.size()];
+		__uint128_t processor_D_mask[parsed_tasks.size()];
 
 		//for testing select 5 random tasks to be the instigators
 		int task_count = parsed_tasks.size();
@@ -1040,7 +1040,7 @@ int main(int argc, char *argv[])
 		for (size_t i = 0; i < parsed_tasks.size(); i++){
 
 			//call the simulated task start
-			simulated_task_start(i, &current_period[i], &current_work[i], &current_mode[i], &deadline[i], &percentile[i], &current_cpu_mask[i], &current_gpu_mask[i], &current_cpu_C_mask[i], &current_gpu_D_mask[i], scheduler->get_schedule());
+			simulated_task_start(i, &current_period[i], &current_work[i], &current_mode[i], &deadline[i], &percentile[i], &processor_A_mask[i], &processor_B_mask[i], &processor_C_mask[i], &processor_D_mask[i], scheduler->get_schedule());
 
 		}
 
@@ -1126,7 +1126,7 @@ int main(int argc, char *argv[])
 					if (reschedule_in_progress && !task_has_transitioned[i]){
 
 						//call the simulated reschedule (completely fine to call this multiple times)
-						task_has_transitioned[i] |= simulated_reschedule(i, &current_period[i], &current_work[i], &current_mode[i], &deadline[i], &percentile[i], &current_cpu_mask[i], &current_gpu_mask[i], &current_cpu_C_mask[i], &current_gpu_D_mask[i], scheduler->get_schedule());
+						task_has_transitioned[i] |= simulated_reschedule(i, &current_period[i], &current_work[i], &current_mode[i], &deadline[i], &percentile[i], &processor_A_mask[i], &processor_B_mask[i], &processor_C_mask[i], &processor_D_mask[i], scheduler->get_schedule());
 
 					}
 
