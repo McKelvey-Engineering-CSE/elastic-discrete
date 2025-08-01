@@ -173,9 +173,9 @@ void update_core_D(__uint128_t mask); // Update accelerator D assignment
 
 ### YAML Configuration Format
 ```yaml
-schedulable: true/false                                     # Whether tasks can be scheduled
-explicit_sync: false                                        # Optional explicit synchronization
-maxRuntime: {sec: 0, ns: 0}                                 # Optional global runtime limit (Needed if no iteration count)
+schedulable: true/false                                     # Bool which specifies if task set can be scheduled at all (for offline analysis)
+explicit_sync: false                                        # Optional explicit synchronization (unused for now)
+maxRuntime: {sec: 0, ns: 0}                                 # Optional global runtime limit (Needed if no iteration count, or tasks run forever)
 processorConfiguration:  {A: 1A, B: 0.75A, C: 1C, D: 1D}    # Processor description (see above)
 
 tasks:
