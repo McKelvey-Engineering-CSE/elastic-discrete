@@ -198,7 +198,7 @@ tasks:
         span_C: {sec: 1, nsec: 0}   # Span for accelerator C (optional)
         work_D: {sec: 1, nsec: 0}   # Work for accelerator D (optional)
         span_D: {sec: 1, nsec: 0}   # Span for accelerator D (optional)
-        period: {sec: 0, nsec: 3000000} # Task period
+        period: {sec: 5, nsec: 0}   # Task period
 ```
 
 ### Execution Modes
