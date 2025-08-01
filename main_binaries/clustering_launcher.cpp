@@ -593,7 +593,18 @@ Main Process:
 *************************************************************************************/
 int main(int argc, char *argv[])
 {
+
+	/*
+	The clustering launcher sometimes sends signals to its entire process group.
+	If the launcher is run as a subprocess (eg of test_runner), we don't want the parent
+	to receive any unexpected signals.
+	*/
+	if (setpgid(0, 0) != 0) {
+		print_module::print(std::cerr, "Failed to set process group\n");
+	}
+
 	process_group = getpgrp();
+
 	std::vector<std::string> args(argv, argv+argc);
 	//int schedulable;
 	std::vector<parsed_task_info> parsed_tasks;

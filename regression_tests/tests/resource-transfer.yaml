@@ -1,0 +1,26 @@
+---
+schedulable: true
+maxRuntime: {sec: 5, nsec: 0}
+tasks:
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "0 100000000 2 50"
+    elasticity: 1
+    modes:
+      - work: {sec: 14, nsec: 0}
+        span: {sec: 1, nsec: 0}
+        period: {sec: 1, nsec: 0}
+      - work: {sec: 1, nsec: 0}
+        span: {sec: 1, nsec: 0}
+        period: {sec: 1, nsec: 0}
+  - program:
+      name: ./../../regression_test_task/regression_test_task
+      args: "1 100000000 2 50"
+    elasticity: 1
+    modes:
+      - work: {sec: 1, nsec: 0}
+        span: {sec: 1, nsec: 0}
+        period: {sec: 1, nsec: 0}
+      - work: {sec: 14, nsec: 0}
+        span: {sec: 1, nsec: 0}
+        period: {sec: 1, nsec: 0}

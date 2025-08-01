@@ -4,7 +4,7 @@ NVCC := $(notdir $(NVCC))
 HAS_NVCC := $(if $(filter nvcc,$(NVCC)),true,false)
 
 # Common settings
-COMMON_FLAGS := -std=c++20 -O0 -I.
+COMMON_FLAGS := -std=c++20 -O0 -I. -g
 COMMON_LIBS := -lrt -lm -L./libyaml-cpp/build/ -lyaml-cpp
 
 # Omp library control
