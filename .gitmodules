@@ -1,6 +1,3 @@
 [submodule "libyaml-cpp"]
 	path = libyaml-cpp
 	url = https://github.com/jbeder/yaml-cpp.git
-[submodule "subprocess.h"]
-	path = subprocess.h
-	url = https://github.com/sheredom/subprocess.h.git
