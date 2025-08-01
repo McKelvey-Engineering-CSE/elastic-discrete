@@ -173,32 +173,28 @@ void update_core_D(__uint128_t mask); // Update accelerator D assignment
 
 ### YAML Configuration Format
 ```yaml
-schedulable: true/false              # Whether tasks can be scheduled
-explicit_sync: false                 # Optional explicit synchronization
-maxRuntime: {sec: 0, ns: 0}         # Optional global runtime limit
-processorConfiguration:              # Accelerator performance relationships
-  A: 1A                              # Accelerator A is independent (baseline)
-  B: 0.75A                           # Accelerator B is 75% of A's performance
-  C: 1C                              # Accelerator C is independent
-  D: 1D                              # Accelerator D is independent
+schedulable: true/false                                     # Whether tasks can be scheduled
+explicit_sync: false                                        # Optional explicit synchronization
+maxRuntime: {sec: 0, ns: 0}                                 # Optional global runtime limit (Needed if no iteration count)
+processorConfiguration:  {A: 1A, B: 0.75A, C: 1C, D: 1D}    # Processor description (see above)
 
 tasks:
   - program:
       name: "executable_name"        # Task binary name
       args: "command line arguments" # Task arguments
     elasticity: 150                  # Elasticity coefficient (1 for non-elastic)
-    maxIterations: 100              # Optional iteration limit
-    priority: 1                     # Optional SCHED_RR priority (default: 7)
-    modes:                          # Available execution modes (candidate modes)
-      - work_A: {sec: 5, nsec: 0}   # Work for accelerator A
-        span_A: {sec: 1, nsec: 0}   # Span for accelerator A
-        work_B: {sec: 3, nsec: 0}   # Work for accelerator B (optional)
-        span_B: {sec: 1, nsec: 0}   # Span for accelerator B (optional)
-        work_C: {sec: 2, nsec: 0}   # Work for accelerator C (optional)
-        span_C: {sec: 1, nsec: 0}   # Span for accelerator C (optional)
-        work_D: {sec: 1, nsec: 0}   # Work for accelerator D (optional)
-        span_D: {sec: 1, nsec: 0}   # Span for accelerator D (optional)
-        period: {sec: 5, nsec: 0}   # Task period
+    maxIterations: 100               # Optional iteration limit
+    priority: 1                      # Optional SCHED_RR priority (default: 7)
+    modes:                           # Available execution modes (candidate modes)
+      - work_A: {sec: 5, nsec: 0}    # Work for accelerator A
+        span_A: {sec: 1, nsec: 0}    # Span for accelerator A
+        work_B: {sec: 3, nsec: 0}    # Work for accelerator B (optional)
+        span_B: {sec: 1, nsec: 0}    # Span for accelerator B (optional)
+        work_C: {sec: 2, nsec: 0}    # Work for accelerator C (optional)
+        span_C: {sec: 1, nsec: 0}    # Span for accelerator C (optional)
+        work_D: {sec: 1, nsec: 0}    # Work for accelerator D (optional)
+        span_D: {sec: 1, nsec: 0}    # Span for accelerator D (optional)
+        period: {sec: 5, nsec: 0}    # Task period
 ```
 
 ### Execution Modes
