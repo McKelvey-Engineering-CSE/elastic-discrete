@@ -1,4 +1,4 @@
-# Elastic-Discrete Scheduler
+# RT-HEART
 
 Readme last updated: 31 July 2025 by Tyler Martin
 
