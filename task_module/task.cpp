@@ -24,7 +24,7 @@ void mode_change_setup() {
   fflush( fd );
    #endif
 
-		if(!(active[omp_get_thread_num()]))
+		if(!(active_threads[omp_get_thread_num()]))
 		{
 	
 			#ifdef TRACING
@@ -62,10 +62,6 @@ void mode_change_finish(){
 	{
 		futex_wakeup();
 	}  
-	#ifdef DAVID
-	end = omp_get_wtime();
-	printf("Thread %d spent %0.1fus in busy wait\n", cpus[omp_get_thread_num()], (end-start)*1000000.0);
-	#endif
 
 }
 

@@ -22,6 +22,10 @@ void p_mutex::lock(){
     pthread_mutex_lock(&mutex);
 }
 
+int p_mutex::try_lock(){
+    return pthread_mutex_trylock(&mutex);
+}
+
 void p_mutex::wait(){
 
     pthread_cond_wait(&cond, &mutex);

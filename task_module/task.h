@@ -30,20 +30,35 @@ Struct : task_t
 extern FILE * fd;
 #endif
 
+#ifdef OMP_OVERRIDE
+
+	#include "omp_replacement.hpp"
+
+	extern ThreadPool<> omp;
+
+#endif
+
 // Task struct type used by task_manager.cpp to control a task.
 typedef struct
 {
 	int (*init)(int argc, char *argv[]);
 	int (*run)(int argc, char *argv[]);
 	int (*finalize)(int argc, char *argv[]);
+	void (*update_core_B)(__uint128_t mask);
+	void (*update_core_C)(__uint128_t mask);
+	void (*update_core_D)(__uint128_t mask);
 }
 task_t;
 
-extern bool active[64];
+extern bool active_threads[64];
 extern int current_mode;
 extern double percentile;
 
 extern void modify_self(timespec new_value);
+
+extern void set_cooperative(bool value);
+
+extern void mimic_simulator(int task_index);
 
 // Used to determine current task and its features.
 extern bool missed_dl;
@@ -51,11 +66,10 @@ extern bool missed_dl;
 // Task struct that should be defined by the real time task.
 extern task_t task;
 
-extern const int NUMCPUS;
-extern const int MAXTASKS;
-
 extern timespec current_period;
 extern timespec current_work;
+
+extern bool mode_change_finished;
 
 // We need a special barrier that understands the mixed-criticality mode
 // transition and the fact that different numbers of threads are expected at
@@ -84,5 +98,12 @@ void mode_change_setup();
 void mode_change_finish();
 
 extern void allow_change();
-extern void modify_self(int new_mode);
+extern bool modify_self(int new_mode);
+
+//omp replacement thread pool
+extern __uint128_t processor_A_mask;
+extern __uint128_t processor_B_mask;
+extern __uint128_t processor_C_mask;
+extern __uint128_t processor_D_mask;
+
 #endif /* RT_GOMP_TASK_H */

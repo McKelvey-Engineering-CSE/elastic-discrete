@@ -19,6 +19,10 @@ timespec operator*(double scalar, const timespec & ts);
 timespec operator/(const timespec & ts, double scalar);
 double operator/(const timespec & ts1, const timespec & ts2);
 
+long long get_timespec_in_ns(const timespec ts1);
+
+timespec timespec_from_ns(long ns);
+
 void ts_diff (timespec& ts1, timespec& ts2, timespec& result);
 void sleep_until_ts (timespec& end_time);
 void sleep_for_ts (timespec& sleep_time);

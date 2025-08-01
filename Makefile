@@ -1,95 +1,128 @@
-##### Compiler Settings ##########################################################
-CC = g++ -std=c++20 -O0 -I.
-HEADERS = $(addprefix -iquote ,$(shell find . -type d -not -path "*/\.*"))
-FLAGS = -Wall -g -gdwarf-3 $(HEADERS)
+##### Compiler Detection and Settings #################################################
+NVCC := $(shell which nvcc 2> /dev/null)
+NVCC := $(notdir $(NVCC))
+HAS_NVCC := $(if $(filter nvcc,$(NVCC)),true,false)
 
-ifneq (,$(findstring x86_64, $(shell $(CC) -dumpmachine)))
-	FLAGS := $(FLAGS) -mavx2
+# Common settings
+COMMON_FLAGS := -std=c++20 -O0 -I. -g
+COMMON_LIBS := -lrt -lm -L./libyaml-cpp/build/ -lyaml-cpp
+
+# Omp library control
+OMP_LIB := -DOMP_OVERRIDE -DPRETTY_PRINTING
+
+# Include directories
+HEADERS := $(addprefix -I ,$(shell find . -type d -not -path "*/\.*" | grep -v yaml))
+HEADERS_WITH_YAML := $(addprefix -I ,$(shell find . -type d -not -path "*/\.*"))
+
+# Architecture-specific flags
+X86_64_ARCH := $(shell g++ -dumpmachine | grep x86_64)
+ifneq (,$(X86_64_ARCH))
+    ARCH_FLAGS := -mavx2
 endif
 
-LIBS = -L. -lrt -lm -lclustering -fopenmp -L./libyaml-cpp/build/ -lyaml-cpp
-CLUSTERING_OBJECTS = process_barrier.o generic_barrier.o timespec_functions.o
-##################################################################################
+# Compiler-specific settings
+ifeq ($(HAS_NVCC),true)
+    CC := nvcc $(OMP_LIB)
+    FLAGS := $(COMMON_FLAGS) -arch=native --expt-relaxed-constexpr -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -lcuda -lcudart -Xcompiler -mcmodel=medium
+    LIBS := $(COMMON_LIBS) -Xcompiler -fopenmp -L./omp_module -Xlinker -rpath,./omp_module
+	NVCC_OVERRIDE := --x=cu
+    ifneq (,$(X86_64_ARCH))
+        FLAGS += -Xcompiler $(ARCH_FLAGS)
+    endif
+else
+    CC := g++ $(OMP_LIB)
+    FLAGS := $(COMMON_FLAGS) $(HEADERS) -Wall -gdwarf-3
+    LIBS := $(COMMON_LIBS) -fopenmp -L./omp_module -Wl,-rpath,./omp_module
+    ifneq (,$(X86_64_ARCH))
+        FLAGS += $(ARCH_FLAGS)
+    endif
+endif
 
-##### Task Configuration #########################################################
-TARGET_TASK=james
-RTPS_FILE=./target_task/james.yaml
-##################################################################################
+##### Project Configuration ########################################################
+TARGET_TASK := james
+RTPS_FILE := ./example_task/james.yaml
+CLUSTERING_OBJECTS := process_barrier.o generic_barrier.o timespec_functions.o process_primitives.o
+BARRIER_OBJECTS := process_primitives.o generic_barrier.o process_barrier.o thread_barrier.o
 
-##### Rules ######################################################################
-all: clustering_distribution finish regression_test_task
+##### Main Targets ##############################################################
+.PHONY: all clean finish
 
-finish:
-	mkdir -p ./bin
-	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./bin
+all: clustering_distribution finish
+
+finish: clustering_distribution james
+	mkdir -p ./testing_module/bin
+	cp $(TARGET_TASK) $(RTPS_FILE) ./clustering_launcher ./yaml_parser ./testing_module/bin
 
 clean:
-	rm -r ./bin *.o *.a $(TARGET_TASK) clustering_launcher synthetic_task libyaml-cpp/build regression_test_task/regression_test_task
+	rm -r ./testing_module/bin *.o *.a $(TARGET_TASK) clustering_launcher yaml_parser synthetic_task || true
 
-synthetic_task: ./task_module/synthetic_task.cpp
-	$(CC) $(FLAGS) -fopenmp ./task_module/synthetic_task.cpp shared_mem.o task.o task_manager.o print_library.o thread_barrier.o schedule.o taskData.o -o synthetic_task $(LIBS)
-
-thread_barrier.o: ./barrier_module/thread_barrier.cpp
-	$(CC) $(FLAGS) -c ./barrier_module/thread_barrier.cpp
-
-clustering: libclustering.a shared_mem.o schedule.o scheduler.o task.o taskData.o task_manager.o thread_barrier.o print_library.o clustering_launcher
-
-clustering_distribution: clustering synthetic_task james
-
-libclustering.a: $(CLUSTERING_OBJECTS)
-	ar rcsf libclustering.a $(CLUSTERING_OBJECTS)
-
-task.o: ./task_module/task.cpp
-	$(CC) $(FLAGS) -c ./task_module/task.cpp
-
-task_manager.o: ./scheduler_module/schedule.cpp ./scheduler_module/schedule.cpp ./shared_memory_module/shared_mem.cpp ./main_binaries/task_manager.cpp
-	$(CC) $(FLAGS) -fopenmp -c ./main_binaries/task_manager.cpp
-
-process_barrier.o: ./barrier_module/process_barrier.cpp
-	$(CC) $(FLAGS) -c ./barrier_module/process_barrier.cpp
+taskData.o: taskData_real.o 
+	ld -relocatable taskData_real.o -o taskData.o
 
 timespec_functions.o: ./timespec_module/timespec_functions.cpp
-	$(CC) $(FLAGS) -c ./timespec_module/timespec_functions.cpp
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
-scheduler.o: ./scheduler_module/scheduler.cpp
-	$(CC) $(FLAGS) -c ./scheduler_module/scheduler.cpp
-
-taskData.o: ./task_module/taskData.cpp
-	$(CC) $(FLAGS) -c ./task_module/taskData.cpp
-
-schedule.o: ./scheduler_module/schedule.cpp
-	$(CC) $(FLAGS) -c ./scheduler_module/schedule.cpp
-
-shared_mem.o: ./shared_memory_module/shared_mem.cpp
-	$(CC) $(FLAGS) -c ./shared_memory_module/shared_mem.cpp
+# Barrier module components
+process_primitives.o: ./barrier_module/process_primitives.cpp
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
 generic_barrier.o: process_primitives.o ./barrier_module/generic_barrier.cpp
 	$(CC) $(FLAGS) -c ./barrier_module/generic_barrier.cpp
-	mv generic_barrier.o generic_barrier_inc.o
-	ld -relocatable process_primitives.o generic_barrier_inc.o -o generic_barrier.o
 
-process_primitives.o: ./barrier_module/process_primitives.cpp
-	$(CC) $(FLAGS) -c ./barrier_module/process_primitives.cpp
+process_barrier.o: ./barrier_module/process_barrier.cpp generic_barrier.o
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
+
+thread_barrier.o: ./barrier_module/thread_barrier.cpp generic_barrier.o process_barrier.o
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
+
+synthetic_task: ./task_module/synthetic_task.cpp task.o task_manager.o print_library.o $(BARRIER_OBJECTS) schedule.o taskData.o timespec_functions.o
+	$(CC) $(FLAGS) $^ -o $@ $(LIBS)
+
+clustering_distribution: libclustering.a schedule.o scheduler.o task.o taskData.o task_manager.o thread_barrier.o print_library.o clustering_launcher synthetic_task james
+
+libclustering.a: $(CLUSTERING_OBJECTS)
+	ar rcsf $@ $^
+
+# Object compilation rules
+task.o: ./task_module/task.cpp timespec_functions.o
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
+
+scheduler.o: ./scheduler_module/scheduler.cpp timespec_functions.o
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
+
+schedule.o: ./scheduler_module/schedule.cpp timespec_functions.o
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
+
+taskData_real.o: ./task_module/taskData.cpp timespec_functions.o
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $< -o $@
+
+task_manager.o: ./main_binaries/task_manager.cpp timespec_functions.o process_barrier.o generic_barrier.o
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) $(LIBS) -c $<
 
 print_library.o: print_module.o print_buffer.o
-	ld -relocatable print_module.o print_buffer.o -o print_library.o
+	ld -relocatable $^ -o $@
 
-print_buffer.o: ./printing_module/print_buffer.cpp
-	$(CC) $(FLAGS) -c ./printing_module/print_buffer.cpp
+print_module.o: ./printing_module/print_module.cpp timespec_functions.o
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
-print_module.o: ./printing_module/print_module.cpp
-	$(CC) $(FLAGS) -c ./printing_module/print_module.cpp 
+print_buffer.o: ./printing_module/print_buffer.cpp timespec_functions.o
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
+##### Final Targets ###########################################################
 ./libyaml-cpp/build/libyaml-cpp.a:
-	cd libyaml-cpp; mkdir build; cd build; cmake ..; make;
+	cd libyaml-cpp && mkdir -p build && cd build && cmake .. && make
 
-clustering_launcher: ./main_binaries/clustering_launcher.cpp ./libyaml-cpp/build/libyaml-cpp.a
-	$(CC) $(FLAGS) taskData.o schedule.o scheduler.o shared_mem.o process_barrier.o ./main_binaries/clustering_launcher.cpp -o clustering_launcher $(LIBS)
+yaml_parser: ./main_binaries/yaml_parser.cpp ./libyaml-cpp/build/libyaml-cpp.a timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS)
+	$(CC) $(FLAGS) $(HEADERS_WITH_YAML) timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS) ./main_binaries/yaml_parser.cpp -o yaml_parser $(LIBS)
 
-james: ./target_task/james.cpp task_manager.o
-	$(CC) $(FLAGS) ./target_task/james.cpp shared_mem.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o thread_barrier.o -o james $(LIBS)
+clustering_launcher-bin: ./main_binaries/clustering_launcher.cpp
+	$(CC) $(FLAGS) $(NVCC_OVERRIDE) ./main_binaries/clustering_launcher.cpp -c $< $(LIBS)
 
-regression_test_task: ./regression_test_task/regression_test_task.cpp clustering timespec_functions.o
-	$(CC) $(FLAGS) ./regression_test_task/regression_test_task.cpp shared_mem.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o thread_barrier.o timespec_functions.o -o regression_test_task/regression_test_task $(LIBS)
+clustering_launcher: yaml_parser clustering_launcher-bin timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS)
+	$(CC) $(FLAGS)  timespec_functions.o taskData.o schedule.o scheduler.o $(BARRIER_OBJECTS) clustering_launcher.o -o clustering_launcher $(LIBS)
 
-##################################################################################
+james-bin: ./example_task/james.cpp 
+	$(CC) $(FLAGS) $(NVCC_OVERRIDE) ./example_task/james.cpp -c $< $(LIBS)
+
+james: james-bin task_manager.o print_library.o $(BARRIER_OBJECTS) timespec_functions.o scheduler.o schedule.o taskData.o task.o
+	$(CC) $(FLAGS) james.o timespec_functions.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o $(BARRIER_OBJECTS) -o james $(LIBS)

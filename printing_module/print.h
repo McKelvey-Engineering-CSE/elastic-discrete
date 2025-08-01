@@ -46,7 +46,19 @@ namespace print_module {
     #if __cplusplus > 201703L
 
         template <typename Arg, typename... Args>
-        static void print(std::ostream& out, Arg&& arg, Args&&... args){   
+        void buffered_print(std::ostringstream& out, Arg&& arg, Args&&... args){   
+
+            std::basic_osyncstream oss(out);
+            
+            //expander boilerplate
+            oss << std::forward<Arg>(arg);
+            using expander = int[];
+            (void)expander{0, (void(oss << std::forward<Args>(args)), 0)...};
+            
+        }
+
+        template <typename Arg, typename... Args>
+        void print(std::ostream& out, Arg&& arg, Args&&... args){   
             
             //basic_osyncstream if we support it
             std::basic_osyncstream oss(out);
@@ -59,7 +71,40 @@ namespace print_module {
         }
 
         template <typename Arg, typename... Args>
-        static void print(const char bufferChar[], Arg&& arg, Args&&... args){
+        void task_print(std::ostream& out, Arg&& arg, Args&&... args){   
+            
+            //basic_osyncstream if we support it
+            std::basic_osyncstream oss(out);
+
+            //print header
+            oss << "(" << getpid() << ") ";
+            
+            //expander boilerplate
+            oss << std::forward<Arg>(arg);
+            using expander = int[];
+            (void)expander{0, (void(oss << std::forward<Args>(args)), 0)...};
+            
+        }
+
+        template <typename... Args>
+        void flush(std::ostream& out, std::ostringstream& buff, Args&&... args){
+            
+            //basic_osyncstream if we support it
+            std::basic_osyncstream oss(out);
+            
+            //flush buffer first
+            oss << buff.str();
+            buff.str("");
+            buff.clear();
+
+            //expander boilerplate
+            using expander = int[];
+            (void)expander{0, (void(oss << std::forward<Args>(args)), 0)...};
+            
+        }
+
+        template <typename Arg, typename... Args>
+        void print(const char bufferChar[], Arg&& arg, Args&&... args){
 
             //char to string
             std::string bufferName(bufferChar);
@@ -82,7 +127,7 @@ namespace print_module {
         }
 
         template <typename Arg, typename... Args>
-        static void print(buffer_set bufferNames, Arg&& arg, Args&&... args){
+        void print(buffer_set bufferNames, Arg&& arg, Args&&... args){
 
             //loop over all the handles in the buffer
             for (std::string name : bufferNames.fetch()){
@@ -108,7 +153,17 @@ namespace print_module {
     #else
 
         template <typename Arg, typename... Args>
-        static void print(std::ostream& out, Arg&& arg, Args&&... args){   
+        void buffered_print(std::ostringstream& oss, Arg&& arg, Args&&... args){   
+            
+            //expander boilerplate
+            oss << std::forward<Arg>(arg);
+            using expander = int[];
+            (void)expander{0, (void(oss << std::forward<Args>(args)), 0)...};
+            
+        }
+
+        template <typename Arg, typename... Args>
+        void print(std::ostream& out, Arg&& arg, Args&&... args){   
             
             //ostringstream seems to have lowest possible 
             //overhead
@@ -124,7 +179,45 @@ namespace print_module {
         }
 
         template <typename Arg, typename... Args>
-        static void print(const char bufferChar[], Arg&& arg, Args&&... args){
+        void task_print(std::ostream& out, Arg&& arg, Args&&... args){   
+            
+            //ostringstream seems to have lowest possible 
+            //overhead
+            std::ostringstream ss;
+
+            //print header
+            ss << "(" << getpid() << ") ";
+            
+            //expander boilerplate
+            ss << std::forward<Arg>(arg);
+            using expander = int[];
+            (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
+            
+            //print to whatever we were given
+            out << ss.str();
+        }
+
+        template <typename... Args>
+        void flush(std::ostream& out, std::ostringstream& buff, Args&&... args){
+            
+            //basic_osyncstream if we support it
+            std::ostringstream ss;
+            
+            //flush buffer first
+            ss << buff.str();
+            buff.str("");
+            buff.clear();
+
+            //expander boilerplate
+            using expander = int[];
+            (void)expander{0, (void(ss << std::forward<Args>(args)), 0)...};
+            
+            //print to whatever we were given
+            out << ss.str();
+        }
+
+        template <typename Arg, typename... Args>
+        void print(const char bufferChar[], Arg&& arg, Args&&... args){
 
             //char to string
             std::string bufferName(bufferChar);
@@ -147,7 +240,7 @@ namespace print_module {
         }
 
         template <typename Arg, typename... Args>
-        static void print(buffer_set bufferNames, Arg&& arg, Args&&... args){
+        void print(buffer_set bufferNames, Arg&& arg, Args&&... args){
 
             //loop over all the handles in the buffer
             for (std::string name : bufferNames.fetch()){

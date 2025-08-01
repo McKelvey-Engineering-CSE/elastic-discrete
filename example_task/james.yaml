@@ -1,0 +1,187 @@
+---
+schedulable: true
+explicit_sync: false
+maxRuntime: {sec: 30, nsec: 0}
+processorConfiguration: {A: 1A, B: 0.75A, C: 1C, D: 1D}
+tasks:
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 2
+    modes:
+      - work_A: {sec: 0, nsec: 470800046}
+        span_A: {sec: 0, nsec: 195409155}
+        work_C: {sec: 0, nsec: 708725182}
+        span_C: {sec: 0, nsec: 192344446}
+        period: {sec: 0, nsec: 729429898}
+      - work_A: {sec: 0, nsec: 572253118}
+        span_A: {sec: 0, nsec: 195409155}
+        work_C: {sec: 0, nsec: 863297699}
+        span_C: {sec: 0, nsec: 192344446}
+        period: {sec: 0, nsec: 729429898}
+      - work_A: {sec: 0, nsec: 673706190}
+        span_A: {sec: 0, nsec: 195409155}
+        work_C: {sec: 1, nsec: 17870216}
+        span_C: {sec: 0, nsec: 192344446}
+        period: {sec: 0, nsec: 729429898}
+      - work_A: {sec: 0, nsec: 775159262}
+        span_A: {sec: 0, nsec: 195409155}
+        work_C: {sec: 1, nsec: 172442732}
+        span_C: {sec: 0, nsec: 192344446}
+        period: {sec: 0, nsec: 729429898}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 2
+    modes:
+      - work_A: {sec: 0, nsec: 196033520}
+        span_A: {sec: 0, nsec: 114590357}
+        work_C: {sec: 0, nsec: 278096673}
+        span_C: {sec: 0, nsec: 104052911}
+        period: {sec: 0, nsec: 379871842}
+      - work_A: {sec: 0, nsec: 281139881}
+        span_A: {sec: 0, nsec: 114590357}
+        work_C: {sec: 0, nsec: 350018459}
+        span_C: {sec: 0, nsec: 104052911}
+        period: {sec: 0, nsec: 379871842}
+      - work_A: {sec: 0, nsec: 366246242}
+        span_A: {sec: 0, nsec: 114590357}
+        work_C: {sec: 0, nsec: 421940246}
+        span_C: {sec: 0, nsec: 104052911}
+        period: {sec: 0, nsec: 379871842}
+      - work_A: {sec: 0, nsec: 451352603}
+        span_A: {sec: 0, nsec: 114590357}
+        work_C: {sec: 0, nsec: 493862033}
+        span_C: {sec: 0, nsec: 104052911}
+        period: {sec: 0, nsec: 379871842}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 9
+    modes:
+      - work_A: {sec: 0, nsec: 255194725}
+        span_A: {sec: 0, nsec: 124362767}
+        work_C: {sec: 0, nsec: 369026367}
+        span_C: {sec: 0, nsec: 116867170}
+        period: {sec: 0, nsec: 362565350}
+      - work_A: {sec: 0, nsec: 312432301}
+        span_A: {sec: 0, nsec: 124362767}
+        work_C: {sec: 0, nsec: 439704326}
+        span_C: {sec: 0, nsec: 116867170}
+        period: {sec: 0, nsec: 362565350}
+      - work_A: {sec: 0, nsec: 369669877}
+        span_A: {sec: 0, nsec: 124362767}
+        work_C: {sec: 0, nsec: 510382285}
+        span_C: {sec: 0, nsec: 116867170}
+        period: {sec: 0, nsec: 362565350}
+      - work_A: {sec: 0, nsec: 426907453}
+        span_A: {sec: 0, nsec: 124362767}
+        work_C: {sec: 0, nsec: 581060244}
+        span_C: {sec: 0, nsec: 116867170}
+        period: {sec: 0, nsec: 362565350}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 71
+    modes:
+      - work_A: {sec: 0, nsec: 239772324}
+        span_A: {sec: 0, nsec: 100075125}
+        work_C: {sec: 0, nsec: 249064740}
+        span_C: {sec: 0, nsec: 101142705}
+        period: {sec: 0, nsec: 322842339}
+      - work_A: {sec: 0, nsec: 275656000}
+        span_A: {sec: 0, nsec: 100075125}
+        work_C: {sec: 0, nsec: 301219386}
+        span_C: {sec: 0, nsec: 101142705}
+        period: {sec: 0, nsec: 322842339}
+      - work_A: {sec: 0, nsec: 311539677}
+        span_A: {sec: 0, nsec: 100075125}
+        work_C: {sec: 0, nsec: 353374032}
+        span_C: {sec: 0, nsec: 101142705}
+        period: {sec: 0, nsec: 322842339}
+      - work_A: {sec: 0, nsec: 347423353}
+        span_A: {sec: 0, nsec: 100075125}
+        work_C: {sec: 0, nsec: 405528678}
+        span_C: {sec: 0, nsec: 101142705}
+        period: {sec: 0, nsec: 322842339}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 2
+    modes:
+      - work_A: {sec: 0, nsec: 557879499}
+        span_A: {sec: 0, nsec: 233422005}
+        work_C: {sec: 0, nsec: 818309453}
+        span_C: {sec: 0, nsec: 236126372}
+        period: {sec: 0, nsec: 891068774}
+      - work_A: {sec: 0, nsec: 689038913}
+        span_A: {sec: 0, nsec: 233422005}
+        work_C: {sec: 0, nsec: 997167312}
+        span_C: {sec: 0, nsec: 236126372}
+        period: {sec: 0, nsec: 891068774}
+      - work_A: {sec: 0, nsec: 820198327}
+        span_A: {sec: 0, nsec: 233422005}
+        work_C: {sec: 1, nsec: 176025172}
+        span_C: {sec: 0, nsec: 236126372}
+        period: {sec: 0, nsec: 891068774}
+      - work_A: {sec: 0, nsec: 951357741}
+        span_A: {sec: 0, nsec: 233422005}
+        work_C: {sec: 1, nsec: 354883032}
+        span_C: {sec: 0, nsec: 236126372}
+        period: {sec: 0, nsec: 891068774}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 2
+    modes:
+      - work_A: {sec: 0, nsec: 483770107}
+        span_A: {sec: 0, nsec: 196012468}
+        work_C: {sec: 0, nsec: 641915364}
+        span_C: {sec: 0, nsec: 191024551}
+        period: {sec: 0, nsec: 661223716}
+      - work_A: {sec: 0, nsec: 592867813}
+        span_A: {sec: 0, nsec: 196012468}
+        work_C: {sec: 0, nsec: 780349388}
+        span_C: {sec: 0, nsec: 191024551}
+        period: {sec: 0, nsec: 661223716}
+      - work_A: {sec: 0, nsec: 701965518}
+        span_A: {sec: 0, nsec: 196012468}
+        work_C: {sec: 0, nsec: 918783411}
+        span_C: {sec: 0, nsec: 191024551}
+        period: {sec: 0, nsec: 661223716}
+      - work_A: {sec: 0, nsec: 811063224}
+        span_A: {sec: 0, nsec: 196012468}
+        work_C: {sec: 1, nsec: 57217435}
+        span_C: {sec: 0, nsec: 191024551}
+        period: {sec: 0, nsec: 661223716}
+
+  - program:
+      name: james
+      args: "0 61428571 2 10"
+    elasticity: 2
+    modes:
+      - work_A: {sec: 0, nsec: 386770824}
+        span_A: {sec: 0, nsec: 174220481}
+        work_C: {sec: 0, nsec: 563001659}
+        span_C: {sec: 0, nsec: 174663083}
+        period: {sec: 0, nsec: 470602834}
+      - work_A: {sec: 0, nsec: 477870268}
+        span_A: {sec: 0, nsec: 174220481}
+        work_C: {sec: 0, nsec: 563001659}
+        span_C: {sec: 0, nsec: 174663083}
+        period: {sec: 0, nsec: 503924449}
+      - work_A: {sec: 0, nsec: 568969711}
+        span_A: {sec: 0, nsec: 174220481}
+        work_C: {sec: 0, nsec: 563001659}
+        span_C: {sec: 0, nsec: 174663083}
+        period: {sec: 0, nsec: 537246065}
+      - work_A: {sec: 0, nsec: 660069155}
+        span_A: {sec: 0, nsec: 174220481}
+        work_C: {sec: 0, nsec: 563001659}
+        span_C: {sec: 0, nsec: 174663083}
+        period: {sec: 0, nsec: 570567681}

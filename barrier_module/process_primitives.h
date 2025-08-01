@@ -18,6 +18,7 @@ public:
     p_mutex();
     ~p_mutex();
     void lock();
+    int try_lock();
     void unlock();
     void wait();
     void notify_all();

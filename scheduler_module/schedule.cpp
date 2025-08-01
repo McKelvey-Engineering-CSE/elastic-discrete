@@ -3,36 +3,57 @@
 #include <unistd.h>
 #include <cstddef>
 
-Schedule::Schedule(std::string name_) : shared_mem(name_, READ_WRITE, MAXTASKS*sizeof(class TaskData))
+Schedule::Schedule(std::string name_, bool create)
 {
-	if(shared_mem::is_owner())
-	{
-		((struct overhead *) shared_mem::getOverhead())->utility.store((int)0);
+
+	schedule_object *obj;
+
+	if (create){
+
+		obj = shared_memory_module::allocate<schedule_object>(name_);
+		owner = true;
+
 	}
+
+	else
+		obj = shared_memory_module::fetch<schedule_object>(name_);
+
+	if (obj == nullptr){
+		exit(-1);
+	}
+	
+	underlying_object = obj;
+
+	name = name_;
+
 }
 
-Schedule::~Schedule() {}
+Schedule::~Schedule() {
+	
+	if (owner)
+		smm::delete_memory<schedule_object>(name);
+}
 
-TaskData * Schedule::add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_)
+TaskData * Schedule::add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, timespec * cpu_C_work_, timespec * cpu_C_span_, timespec * cpu_C_period_, timespec * gpu_D_work_, timespec * gpu_D_span_, timespec * gpu_D_period_, bool safe)
 {
-	int num = ((struct overhead *) shared_mem::getOverhead())->utility;
-	((struct overhead *) shared_mem::getOverhead())->utility.store(num+1);
-	TaskData td(elasticity_, num_modes_, work_, span_, period_);
-	((class TaskData *)shared_mem::getMapping())[num]=td;
-	return &((class TaskData *)shared_mem::getMapping())[num];
+
+	underlying_object->task[underlying_object->next_task++] = TaskData(elasticity_, num_modes_, work_, span_, period_, gpu_work_, gpu_span_, gpu_period_, cpu_C_work_, cpu_C_span_, cpu_C_period_, gpu_D_work_, gpu_D_span_, gpu_D_period_, safe);
+
+	return &underlying_object->task[underlying_object->next_task - 1];
 
 }
 
 class TaskData * Schedule::get_task(int n)
 {
-	if(!(n >= 0 && n <= ((struct overhead *) shared_mem::getOverhead())->utility))
-	{
-		return NULL;
-	}
 
-	return ((class TaskData *)shared_mem::getMapping())+n;
+	return &underlying_object->task[n];
+
 }
 
 int Schedule::count(){
-	return ((struct overhead *) shared_mem::getOverhead())->utility;
+	return underlying_object->next_task - 1;
+}
+
+void Schedule::setTermination(){
+	smm::delete_memory<schedule_object>(name);
 }
