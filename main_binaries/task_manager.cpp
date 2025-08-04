@@ -345,6 +345,36 @@ void reschedule(){
 	processor_D_mask = schedule.get_task(task_index)->get_processor_D_mask();
 	task.update_core_D(processor_D_mask);
 
+	//elect the permanent processor (if needed)
+	schedule.get_task(task_index)->elect_permanent_processor();
+
+	//update the permanent processor if we have a switch
+	int permanent_processor_index = schedule.get_task(task_index)->get_permanent_processor_index();
+	int permanent_processor_core = schedule.get_task(task_index)->get_permanent_processor_core();
+
+	if (schedule.get_task(task_index)->get_previous_permanent_processor_index() != permanent_processor_index){
+
+		schedule.get_task(task_index)->acknowledge_permanent_processor_switch();
+
+		//if the processor index is 0, then we are on processor A, and we can use the index as is. 
+		//if we are B then the index is actually index + NUM_PROCESSOR_A
+		//if we are C then the index is actually index + NUM_PROCESSOR_A + NUM_PROCESSOR_B
+		//if we are D then the index is actually index + NUM_PROCESSOR_A + NUM_PROCESSOR_B + NUM_PROCESSOR_C
+		int real_core_index = (permanent_processor_index > 0) * NUM_PROCESSOR_A + 
+							  (permanent_processor_index > 1) * NUM_PROCESSOR_B + 
+							  (permanent_processor_index > 2) * NUM_PROCESSOR_C + 
+							  permanent_processor_core;
+
+		omp.set_perm_cpu(real_core_index);
+
+		//migrate the main thread to the new core
+		cpu_set_t local_cpuset;
+		CPU_ZERO(&local_cpuset);
+		CPU_SET(real_core_index, &local_cpuset);
+		pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &local_cpuset);
+
+	}
+
 	//all pretty printing crap
 	#ifdef PRETTY_PRINTING
 
@@ -609,10 +639,6 @@ int main(int argc, char *argv[])
 		
 			schedule.get_task(task_index)->set_permanent_processor_A(j);
 
-			#ifdef OMP_OVERRIDE
-				omp.set_perm_cpu(j);
-			#endif
-
 		}
 		if (j >= schedule.get_task(task_index)->get_current_lowest_processor_A() && j < schedule.get_task(task_index)->get_current_lowest_processor_A() + schedule.get_task(task_index)->get_current_processors_A()){
 
@@ -633,6 +659,40 @@ int main(int argc, char *argv[])
 		}
  
   	}
+
+	//always set the permanent processor to A optimally, this ensures we don't need
+	//to care about the equivalent processors. Start with D and work our way to A, setting
+	//the permanent processor to the lowest of each we can find
+	for (int i = 0; i < 4; i++){
+		std::vector<int> processor_vectors;
+		
+		switch (i){
+
+			case 0:
+				processor_vectors = schedule.get_task(task_index)->get_processor_D_owned_by_process();
+				break;
+
+			case 1:
+				processor_vectors = schedule.get_task(task_index)->get_processor_C_owned_by_process();
+				break;
+
+			case 2:
+				processor_vectors = schedule.get_task(task_index)->get_processor_B_owned_by_process();
+				break;
+
+			case 3:
+				processor_vectors = schedule.get_task(task_index)->get_processor_A_owned_by_process();	
+				break;
+
+		}
+
+		if (processor_vectors.size() != 0){
+			schedule.get_task(task_index)->set_permanent_processor_index(3 - i);
+			schedule.get_task(task_index)->set_permanent_processor_core(processor_vectors.at(0));
+			schedule.get_task(task_index)->acknowledge_permanent_processor_switch();
+		}
+
+	}
 
 	//set the cpu mask
 	processor_A_mask = schedule.get_task(task_index)->get_processor_A_mask();
@@ -666,7 +726,7 @@ int main(int argc, char *argv[])
 		set_active_threads(schedule.get_task(task_index)->get_processor_A_owned_by_process());
 	#endif
 		
-	//update our gpu mask
+	//update our cpu B mask
 	processor_B_mask = schedule.get_task(task_index)->get_processor_B_mask();
 
 	//update our cpu C mask

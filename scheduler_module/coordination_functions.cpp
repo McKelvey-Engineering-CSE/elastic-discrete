@@ -275,7 +275,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 			
 			auto task_owned_cpus = (schedule.get_task(i))->get_processor_A_owned_by_process();
 
-			if (((previous_modes.at(i).processors_A - 1) != (int) task_owned_cpus.size())){
+			if (((previous_modes.at(i).processors_A) != (int) task_owned_cpus.size())){
 				
 				std::cout << "Processor A Count Mismatch. Process:" << i << " | Processor A assigned: " << previous_modes.at(i).processors_A << " | Processor A found: " << task_owned_cpus.size() << " | Cannot Continue" << std::endl;
 				killpg(process_group, SIGINT);

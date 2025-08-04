@@ -150,7 +150,17 @@ private:
 	int current_processors_D;
 	int previous_processors_D;
 
-	int permanent_processor_A;
+	int permanent_processor_A = -1;
+	int permanent_processor_B = -1;
+	int permanent_processor_C = -1;
+	int permanent_processor_D = -1;
+
+	int permanent_processor_core = -1;
+
+	//if the index of the processor is -1, then the processor is not equivalent to any other processor
+	int processors_equivalent_to_A[4] = {0, 0, 0, 0};
+
+	int permanent_processor_index; //index of the processor that is permanently assigned to this task (0 is A, 1 is B, 2 is C, 3 is D)
 
 	int current_logical_mode;
 	timespec max_work;
@@ -218,6 +228,8 @@ private:
 	int previous_mode = 0;
 
 	int modes_originally_passed;
+
+	int previous_permanent_processor_index = -1;
 
 public:
 
@@ -442,6 +454,20 @@ public:
 	void give_processors_to_other_tasks();
 
 	void reset_mode_to_previous();
+
+	int get_permanent_processor_index();
+
+	int get_permanent_processor_core();
+
+	void set_permanent_processor_index(int index);
+	
+	void set_permanent_processor_core(int core);
+
+	int get_previous_permanent_processor_index();
+
+	void acknowledge_permanent_processor_switch();
+
+	void elect_permanent_processor();
 
 };
 

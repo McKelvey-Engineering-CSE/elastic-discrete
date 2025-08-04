@@ -83,7 +83,7 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 
 		int total_processors_used = (current_combination[0] + current_combination[1] + current_combination[2] + current_combination[3]);
 
-		for (int i = (current_processor == 0 ? 1 : 0); i <= system_processors[current_processor]; i++){
+		for (int i = 0; i <= system_processors[current_processor]; i++){
 
 			double new_processor_average = processor_average_starting + (std::get<1>(equivalent_vector[current_processor]) * i);
 
@@ -293,6 +293,12 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 
 		//for testing just set the equivalent vector to this:
 		std::tuple<int, float> equivalent_vector[4] = { {0, 1}, {0, 0.75}, {2, 1}, {3, 1} };
+
+		//set the equivalent processors (only if the equivalent processor is 0)
+		processors_equivalent_to_A[0] = std::get<0>(equivalent_vector[0]) == 0;
+		processors_equivalent_to_A[1] = std::get<0>(equivalent_vector[1]) == 0;
+		processors_equivalent_to_A[2] = std::get<0>(equivalent_vector[2]) == 0;
+		processors_equivalent_to_A[3] = std::get<0>(equivalent_vector[3]) == 0;
 
 		//pass to the computeModeResources function
 		auto resources = computeModeResources(work_long, span_long, processor_B_work_long, processor_B_span_long, period_long, processor_C_work_long, processor_C_span_long, processor_D_work_long, processor_D_span_long, equivalent_vector);
@@ -973,6 +979,22 @@ void TaskData::set_mode_transition(bool state){
 }
 
 int TaskData::pop_back_processor_A(){
+
+	//check if we only have one processor A
+	//and if the processor A we are popping is our 
+	//permanent processor A
+	if (__builtin_popcountll(processor_A_mask) == 1 && permanent_processor_index == 0){
+		
+		processor_A_mask = 0;
+		
+		int msb = permanent_processor_core;
+
+		permanent_processor_core = -1;
+		permanent_processor_index = -1;
+		return msb;
+
+	}
+
     // Handle empty vector case
     if (processor_A_mask == 0) {
         return -1;
@@ -987,18 +1009,6 @@ int TaskData::pop_back_processor_A(){
         test_bit >>= 1;
     }
 
-	//check if it's our permanent
-	if (msb == get_permanent_processor_A()){
-		//skip the current bit
-		msb--;
-		test_bit >>= 1;
-
-		while ((processor_A_mask & test_bit) == 0) {
-			msb--;
-			test_bit >>= 1;
-		}
-	}
-
     // Clear the MSB
     processor_A_mask ^= test_bit;
 
@@ -1006,7 +1016,22 @@ int TaskData::pop_back_processor_A(){
 }
 
 int TaskData::pop_back_processor_B(){
-    // Handle empty vector case
+
+	//check if we only have one processor B
+	//and if the processor B we are popping is our 
+	//permanent processor B
+	if (__builtin_popcountll(processor_B_mask) == 1 && permanent_processor_index == 1){
+
+		processor_B_mask = 0;
+		int msb = permanent_processor_core;
+
+		permanent_processor_core = -1;
+		permanent_processor_index = -1;
+
+		return msb;
+	}
+	
+	// Handle empty vector case
     if (processor_B_mask == 0) {
         return -1;
     }
@@ -1040,6 +1065,7 @@ int TaskData::push_back_processor_A(int value){
     
     // Set the bit
     processor_A_mask |= bit;
+
     return true;
 }
 
@@ -1057,10 +1083,26 @@ int TaskData::push_back_processor_B(int value){
     
     // Set the bit
     processor_B_mask |= bit;
+
     return true;
 }
 
 int TaskData::pop_back_processor_C(){
+
+	//check if we only have one processor C
+	//and if the processor C we are popping is our 
+	//permanent processor C
+	if (__builtin_popcountll(processor_C_mask) == 1 && permanent_processor_index == 2){
+
+		processor_C_mask = 0;
+		int msb = permanent_processor_core;
+
+		permanent_processor_core = -1;
+		permanent_processor_index = -1;
+
+		return msb;
+	}
+
     // Find the highest set bit and clear it
     for (int i = 127; i >= 0; i--) {
         __uint128_t bit = (__uint128_t)1 << i;
@@ -1086,10 +1128,26 @@ int TaskData::push_back_processor_C(int value){
     
     // Set the bit
     processor_C_mask |= bit;
+
     return true;
 }
 
 int TaskData::pop_back_processor_D(){
+
+	//check if we only have one processor D
+	//and if the processor D we are popping is our 
+	//permanent processor D
+	if (__builtin_popcountll(processor_D_mask) == 1 && permanent_processor_index == 3){
+
+		processor_D_mask = 0;
+		int msb = permanent_processor_core;
+
+		permanent_processor_core = -1;
+		permanent_processor_index = -1;
+
+		return msb;
+	}
+
     // Find the highest set bit and clear it
     for (int i = 127; i >= 0; i--) {
         __uint128_t bit = (__uint128_t)1 << i;
@@ -1115,6 +1173,7 @@ int TaskData::push_back_processor_D(int value){
     
     // Set the bit
     processor_D_mask |= bit;
+
     return true;
 }
 
@@ -1124,10 +1183,9 @@ std::vector<int> TaskData::get_processor_A_owned_by_process(){
     
     for (int i = 0; i < 128; i++) {
         if (processor_A_mask & ((__uint128_t)1 << i)) {
-			//do not allow our permanent processor A to be returned as
-			//a processor A we can pass or keep
-			if (i != get_permanent_processor_A())
-            	result.push_back(i);
+
+            result.push_back(i);
+
         }
     }
     return result;
@@ -1718,5 +1776,79 @@ void TaskData::set_cooperative(bool state){
 bool TaskData::cooperative(){
 	
 	return cooperative_bool;
+
+}
+
+int TaskData::get_permanent_processor_index(){
+
+	return permanent_processor_index;
+
+}
+
+int TaskData::get_permanent_processor_core(){
+
+	return permanent_processor_core;
+
+}
+
+int TaskData::get_previous_permanent_processor_index(){
+
+	return previous_permanent_processor_index;
+
+}
+
+void TaskData::acknowledge_permanent_processor_switch(){
+
+	previous_permanent_processor_index = permanent_processor_index;
+
+}
+
+void TaskData::set_permanent_processor_index(int index){
+
+	permanent_processor_index = index;
+
+}
+
+void TaskData::set_permanent_processor_core(int core){
+
+	permanent_processor_core = core;
+}
+
+void TaskData::elect_permanent_processor(){
+
+	if (permanent_processor_index != -1){
+		return;
+	}
+
+	//elect the permanent processor with a preference for the lowest A core 
+	for (int i = 0; i < 4; i++){
+		std::vector<int> processor_vectors;
+		
+		switch (i){
+
+			case 0:
+				processor_vectors = get_processor_D_owned_by_process();
+				break;
+
+			case 1:
+				processor_vectors = get_processor_C_owned_by_process();
+				break;
+
+			case 2:
+				processor_vectors = get_processor_B_owned_by_process();
+				break;
+
+			case 3:
+				processor_vectors = get_processor_A_owned_by_process();	
+				break;
+
+		}
+
+		if (processor_vectors.size() != 0){
+			set_permanent_processor_index(3 - i);
+			set_permanent_processor_core(processor_vectors.at(0));
+		}
+
+	}
 
 }
