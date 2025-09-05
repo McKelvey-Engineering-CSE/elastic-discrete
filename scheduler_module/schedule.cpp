@@ -37,7 +37,9 @@ Schedule::~Schedule() {
 TaskData * Schedule::add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, timespec * cpu_C_work_, timespec * cpu_C_span_, timespec * cpu_C_period_, timespec * gpu_D_work_, timespec * gpu_D_span_, timespec * gpu_D_period_, bool safe)
 {
 
-	underlying_object->task[underlying_object->next_task++] = TaskData(elasticity_, num_modes_, work_, span_, period_, gpu_work_, gpu_span_, gpu_period_, cpu_C_work_, cpu_C_span_, cpu_C_period_, gpu_D_work_, gpu_D_span_, gpu_D_period_, safe);
+	underlying_object->task[underlying_object->next_task++] = TaskData(elasticity_, num_modes_, work_, span_, period_, gpu_work_, gpu_span_, gpu_period_, cpu_C_work_, cpu_C_span_, cpu_C_period_, gpu_D_work_, gpu_D_span_, gpu_D_period_, safe, equivalent_vector, print);
+
+	print = false;
 
 	return &underlying_object->task[underlying_object->next_task - 1];
 
@@ -56,4 +58,11 @@ int Schedule::count(){
 
 void Schedule::setTermination(){
 	smm::delete_memory<schedule_object>(name);
+}
+
+void Schedule::set_equivalency_vector(std::tuple<int, float> _equivalent_vector[4]){
+	
+	for (int i = 0; i < 4; i++)
+		equivalent_vector[i] = _equivalent_vector[i];
+
 }

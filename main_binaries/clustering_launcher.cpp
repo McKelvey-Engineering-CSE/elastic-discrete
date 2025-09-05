@@ -778,6 +778,14 @@ int main(int argc, char *argv[])
 	//(retain CPU 0 for the scheduler)
 	scheduler = new Scheduler(parsed_tasks.size(),(int) NUM_PROCESSOR_A, explicit_sync, FPTAS);
 
+	//set up the equivalency vector
+	std::tuple<int, float> equivalency_vector[4] = {std::make_tuple(yaml_object->processor_A_type, yaml_object->processor_A_ratio),
+													 std::make_tuple(yaml_object->processor_B_type, yaml_object->processor_B_ratio),
+													 std::make_tuple(yaml_object->processor_C_type, yaml_object->processor_C_ratio),
+													 std::make_tuple(yaml_object->processor_D_type, yaml_object->processor_D_ratio)};
+
+	scheduler->get_schedule()->set_equivalency_vector(equivalency_vector);
+
 	//warn if set higher than real cpu amount
 	if ((NUM_PROCESSOR_A > std::thread::hardware_concurrency()) && !simulated_task_mode){
 	

@@ -233,7 +233,7 @@ private:
 
 public:
 
-	TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * processor_B_work_, timespec * processor_B_span_, timespec * processor_B_period_, timespec * processor_C_work_, timespec * processor_C_span_, timespec * processor_C_period_, timespec * processor_D_work_, timespec * processor_D_span_, timespec * processor_D_period_, bool safe);
+	TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * processor_B_work_, timespec * processor_B_span_, timespec * processor_B_period_, timespec * processor_C_work_, timespec * processor_C_span_, timespec * processor_C_period_, timespec * processor_D_work_, timespec * processor_D_span_, timespec * processor_D_period_, bool safe, std::tuple<int, float> equivalent_vector[4], bool print);
 
 	TaskData();
 

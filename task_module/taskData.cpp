@@ -230,7 +230,7 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, 
 														timespec * processor_B_work_, timespec * processor_B_span_, timespec * processor_B_period_, 
 														timespec * processor_C_work_, timespec * processor_C_span_, timespec * processor_C_period_, 
-														timespec * processor_D_work_, timespec * processor_D_span_, timespec * processor_D_period_, bool safe) : 	
+														timespec * processor_D_work_, timespec * processor_D_span_, timespec * processor_D_period_, bool safe, std::tuple<int, float> equivalent_vector[4], bool print) : 	
 																													
 																													index(counter++), changeable(true), 
 																													can_reschedule(false), num_adaptations(0),  
@@ -263,6 +263,27 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 	int mode_options = 0;
 	int next_position = 0;
 
+	//print the view the scheduler has of the topology 
+	//of the chips in the system
+	if (print){
+
+		// Print processor configuration for testing
+		print_module::print(std::cerr, "TaskData view of Processor Configuration:\n");
+		print_module::print(std::cerr, "  A: type=", std::get<0>(equivalent_vector[0]), " (", 
+			(std::get<0>(equivalent_vector[0]) == 0 ? "A" : std::get<0>(equivalent_vector[0]) == 1 ? "B" : 
+			std::get<0>(equivalent_vector[0]) == 2 ? "C" : "D"), "), ratio=", std::get<1>(equivalent_vector[0]), "\n");
+		print_module::print(std::cerr, "  B: type=", std::get<0>(equivalent_vector[1]), " (", 
+			(std::get<0>(equivalent_vector[1]) == 0 ? "A" : std::get<0>(equivalent_vector[1]) == 1 ? "B" : 
+			std::get<0>(equivalent_vector[1]) == 2 ? "C" : "D"), "), ratio=", std::get<1>(equivalent_vector[1]), "\n");
+		print_module::print(std::cerr, "  C: type=", std::get<0>(equivalent_vector[2]), " (", 
+			(std::get<0>(equivalent_vector[2]) == 0 ? "A" : std::get<0>(equivalent_vector[2]) == 1 ? "B" : 
+			std::get<0>(equivalent_vector[2]) == 2 ? "C" : "D"), "), ratio=", std::get<1>(equivalent_vector[2]), "\n");
+		print_module::print(std::cerr, "  D: type=", std::get<0>(equivalent_vector[3]), " (", 
+			(std::get<0>(equivalent_vector[3]) == 0 ? "A" : std::get<0>(equivalent_vector[3]) == 1 ? "B" : 
+			std::get<0>(equivalent_vector[3]) == 2 ? "C" : "D"), "), ratio=", std::get<1>(equivalent_vector[3]), "\n");
+
+	}
+
 	//determine resources
 	for (int i = 0; i < num_modes; i++){
 
@@ -290,9 +311,6 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 		double processor_C_span_long = get_timespec_in_ns(processor_C_span_l);
 		double processor_D_work_long = get_timespec_in_ns(processor_D_work_l);
 		double processor_D_span_long = get_timespec_in_ns(processor_D_span_l);
-
-		//for testing just set the equivalent vector to this:
-		std::tuple<int, float> equivalent_vector[4] = { {0, 1}, {0, 0.75}, {2, 1}, {3, 1} };
 
 		//set the equivalent processors (only if the equivalent processor is 0)
 		processors_equivalent_to_A[0] = std::get<0>(equivalent_vector[0]) == 0;

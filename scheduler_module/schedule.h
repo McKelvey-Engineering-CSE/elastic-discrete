@@ -46,6 +46,10 @@ class Schedule {
 
 	bool owner = false;
 
+	std::tuple<int, float> equivalent_vector[4] = { {0, 1}, {0, 0.75}, {2, 1}, {3, 1} };
+
+	bool print = true;
+
 public: 
 	Schedule(std::string name_, bool create = true);	
 	~Schedule();
@@ -57,6 +61,8 @@ public:
 	TaskData * get_task(int n);
 
 	void setTermination();
+
+	void set_equivalency_vector(std::tuple<int, float> _equivalent_vector[4]);
 	
 };
 #endif
