@@ -735,6 +735,15 @@ int main(int argc, char *argv[])
 	//update our gpu D mask
 	processor_D_mask = schedule.get_task(task_index)->get_processor_D_mask();
 
+	//call the core B update
+	task.update_core_B(processor_B_mask);
+
+	//call the core C update
+	task.update_core_C(processor_C_mask);
+
+	//call the core D update
+	task.update_core_D(processor_D_mask);	
+
 	// Initialize the task
 	if (schedule.get_task(task_index) && task.init != NULL){
 
@@ -748,15 +757,6 @@ int main(int argc, char *argv[])
 
 	}
 
-	//call the core B update
-	task.update_core_B(processor_B_mask);
-
-	//call the core C update
-	task.update_core_C(processor_C_mask);
-
-	//call the core D update
-	task.update_core_D(processor_D_mask);
-	
 	// Wait at barrier for the other tasks
 	if ((ret_val = process_barrier::await_and_rearm_barrier(barrier_name)) != 0){
 
