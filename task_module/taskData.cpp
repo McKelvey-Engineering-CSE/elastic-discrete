@@ -58,159 +58,254 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 	std::vector<std::pair<double, double>> processor_information = { {CpA, L_A}, {CpB, L_B}, {CpC, L_C}, {CpD, L_D} };
 	std::vector<int> system_processors = {NUM_PROCESSOR_A, NUM_PROCESSOR_B, NUM_PROCESSOR_C, NUM_PROCESSOR_D};
 
-	std::vector<int> processors_equivalent_to_A;
+	//Im tired of this. Just generate all possible combinations and we are going 
+	//to walk through them all. If there is a way to meet the deadline, we keep the 
+	//combination
+	std::vector<std::tuple<int,int,int,int>> valid_combinations;
 
-	for (int i = 0; i < 4; i++){
+	for (int a = 0; a < 128; a++){
 
-		if (std::get<0>(equivalent_vector[i]) == 0)
-			processors_equivalent_to_A.push_back(i);
-
-	}
-	
-	//now up to the number of processors we have in the system, we can generate all possible combinations of processor
-	//configurations for the "A" portion of the DAG. Use a recursive lambda function to generate all possible combinations.
-	// Define the recursive function using std::function for proper self-reference
-	std::function<std::vector<std::tuple<int,int,int,int, double>>(int, std::vector<int>)> generate_processor_combinations = 
-	
-	[&](int current_processor, std::vector<int> current_combination) -> std::vector<std::tuple<int,int,int,int, double>> {
-
-		std::vector<std::tuple<int,int,int,int, double>> new_combinations;
-
-		double processor_average_starting = 0;
-
-		for (int i = 0; i < current_combination.size(); i++)
-			processor_average_starting += std::get<1>(equivalent_vector[i]) * current_combination[i];
-
-		int total_processors_used = (current_combination[0] + current_combination[1] + current_combination[2] + current_combination[3]);
-
-		for (int i = 0; i <= system_processors[current_processor]; i++){
-
-			double new_processor_average = processor_average_starting + (std::get<1>(equivalent_vector[current_processor]) * i);
-
-			new_processor_average /= (total_processors_used + i);
-
-			//now check if we can complete the work in the window of time given
-			double time_to_complete = L_A + ((CpA - L_A) / (new_processor_average * (total_processors_used + i)));
-
-			if (time_to_complete > T)
-				continue;
-
-			//If we are not the last processor, then we can recurse
-			if (current_processor != processors_equivalent_to_A.back()){
-
-				std::vector<int> new_combination = current_combination;
-
-				new_combination[current_processor] = i;
-
-				auto new_combinations_from_recurse = generate_processor_combinations(current_processor + 1, new_combination);
-				new_combinations.insert(new_combinations.end(), new_combinations_from_recurse.begin(), new_combinations_from_recurse.end());
-
-			}
-
-			else {
-
-				//if we make it down here, then we can add this to the combinations list
-				new_combinations.push_back(std::make_tuple(current_combination[0] + (current_processor == 0 ? i : 0), current_combination[1] + (current_processor == 1 ? i : 0), current_combination[2] + (current_processor == 2 ? i : 0), current_combination[3] + (current_processor == 3 ? i : 0), time_to_complete));
-
-			}
-
-		}
-
-		return new_combinations;
-
-	};
-
-	//generate all possible combinations of processors for the "A" portion of the DAG
-	auto processor_combinations = generate_processor_combinations(0, std::vector<int>(4, 0));
-
-    std::vector<std::tuple<int,int,int,int>> result;
-
-	//determine which processor is not in the equivalent vector
-	int processor_not_in_equivalent_vector = -1;
-	for (int i = 0; i < 4; i++){
-		if (std::get<0>(equivalent_vector[i]) != 0){
-			processor_not_in_equivalent_vector = i;
-			break;
-		}
-	}
-
-	if (processor_not_in_equivalent_vector == -1){
-
-		//move all the combinations to the result vector
-		for (auto combination : processor_combinations)
-			result.push_back(std::make_tuple(std::get<0>(combination), std::get<1>(combination), std::get<2>(combination), std::get<3>(combination)));
-
-		return result;
-	
-	}
-
-	else {
-    
-		//For all the modes we just made, we can now generate all possible combinations of processors for the "B" portion of the DAG
-		for (auto combination : processor_combinations){
-
-			//For each combination, determine how much of the period is left for the "B" portion of the DAG
-			double period_left = T - std::get<4>(combination);
-
-			//If the period left is less than the span of the "B" portion of the DAG, then we can skip this combination
-			if (period_left <= processor_information[processor_not_in_equivalent_vector].second)
-				continue;
-
-			//Otherwise, determine what the minimum number of processors needed for the "B" portion of the DAG is
-			int minimum_processors_needed_for_B = std::ceil((processor_information[processor_not_in_equivalent_vector].first - processor_information[processor_not_in_equivalent_vector].second) / (period_left - processor_information[processor_not_in_equivalent_vector].second));
-
-			//If the minimum number of processors needed for the "B" portion of the DAG is greater than the number of processors available, then we can skip this combination
-			if (minimum_processors_needed_for_B > system_processors[processor_not_in_equivalent_vector])
-				continue;
-
-			//otherwise make an entry in the result vector
-			result.push_back(std::make_tuple(std::get<0>(combination) + (0 == processor_not_in_equivalent_vector ? minimum_processors_needed_for_B : 0), std::get<1>(combination) + (1 == processor_not_in_equivalent_vector ? minimum_processors_needed_for_B : 0), std::get<2>(combination) + (2 == processor_not_in_equivalent_vector ? minimum_processors_needed_for_B : 0), std::get<3>(combination) + (3 == processor_not_in_equivalent_vector ? minimum_processors_needed_for_B : 0)));
-			
-		}
-
-	}
-
-	if (result.empty()){
-		print_module::print(std::cerr, "Error: No valid allocations found for task mode with parameters ", CpA, " ", L_A, " ", CpB, " ", L_B, " ", T, "\n");
-		exit(-1);
-	}
-
-	//now we need to filter out the modes which are not the minimum number of processors needed for the A and B portions of the DAG
-	std::vector<std::tuple<int,int,int,int>> result_filtered;
-
-	for (int i = 0; i < result.size(); i++){
-
-		bool add = true;
-
-		//using the equivalent vector, if the mode has 0 for all the processors, then we can skip it
-		bool all_zero = true;
-		if (std::get<0>(equivalent_vector[0]) == 0)
-			if (std::get<0>(result[i]) != 0)
-				all_zero = false;
-		if (std::get<0>(equivalent_vector[1]) == 0)
-			if (std::get<1>(result[i]) != 0)
-				all_zero = false;
-		if (std::get<0>(equivalent_vector[2]) == 0)
-			if (std::get<2>(result[i]) != 0)
-				all_zero = false;
-		if (std::get<0>(equivalent_vector[3]) == 0)
-			if (std::get<3>(result[i]) != 0)
-				all_zero = false;
-
-		if (all_zero)
+		if (a > NUM_PROCESSOR_A)
 			continue;
 
-		for (int j = 0; j < i; j++){
+		for (int b = 0; b < 128; b++){
 
-			if (i != j){
+			if (b > NUM_PROCESSOR_B)
+				continue;
 
-				if ((std::get<0>(result[i]) > std::get<0>(result[j])) && (std::get<1>(result[i]) == std::get<1>(result[j])) && (std::get<2>(result[i]) == std::get<2>(result[j])) && (std::get<3>(result[i]) == std::get<3>(result[j])) ||
-					(std::get<0>(result[i]) == std::get<0>(result[j])) && (std::get<1>(result[i]) > std::get<1>(result[j])) && (std::get<2>(result[i]) == std::get<2>(result[j])) && (std::get<3>(result[i]) == std::get<3>(result[j])) ||
-					(std::get<0>(result[i]) == std::get<0>(result[j])) && (std::get<1>(result[i]) == std::get<1>(result[j])) && (std::get<2>(result[i]) > std::get<2>(result[j])) && (std::get<3>(result[i]) == std::get<3>(result[j])) ||
-					(std::get<0>(result[i]) == std::get<0>(result[j])) && (std::get<1>(result[i]) == std::get<1>(result[j])) && (std::get<2>(result[i]) == std::get<2>(result[j])) && (std::get<3>(result[i]) > std::get<3>(result[j]))){
+			for (int c = 0; c < 128; c++){
 
-					add = false;
-					break;
+				if (c > NUM_PROCESSOR_C)
+					continue;
+
+				for (int d = 0; d < 128; d++){
+
+					if (d > NUM_PROCESSOR_D)
+						continue;
+
+					//first we calculate how much time is spent in the A
+					//portion of the DAG
+					double processor_average = 0;
+					int total_processors_used = 0;
+
+					double time_left = T;
+
+					for (int i = 0; i < 4; i++){
+
+						if (std::get<0>(equivalent_vector[i]) == 0){
+							
+							switch (i){
+
+								case 0:
+									processor_average += std::get<1>(equivalent_vector[i]) * a;
+									total_processors_used += a;
+									break;
+								case 1:
+									processor_average += std::get<1>(equivalent_vector[i]) * b;
+									total_processors_used += b;
+									break;
+								case 2:
+									processor_average += std::get<1>(equivalent_vector[i]) * c;
+									total_processors_used += c;
+									break;
+								case 3:
+									processor_average += std::get<1>(equivalent_vector[i]) * d;
+									total_processors_used += d;
+									break;
+
+							}
+
+						}
+
+					}
+
+					if ((total_processors_used == 0 ) && (CpA > 0))
+						continue;
+					
+					//we now have all the processors which are equivalent to A
+					//and can contribute to the first part of the DAG. Calculate
+					//how long it takes to complete the A portion of the DAG
+					double time_to_complete_A = (total_processors_used > 0 ) ? (L_A + ((CpA - L_A) / processor_average)) : 0;
+
+					//if it's longer than the period, then we can skip ahead
+					if (time_to_complete_A > time_left)
+						continue;
+
+					//now we can calculate how much time is left for the B portion of the DAG
+				 	time_left -= time_to_complete_A;
+
+					//now we need to determine which processors are working on the 
+					//B portion of the DAG
+					if (std::get<0>(equivalent_vector[1]) == 1){
+
+						processor_average = 0;
+						total_processors_used = 0;
+
+						for (int i = 1; i < 4; i++){
+
+							if (std::get<0>(equivalent_vector[i]) == 1){
+								
+								switch (i){
+
+									case 0:
+										processor_average += std::get<1>(equivalent_vector[i]) * a;
+										total_processors_used += a;
+										break;
+									case 1:
+										processor_average += std::get<1>(equivalent_vector[i]) * b;
+										total_processors_used += b;
+										break;
+									case 2:
+										processor_average += std::get<1>(equivalent_vector[i]) * c;
+										total_processors_used += c;
+										break;
+									case 3:
+										processor_average += std::get<1>(equivalent_vector[i]) * d;
+										total_processors_used += d;
+										break;
+
+								}
+
+							}
+
+						}
+
+						if ((total_processors_used == 0 ) && (CpB > 0))
+							continue;
+
+						//we now have all the processors which are equivalent to B
+						//and can contribute to the first part of the DAG. Calculate
+						//how long it takes to complete the B portion of the DAG
+						double time_to_complete_B = (total_processors_used > 0 ) ? L_B + ((CpB - L_B) / ((processor_average / total_processors_used) * (total_processors_used))) : 0;
+
+						//if it's longer than the period, then we can skip ahead
+						if (time_to_complete_B > time_left)
+							continue;
+
+						time_left -= time_to_complete_B;
+
+					}
+
+					//now we need to determine which processors are working on the
+					//C portion of the DAG
+					if (std::get<0>(equivalent_vector[2]) == 2){
+
+						processor_average = 0;
+						total_processors_used = 0;
+
+						for (int i = 2; i < 4; i++){
+
+							if (std::get<0>(equivalent_vector[i]) == 2){
+								
+								processor_average += std::get<1>(equivalent_vector[i]);
+								
+								switch (i){
+
+									case 0:
+										processor_average += std::get<1>(equivalent_vector[i]) * a;
+										total_processors_used += a;
+										break;
+									case 1:
+										processor_average += std::get<1>(equivalent_vector[i]) * b;
+										total_processors_used += b;
+										break;
+									case 2:
+										processor_average += std::get<1>(equivalent_vector[i]) * c;
+										total_processors_used += c;
+										break;
+									case 3:
+										processor_average += std::get<1>(equivalent_vector[i]) * d;
+										total_processors_used += d;
+										break;
+
+								}
+
+							}
+
+						}
+
+						if ((total_processors_used == 0 ) && (CpC > 0))
+							continue;
+
+						//we now have all the processors which are equivalent to C
+						//and can contribute to the first part of the DAG. Calculate
+						//how long it takes to complete the C portion of the DAG
+						double time_to_complete_C = (total_processors_used > 0 ) ? L_C + ((CpC - L_C) / ((processor_average / total_processors_used) * (total_processors_used))) : 0;
+
+						//if it's longer than the period, then we can skip ahead
+						if (time_to_complete_C > time_left)
+							continue;
+
+						time_left -= time_to_complete_C;
+
+					}
+
+					//now we need to determine which processors are working on the
+					//D portion of the DAG
+					if (std::get<0>(equivalent_vector[3]) == 3){
+
+						processor_average = 0;
+						total_processors_used = 0;
+
+						for (int i = 3; i < 4; i++){
+
+							if (std::get<0>(equivalent_vector[i]) == 3){
+								
+								processor_average += std::get<1>(equivalent_vector[i]);
+								
+								switch (i){
+
+									case 0:
+										processor_average += std::get<1>(equivalent_vector[i]) * a;
+										total_processors_used += a;
+										break;
+									case 1:
+										processor_average += std::get<1>(equivalent_vector[i]) * b;
+										total_processors_used += b;
+										break;
+									case 2:
+										processor_average += std::get<1>(equivalent_vector[i]) * c;
+										total_processors_used += c;
+										break;
+									case 3:
+										processor_average += std::get<1>(equivalent_vector[i]) * d;
+										total_processors_used += d;
+										break;
+								}
+
+							}
+
+						}
+
+						if ((total_processors_used == 0 ) && (CpD > 0)){
+
+						std::cout << "FOR WORK D : " << CpD << " I HAVE NO PROCESSORS WHEN I LOOKED AT " << a << " A and " << b << " B and " << c << " C and " << d << " D\n";
+
+						continue;
+
+					}
+						//we now have all the processors which are equivalent to D
+						//and can contribute to the first part of the DAG. Calculate
+						//how long it takes to complete the D portion of the DAGs
+						double time_to_complete_D = (total_processors_used > 0 ) ? L_D + ((CpD - L_D) / ((processor_average / total_processors_used) * (total_processors_used))) : 0;
+
+						//if it's longer than the period, then we can skip ahead
+						if (time_to_complete_D > time_left){
+
+						std::cout << "WITH TIME TO COMPLETE LEFT: " << time_left << " I CANNOT COMPLETE A D PORTION WHICH TAKES " << time_to_complete_D << " WHEN I LOOKED AT " << a << " A and " << b << " B and " << c << " C and " << d << " D\n";
+
+						continue;
+
+					}
+
+						time_left -= time_to_complete_D;
+
+					}
+
+					//if we made it down here, then this is a valid combination 
+					//which never exceeded the original budget of time T
+					valid_combinations.push_back(std::make_tuple(a, b, c, d));
+					//std::cout << "Possible Entry: " << a << " " << b << " " << c << " " << d << std::endl;
 
 				}
 
@@ -218,8 +313,110 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 
 		}
 
-		if (add)
-			result_filtered.push_back(result[i]);
+	}
+
+	//now we need to filter out the modes which are not the minimum number of processors needed for the A and B portions of the DAG
+	std::vector<std::tuple<int,int,int,int>> result_filtered;
+
+	//a bool vector to keep track of dead entries
+	std::vector<bool> dead_entries(valid_combinations.size(), false);
+
+	//filter out duplicates which just have higher computational loads
+	//than others. Starting with the last entry, we select one combination
+	//and we extract the "prefix" of the combination (all other processors
+	//needed). If we make it through the entire list without finding 
+	//another entry that has the same prefix, but with a lower processor
+	//that we are looking at value (value at i), then we add it to the 
+	//keeping list. Otherwise, we keep the better one and continue.
+	for (int i = 3; i >= 0; i--){
+
+		for (int combinations = 0; combinations < valid_combinations.size(); combinations++){
+
+			if (dead_entries[combinations])
+				continue;
+
+			auto currently_selected = valid_combinations[combinations];
+
+			int prefix[4] = {std::get<0>(currently_selected), std::get<1>(currently_selected), std::get<2>(currently_selected), std::get<3>(currently_selected)};
+
+			for (int other_combinations = combinations; other_combinations < valid_combinations.size(); other_combinations++){
+
+				if (dead_entries[other_combinations] || other_combinations == combinations)
+					continue;
+
+				int current_prefix[4] = {std::get<0>(valid_combinations[other_combinations]), std::get<1>(valid_combinations[other_combinations]), std::get<2>(valid_combinations[other_combinations]), std::get<3>(valid_combinations[other_combinations])};
+
+				bool all_other_processors_equal = true;
+
+				//if we are on i == 1, we flip the 
+				//order and check the suffix instead of the prefix
+				if (i == 0){
+
+					for (int j = 3; j > 0; j--){
+
+						if (prefix[j] != current_prefix[j]){
+
+							all_other_processors_equal = false;
+							break;
+
+						}
+
+					}
+
+
+				}
+
+				else {
+
+					for (int j = 0; j < i; j++){
+
+						if (prefix[j] != current_prefix[j]){
+
+							all_other_processors_equal = false;
+							break;
+
+						}
+
+					}
+
+				}
+
+				if (all_other_processors_equal){
+
+					if (prefix[i] > current_prefix[i]){
+
+						//we have found a better candidate, so this
+						//is the new one to keep
+						for (int k = 0; k < 4; k++)
+							prefix[k] = current_prefix[k];
+
+						//update currently selected	
+						currently_selected = valid_combinations[other_combinations];
+
+						dead_entries[combinations] = true;
+
+					}
+
+					else {
+
+						//the current one is better, so we mark the other one as dead
+						dead_entries[other_combinations] = true;
+
+					}
+
+				}
+
+			}
+
+		}
+
+	}
+
+	//now we can make the final list of valid combinations
+	for (int i = 0; i < valid_combinations.size(); i++){
+
+		if (!dead_entries[i])
+			result_filtered.push_back(valid_combinations[i]);
 
 	}
 
