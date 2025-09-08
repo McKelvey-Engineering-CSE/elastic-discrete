@@ -778,15 +778,14 @@ int main(int argc, char *argv[])
 	timespec correct_period_start, actual_period_start, period_finish, period_runtime;
 	get_time(&correct_period_start);
 	timespec max_period_runtime = { 0, 0 };
+	timespec min_period_runtime = {100000, 100000};
+	timespec all_times[61440];
 	uint64_t total_nsec = 0;
 
 	while(execution_condition(current_time, end_time, iterations, num_iters)){
 
 		if (schedule.get_task(task_index))
 			num_iters++;
-
-		// Sleep until the start of the period
-		sleep_until_ts(correct_period_start);
 
         #ifdef TRACING
 			fprintf( fd, "thread %ld: starting iteration %d\n", gettid() ,num_iters);
@@ -809,7 +808,7 @@ int main(int argc, char *argv[])
 		}
 		
 		// Check if the task finished before its deadline and record the maximum running time
-		ts_diff(correct_period_start, period_finish, period_runtime);
+		ts_diff(actual_period_start, period_finish, period_runtime);
 
 		if (period_runtime > deadline) {
 
@@ -831,6 +830,12 @@ int main(int argc, char *argv[])
 
 		if (period_runtime > max_period_runtime) max_period_runtime = period_runtime;
 		total_nsec += period_runtime.tv_nsec + nsec_in_sec * period_runtime.tv_sec;
+
+		//check for minimum time in period
+		if (period_runtime < min_period_runtime) min_period_runtime = period_runtime;
+
+		//add to all times
+		all_times[num_iters - 1] = period_runtime;
 
 		// Update the period_start time
 		correct_period_start = correct_period_start + current_period;
@@ -905,9 +910,21 @@ int main(int argc, char *argv[])
 	std::ostringstream task_output;
 	print_module::buffered_print(task_output,  "\n(" , mypid , ") Deadlines missed for task " , task_name , ": " , deadlines_missed , "/" , num_iters , "\n");
 	print_module::buffered_print(task_output,  "(" , mypid , ") Max running time for task " , task_name , ": " , (int)max_period_runtime.tv_sec , " sec  " , max_period_runtime.tv_nsec , " nsec\n");
+	print_module::buffered_print(task_output,  "(" , mypid , ") Min running time for task " , task_name , ": " , (int)min_period_runtime.tv_sec , " sec  " , min_period_runtime.tv_nsec , " nsec\n");
 	print_module::buffered_print(task_output,  "(" , mypid , ") Avg running time for task " , task_name , ": " , (total_nsec / (num_iters)) / 1000000.0 , " msec\n");
 	print_module::buffered_print(task_output, deadlines_missed, " ", num_iters, " ", omp_get_num_threads(), " ", max_period_runtime, "\n\n");
 	print_module::flush(std::cerr, task_output);
+
+	//print all the period timings to a file
+	std::string timings_file_name = "task_" + std::to_string(task_index) + "_timings.txt";
+	std::ofstream timings_file(timings_file_name, std::ios::out);
+	if (timings_file.is_open()){
+		for (int i = 0; i < num_iters; i++)
+			print_module::print(timings_file, all_times[i].tv_sec, " ", all_times[i].tv_nsec, "\n");
+		timings_file.close();
+	}
+	else
+		print_module::print(std::cerr, "WARNING: Could not open timings file for task ", task_index, "\n");
 
 	#ifdef PER_PERIOD_VERBOSE
 		std::ofstream outfile("time_results.txt", std::ios::out | std::ios::app);
