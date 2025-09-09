@@ -30,13 +30,14 @@
 #include <limits.h>
 #include <map>
 #include "print_module.h"
+#include <thread>
 
 #ifdef OMP_OVERRIDE
 
 	#include "omp_replacement.hpp"
 
 	//-1 means use all available processors
-	ThreadPool<> omp(-1);
+	OMPThreadPool* omp;
 
 #endif
 
@@ -328,7 +329,7 @@ void reschedule(){
 	processor_A_mask = schedule.get_task(task_index)->get_processor_A_mask();
 
 	#ifdef OMP_OVERRIDE
-		omp.set_override_mask(processor_A_mask);
+		omp->set_thread_pool_affinity(processor_A_mask);
 	#else
 		set_active_threads(schedule.get_task(task_index)->get_processor_A_owned_by_process());
 	#endif
@@ -365,7 +366,7 @@ void reschedule(){
 							  (permanent_processor_index > 2) * NUM_PROCESSOR_C + 
 							  permanent_processor_core;
 
-		omp.set_perm_cpu(real_core_index);
+		//omp.set_perm_cpu(real_core_index);
 
 		//migrate the main thread to the new core
 		cpu_set_t local_cpuset;
@@ -483,6 +484,11 @@ int main(int argc, char *argv[])
 	//system if we miss our virtual deadline
 	process_group = getpgrp();
 
+	//make the omp threadpool
+	#ifdef OMP_OVERRIDE
+		omp = new OMPThreadPool((int)std::thread::hardware_concurrency());
+	#endif
+
 	//Set up a signal handler for SIGRT0, this manages the notification of
 	//the system high crit transition
 	void (*ret_handler)(int);
@@ -592,17 +598,6 @@ int main(int argc, char *argv[])
 
 	#ifdef OMP_OVERRIDE
 
-		omp(pragma_omp_parallel 
-		{
-
-			//set the affinity
-			cpu_set_t local_cpuset;
-			CPU_ZERO(&local_cpuset);
-			CPU_SET(thread_id, &local_cpuset);
-
-			pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &local_cpuset);
-
-		});
 
 	#else 
 
@@ -717,11 +712,8 @@ int main(int argc, char *argv[])
 		std::vector<uint64_t> period_timings;
 	#endif
 
-	//set the omp thread limit and mask
-	omp_set_num_threads(schedule.get_task(task_index)->get_current_processors_A());
-
 	#ifdef OMP_OVERRIDE
-		omp.set_override_mask(processor_A_mask);
+		omp->set_thread_pool_affinity(processor_A_mask);
 	#else
 		set_active_threads(schedule.get_task(task_index)->get_processor_A_owned_by_process());
 	#endif

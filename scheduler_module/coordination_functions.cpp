@@ -428,13 +428,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	if (first_time) {
 		
-		#ifdef __NVCC__
 
-		CUDA_NEW_SAFE_CALL(cudaFuncSetAttribute(device_do_schedule,
-						cudaFuncAttributeMaxDynamicSharedMemorySize,
-						66 * 65 * 3 * 4));
-
-		#endif
 	
 	}
 
@@ -459,7 +453,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
 
 		//Execute exact solution
-		device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, slack_C, slack_D, 0);
+		device_do_schedule<<<1, 1024, 0, scheduler_stream>>>(N - 1, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, slack_C, slack_D, 0);
 
 		//peek for launch errors
 		CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
@@ -478,7 +472,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		if (check_max_possible){
 
 			//first check just the constrained version of the problem
-			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, slack_C, slack_D, 1);
+			device_do_schedule<<<1, 1024, 0, scheduler_stream>>>(N - 1, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, slack_C, slack_D, 1);
 
 			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
 
@@ -494,7 +488,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, optimal_modes, sizeof(int) * MAXTASKS * 4, cudaMemcpyHostToDevice));
 
-			device_do_schedule<<<1, 1024, 66 * 65 * 3 * 4, scheduler_stream>>>(N - 1, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, slack_C, slack_D, 0);
+			device_do_schedule<<<1, 1024, 0, scheduler_stream>>>(N - 1, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, slack_C, slack_D, 0);
 
 			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
 
