@@ -348,34 +348,15 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 
 				bool all_other_processors_equal = true;
 
-				//if we are on i == 1, we flip the 
-				//order and check the suffix instead of the prefix
-				if (i == 0){
+				for (int j = 0; j < 4; j++){
 
-					for (int j = 3; j > 0; j--){
+					if (j == i)
+						continue;
 
-						if (prefix[j] != current_prefix[j]){
+					if (prefix[j] != current_prefix[j]){
 
-							all_other_processors_equal = false;
-							break;
-
-						}
-
-					}
-
-
-				}
-
-				else {
-
-					for (int j = 0; j < i; j++){
-
-						if (prefix[j] != current_prefix[j]){
-
-							all_other_processors_equal = false;
-							break;
-
-						}
+						all_other_processors_equal = false;
+						break;
 
 					}
 
@@ -415,8 +396,23 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 	//now we can make the final list of valid combinations
 	for (int i = 0; i < valid_combinations.size(); i++){
 
-		if (!dead_entries[i])
-			result_filtered.push_back(valid_combinations[i]);
+		//FIXME: COND_VEC NEEDS TO BE PASSED IN
+		int cond_vec[4] = {1,1,0,0};
+
+		if (!dead_entries[i]){
+
+			//filter non-held minimums
+			bool holds_minimum_proc = false;
+
+			int processor_counts[4] = {std::get<0>(valid_combinations[i]), std::get<1>(valid_combinations[i]), std::get<2>(valid_combinations[i]), std::get<3>(valid_combinations[i])};
+			
+			for (int j = 0; j < 4; j++)
+			    if (cond_vec[j] == 1 && processor_counts[j] > 1)
+			        holds_minimum_proc = true;
+			
+			if (holds_minimum_proc)
+				result_filtered.push_back(valid_combinations[i]);
+		}
 
 	}
 
