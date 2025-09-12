@@ -34,7 +34,7 @@ extern FILE * fd;
 
 	#include "omp_replacement.hpp"
 
-	extern OMPThreadPool* omp;
+	extern OMPThreadPool* omp_threadpool;
 
 #endif
 

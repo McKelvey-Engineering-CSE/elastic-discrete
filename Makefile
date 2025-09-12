@@ -4,7 +4,7 @@ NVCC := $(notdir $(NVCC))
 HAS_NVCC := $(if $(filter nvcc,$(NVCC)),true,false)
 
 # Common settings
-COMMON_FLAGS := -std=c++20 -O0 -I. -g
+COMMON_FLAGS := -std=c++20 -O0 -I. -g -Xcompiler "-mavx2 -march=native -mfma -lopenblaso" -lcublas
 COMMON_LIBS := -lrt -lm -L./libyaml-cpp/build/ -lyaml-cpp
 
 # Omp library control
@@ -75,10 +75,7 @@ process_barrier.o: ./barrier_module/process_barrier.cpp generic_barrier.o
 thread_barrier.o: ./barrier_module/thread_barrier.cpp generic_barrier.o process_barrier.o
 	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
 
-synthetic_task: ./task_module/synthetic_task.cpp task.o task_manager.o print_library.o $(BARRIER_OBJECTS) schedule.o taskData.o timespec_functions.o
-	$(CC) $(FLAGS) $^ -o $@ $(LIBS)
-
-clustering_distribution: libclustering.a schedule.o scheduler.o task.o taskData.o task_manager.o thread_barrier.o print_library.o clustering_launcher synthetic_task james
+clustering_distribution: libclustering.a schedule.o scheduler.o task.o taskData.o task_manager.o thread_barrier.o print_library.o clustering_launcher james
 
 libclustering.a: $(CLUSTERING_OBJECTS)
 	ar rcsf $@ $^

@@ -37,17 +37,12 @@
 	#include "omp_replacement.hpp"
 
 	//-1 means use all available processors
-	OMPThreadPool* omp;
+	OMPThreadPool* omp_threadpool;
 
 #endif
 
 #include <chrono>
 using namespace std::chrono;
-
-extern "C" 
-{
-#include "dl_syscalls.h"
-}
 
 #define gettid() syscall(SYS_gettid)
 
@@ -329,7 +324,7 @@ void reschedule(){
 	processor_A_mask = schedule.get_task(task_index)->get_processor_A_mask();
 
 	#ifdef OMP_OVERRIDE
-		omp->set_thread_pool_affinity(processor_A_mask);
+		omp_threadpool->set_thread_pool_affinity(processor_A_mask);
 	#else
 		set_active_threads(schedule.get_task(task_index)->get_processor_A_owned_by_process());
 	#endif
@@ -486,7 +481,7 @@ int main(int argc, char *argv[])
 
 	//make the omp threadpool
 	#ifdef OMP_OVERRIDE
-		omp = new OMPThreadPool((int)std::thread::hardware_concurrency());
+		omp_threadpool = new OMPThreadPool((int)std::thread::hardware_concurrency());
 	#endif
 
 	//Set up a signal handler for SIGRT0, this manages the notification of
@@ -713,7 +708,7 @@ int main(int argc, char *argv[])
 	#endif
 
 	#ifdef OMP_OVERRIDE
-		omp->set_thread_pool_affinity(processor_A_mask);
+		omp_threadpool->set_thread_pool_affinity(processor_A_mask);
 	#else
 		set_active_threads(schedule.get_task(task_index)->get_processor_A_owned_by_process());
 	#endif

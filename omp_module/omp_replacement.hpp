@@ -41,6 +41,9 @@ class OMPThreadPool {
 
         void set_thread_pool_affinity(__uint128_t affinity_mask){
 
+            //set the omp thread count
+            omp_set_num_threads(num_threads);
+
             //translate the mask into a vector
             std::vector<int> cores;
 
@@ -66,6 +69,9 @@ class OMPThreadPool {
                     perror("pthread_setaffinity_np");
                 }
             }
+
+            //set the omp thread count
+            omp_set_num_threads(cores.size());
 
         }
 };
