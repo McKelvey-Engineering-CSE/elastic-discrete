@@ -869,6 +869,13 @@ int main(int argc, char *argv[])
 			}
 		}
 
+		//sleep until we are supposed to run again	
+		timespec sleep_time, current_sleep;
+		do { 
+			get_time(&current_sleep); 
+			ts_diff(actual_period_start, current_sleep, sleep_time);
+		} while(sleep_time < deadline);
+
 		get_time(&current_time);
 		
 	}
