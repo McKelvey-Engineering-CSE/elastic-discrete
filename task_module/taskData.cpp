@@ -68,9 +68,19 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 		if (a > NUM_PROCESSOR_A)
 			continue;
 
+		//if the count is more than 0 and we dont actually have any work to 
+		//do on this processor, we can just skip it
+		if (a > 0 && CpA == 0 && std::get<0>(equivalent_vector[0]) == 0)
+			continue;
+
 		for (int b = 0; b < 128; b++){
 
 			if (b > NUM_PROCESSOR_B)
+				continue;
+
+			//if the count is more than 0 and we dont actually have any work to 
+			//do on this processor, we can just skip it
+			if (b > 0 && CpB == 0 && std::get<0>(equivalent_vector[1]) == 1)
 				continue;
 
 			for (int c = 0; c < 128; c++){
@@ -78,9 +88,19 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 				if (c > NUM_PROCESSOR_C)
 					continue;
 
+				//if the count is more than 0 and we dont actually have any work to 
+				//do on this processor, we can just skip it
+				if (c > 0 && CpC == 0 && std::get<0>(equivalent_vector[2]) == 2)
+					continue;
+
 				for (int d = 0; d < 128; d++){
 
 					if (d > NUM_PROCESSOR_D)
+						continue;
+
+					//if the count is more than 0 and we dont actually have any work to 
+					//do on this processor, we can just skip it
+					if (d > 0 && CpD == 0 && std::get<0>(equivalent_vector[3]) == 3)
 						continue;
 
 					//first we calculate how much time is spent in the A
