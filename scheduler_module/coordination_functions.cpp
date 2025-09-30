@@ -521,7 +521,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	#else
 
-		device_do_schedule(N - 1, maxCPU, NUM_PROCESSOR_B, NUM_PROCESSOR_C, NUM_PROCESSOR_D, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution, slack_A, slack_B, slack_C, slack_D, 0);
+		device_do_schedule(N - 1, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution, slack_A, slack_B, slack_C, slack_D, 0);
 
 		loss = *d_final_loss;
 
@@ -535,7 +535,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			int* toss_d_final_solution = (int*)malloc(sizeof(int) * MAXTASKS);
 
-			device_do_schedule(N - 1, maxCPU, NUM_PROCESSOR_B, NUM_PROCESSOR_C, NUM_PROCESSOR_D, host_current_modes, d_losses, d_final_loss, host_uncooperative, toss_d_final_solution, slack_A, slack_B, slack_C, slack_D, 1);
+			device_do_schedule(N - 1, host_current_modes, d_losses, d_final_loss, host_uncooperative, toss_d_final_solution, slack_A, slack_B, slack_C, slack_D, 1);
 
 			//copy the error
 			double max_possible_value = *d_final_loss;

@@ -14,18 +14,17 @@
 class OMPThreadPool {
 
     private:
-        pthread_t* threads;
+        std::vector<pthread_t> threads;
         int num_threads;
 
     public:
-        OMPThreadPool(int num_threads){
+        OMPThreadPool(int _num_threads) : num_threads(_num_threads) {
 
             //make array for pthread handles
-            this->threads = new pthread_t[num_threads];
-            this->num_threads = num_threads;
+            threads = std::vector<pthread_t>(_num_threads);
 
             //set omp num threads
-            omp_set_num_threads(num_threads);
+            omp_set_num_threads(_num_threads);
 
             //make each thread fetch their handle
             #pragma omp parallel
@@ -36,7 +35,7 @@ class OMPThreadPool {
         }
 
         ~OMPThreadPool(){
-            delete[] threads;
+            threads.clear();
         }
 
         void set_thread_pool_affinity(__uint128_t affinity_mask){
@@ -59,15 +58,17 @@ class OMPThreadPool {
             }
 
             //set thread affinity for all threads (1 core to each thread in a circle buffer)
-            for (int i = 0; i < num_threads; i++) {
-                
+            #pragma omp parallel
+            {
                 cpu_set_t cpuset;
                 CPU_ZERO(&cpuset);
-                CPU_SET(cores[i % cores.size()], &cpuset);
-        
-                if (pthread_setaffinity_np(threads[i], sizeof(cpu_set_t), &cpuset) != 0) {
+                CPU_SET(cores[omp_get_thread_num() % cores.size()], &cpuset);
+
+                
+                if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0) {
                     perror("pthread_setaffinity_np");
                 }
+
             }
 
             //set the omp thread count

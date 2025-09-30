@@ -47,7 +47,7 @@ void update_core_B(__uint128_t mask) {
 
     //for a hybrid CPU, omp_replacement still controls both the A and B cores
     //but you must update the mask to reflect the B cores the task owns as well
-    omp.set_override_mask(processor_A_mask | (processor_B_mask >> NUM_PROCESSOR_A));
+    omp_threadpool->set_thread_pool_affinity(processor_A_mask | (processor_B_mask << NUM_PROCESSOR_A));
 
     return;
 
@@ -165,36 +165,19 @@ int run(int argc, char *argv[]){
         print_module::buffered_print(buffer, "\n(", getpid(), ") [", task_index, "] [Threads]: \n");
     #endif
 
-    #ifdef OMP_OVERRIDE
+    #pragma omp parallel
+    {
 
-        omp( pragma_omp_parallel
-        {
-            #ifdef LOUD_PRINT
-                pm::buffered_print(buffer, "ompish Thread ", thread_id, " on core ", sched_getcpu(), " of ", team_dim, " threads\n");
-            #endif
+        //#ifdef LOUD_PRINT
+            pm::buffered_print(buffer, "omp Thread ", omp_get_thread_num(), " on core ", sched_getcpu(), " of ", omp_get_num_threads(), " threads\n");
+            pm::flush(std::cerr, buffer);
+        //#endif
+        
+        count++;
 
-            count++;
-
-            busy_work(spin_tv);
-            
-        });
-
-    #else
-
-        #pragma omp parallel
-        {
-
-            #ifdef LOUD_PRINT
-                pm::buffered_print(buffer, "omp Thread ", omp_get_thread_num(), " on core ", sched_getcpu(), " of ", omp_get_num_threads(), " threads\n");
-            #endif
-            
-            count++;
-
-            busy_work(spin_tv);
-            
-        }
-
-    #endif
+        busy_work(spin_tv);
+        
+    }
 
     #ifdef LOUD_PRINT
         pm::buffered_print(buffer, "TEST: [", task_index, ",", iterations_complete, "] core count: ", count, "\n");

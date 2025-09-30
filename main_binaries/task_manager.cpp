@@ -328,7 +328,7 @@ void reschedule(){
 	#else
 		set_active_threads(schedule.get_task(task_index)->get_processor_A_owned_by_process());
 	#endif
-		
+
 	//update processor B mask and call update function
 	processor_B_mask = schedule.get_task(task_index)->get_processor_B_mask();
 	task.update_core_B(processor_B_mask);
