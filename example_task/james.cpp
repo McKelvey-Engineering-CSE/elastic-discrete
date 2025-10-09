@@ -157,19 +157,15 @@ int init(int argc, char *argv[])
 
 int run(int argc, char *argv[]){
 
-    std::ostringstream buffer;
-
     std::atomic<int> count = 0;
-
-    #ifdef LOUD_PRINT
-        print_module::buffered_print(buffer, "\n(", getpid(), ") [", task_index, "] [Threads]: \n");
-    #endif
 
     #pragma omp parallel
     {
 
+        std::ostringstream buffer;
+
         //#ifdef LOUD_PRINT
-            pm::buffered_print(buffer, "omp Thread ", omp_get_thread_num(), " on core ", sched_getcpu(), " of ", omp_get_num_threads(), " threads\n");
+            pm::buffered_print(buffer, "[", task_index, "] omp Thread ", omp_get_thread_num(), " on core ", sched_getcpu(), " of ", omp_get_num_threads(), " threads\n");
             pm::flush(std::cerr, buffer);
         //#endif
         
@@ -178,11 +174,6 @@ int run(int argc, char *argv[]){
         busy_work(spin_tv);
         
     }
-
-    #ifdef LOUD_PRINT
-        pm::buffered_print(buffer, "TEST: [", task_index, ",", iterations_complete, "] core count: ", count, "\n");
-        pm::flush(std::cerr, buffer);
-    #endif
 
     const int instigation_time[] = {3, 5, 7, 11, 13};
 
