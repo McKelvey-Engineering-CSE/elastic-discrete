@@ -324,26 +324,18 @@ void reschedule(){
 
 	//update our cpu mask
 	processor_A_mask = schedule.get_task(task_index)->get_processor_A_mask();
-	__uint128_t equivalent_mask = 0;
 
-	//if we are given a null mask for processor A, then we need to handle
-	//moving our threads to the other equivalent processors in the system
-	if (processor_A_mask == __uint128_t(0)){
+	processor_B_mask = schedule.get_task(task_index)->get_processor_B_mask();
 
-		bool B_equivalent = processor_topology_B == 0;
-		bool C_equivalent = processor_topology_C == 0;
-		bool D_equivalent = processor_topology_D == 0;
+	processor_C_mask = schedule.get_task(task_index)->get_processor_C_mask();
 
-		if (B_equivalent) equivalent_mask |= (processor_B_mask << NUM_PROCESSOR_A);
-		if (C_equivalent) equivalent_mask |= (processor_C_mask << (NUM_PROCESSOR_A + NUM_PROCESSOR_B));
-		if (D_equivalent) equivalent_mask |= (processor_D_mask << (NUM_PROCESSOR_A + NUM_PROCESSOR_B + NUM_PROCESSOR_C));
+	processor_D_mask = schedule.get_task(task_index)->get_processor_D_mask();
 
-		omp_threadpool->set_thread_pool_affinity(equivalent_mask);
+	__uint128_t equivalent_mask = processor_A_mask;
 
-	}
-
-	else 
-		equivalent_mask = processor_A_mask;
+	if (processor_topology_B == 0) equivalent_mask |= (processor_B_mask << NUM_PROCESSOR_A);
+	if (processor_topology_C == 0) equivalent_mask |= (processor_C_mask << (NUM_PROCESSOR_A + NUM_PROCESSOR_B));
+	if (processor_topology_D == 0) equivalent_mask |= (processor_D_mask << (NUM_PROCESSOR_A + NUM_PROCESSOR_B + NUM_PROCESSOR_C));
 
 	#ifdef OMP_OVERRIDE
 		omp_threadpool->set_thread_pool_affinity(equivalent_mask);
@@ -352,15 +344,12 @@ void reschedule(){
 	#endif
 
 	//update processor B mask and call update function
-	processor_B_mask = schedule.get_task(task_index)->get_processor_B_mask();
 	task.update_core_B(processor_B_mask);
 
 	//update processor C mask and call update function
-	processor_C_mask = schedule.get_task(task_index)->get_processor_C_mask();
 	task.update_core_C(processor_C_mask);
 
 	//update processor D mask and call update function
-	processor_D_mask = schedule.get_task(task_index)->get_processor_D_mask();
 	task.update_core_D(processor_D_mask);
 
 	/*//update the permanent processor if we have a switch
@@ -734,6 +723,7 @@ int main(int argc, char *argv[])
 
 	//set the cpu mask
 	processor_A_mask = schedule.get_task(task_index)->get_processor_A_mask();
+
 	std::cout << "Process: " << task_index <<  " Initial Processor A Mask: " << (unsigned long long) processor_A_mask << std::endl;
 
 	//print active vs passive CPUs
@@ -755,12 +745,6 @@ int main(int argc, char *argv[])
 		std::vector<uint64_t> period_timings;
 	#endif
 
-	#ifdef OMP_OVERRIDE
-		omp_threadpool->set_thread_pool_affinity(processor_A_mask);
-	#else
-		set_active_threads(schedule.get_task(task_index)->get_processor_A_owned_by_process());
-	#endif
-		
 	//update our cpu B mask
 	processor_B_mask = schedule.get_task(task_index)->get_processor_B_mask();
 
@@ -769,6 +753,18 @@ int main(int argc, char *argv[])
 
 	//update our gpu D mask
 	processor_D_mask = schedule.get_task(task_index)->get_processor_D_mask();
+
+	__uint128_t equivalent_mask = processor_A_mask;
+
+	if (processor_topology_B == 0) equivalent_mask |= (processor_B_mask << NUM_PROCESSOR_A);
+	if (processor_topology_C == 0) equivalent_mask |= (processor_C_mask << (NUM_PROCESSOR_A + NUM_PROCESSOR_B));
+	if (processor_topology_D == 0) equivalent_mask |= (processor_D_mask << (NUM_PROCESSOR_A + NUM_PROCESSOR_B + NUM_PROCESSOR_C));
+
+	#ifdef OMP_OVERRIDE
+		omp_threadpool->set_thread_pool_affinity(equivalent_mask);
+	#else
+		set_active_threads(schedule.get_task(task_index)->get_processor_A_owned_by_process());
+	#endif
 
 	//call the core B update
 	task.update_core_B(processor_B_mask);
