@@ -46,7 +46,7 @@ class Schedule {
 
 	bool owner = false;
 
-	std::tuple<int, float> equivalent_vector[4] = { {0, 1}, {0, 0.75}, {2, 1}, {3, 1} };
+	std::vector<std::tuple<int, float>> equivalent_vector;
 
 	bool print = true;
 
@@ -62,7 +62,7 @@ public:
 
 	void setTermination();
 
-	void set_equivalency_vector(std::tuple<int, float> _equivalent_vector[4]);
+	void set_equivalency_vector(std::vector<std::tuple<int, float>> _equivalent_vector);
 	
 };
 #endif

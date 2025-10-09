@@ -1218,21 +1218,6 @@ void TaskData::set_mode_transition(bool state){
 
 int TaskData::pop_back_processor_A(){
 
-	//check if we only have one processor A
-	//and if the processor A we are popping is our 
-	//permanent processor A
-	if (__builtin_popcountll(processor_A_mask) == 1 && permanent_processor_index == 0){
-		
-		processor_A_mask = 0;
-		
-		int msb = permanent_processor_core;
-
-		permanent_processor_core = -1;
-		permanent_processor_index = -1;
-		return msb;
-
-	}
-
     // Handle empty vector case
     if (processor_A_mask == 0) {
         return -1;
@@ -1254,20 +1239,6 @@ int TaskData::pop_back_processor_A(){
 }
 
 int TaskData::pop_back_processor_B(){
-
-	//check if we only have one processor B
-	//and if the processor B we are popping is our 
-	//permanent processor B
-	if (__builtin_popcountll(processor_B_mask) == 1 && permanent_processor_index == 1){
-
-		processor_B_mask = 0;
-		int msb = permanent_processor_core;
-
-		permanent_processor_core = -1;
-		permanent_processor_index = -1;
-
-		return msb;
-	}
 	
 	// Handle empty vector case
     if (processor_B_mask == 0) {
@@ -1327,20 +1298,6 @@ int TaskData::push_back_processor_B(int value){
 
 int TaskData::pop_back_processor_C(){
 
-	//check if we only have one processor C
-	//and if the processor C we are popping is our 
-	//permanent processor C
-	if (__builtin_popcountll(processor_C_mask) == 1 && permanent_processor_index == 2){
-
-		processor_C_mask = 0;
-		int msb = permanent_processor_core;
-
-		permanent_processor_core = -1;
-		permanent_processor_index = -1;
-
-		return msb;
-	}
-
     // Find the highest set bit and clear it
     for (int i = 127; i >= 0; i--) {
         __uint128_t bit = (__uint128_t)1 << i;
@@ -1371,20 +1328,6 @@ int TaskData::push_back_processor_C(int value){
 }
 
 int TaskData::pop_back_processor_D(){
-
-	//check if we only have one processor D
-	//and if the processor D we are popping is our 
-	//permanent processor D
-	if (__builtin_popcountll(processor_D_mask) == 1 && permanent_processor_index == 3){
-
-		processor_D_mask = 0;
-		int msb = permanent_processor_core;
-
-		permanent_processor_core = -1;
-		permanent_processor_index = -1;
-
-		return msb;
-	}
 
     // Find the highest set bit and clear it
     for (int i = 127; i >= 0; i--) {

@@ -140,6 +140,8 @@ bool needs_reschedule = false;
 int* shared_array = NULL;
 int shm_fd = -1;
 
+int processor_topology_A, processor_topology_B, processor_topology_C, processor_topology_D;
+
 std::mutex con_mut;
 Schedule schedule(std::string("EFS"), false);
 
@@ -322,9 +324,29 @@ void reschedule(){
 
 	//update our cpu mask
 	processor_A_mask = schedule.get_task(task_index)->get_processor_A_mask();
+	__uint128_t equivalent_mask = 0;
+
+	//if we are given a null mask for processor A, then we need to handle
+	//moving our threads to the other equivalent processors in the system
+	if (processor_A_mask == __uint128_t(0)){
+
+		bool B_equivalent = processor_topology_B == 0;
+		bool C_equivalent = processor_topology_C == 0;
+		bool D_equivalent = processor_topology_D == 0;
+
+		if (B_equivalent) equivalent_mask |= (processor_B_mask << NUM_PROCESSOR_A);
+		if (C_equivalent) equivalent_mask |= (processor_C_mask << (NUM_PROCESSOR_A + NUM_PROCESSOR_B));
+		if (D_equivalent) equivalent_mask |= (processor_D_mask << (NUM_PROCESSOR_A + NUM_PROCESSOR_B + NUM_PROCESSOR_C));
+
+		omp_threadpool->set_thread_pool_affinity(equivalent_mask);
+
+	}
+
+	else 
+		equivalent_mask = processor_A_mask;
 
 	#ifdef OMP_OVERRIDE
-		omp_threadpool->set_thread_pool_affinity(processor_A_mask);
+		omp_threadpool->set_thread_pool_affinity(equivalent_mask);
 	#else
 		set_active_threads(schedule.get_task(task_index)->get_processor_A_owned_by_process());
 	#endif
@@ -341,10 +363,7 @@ void reschedule(){
 	processor_D_mask = schedule.get_task(task_index)->get_processor_D_mask();
 	task.update_core_D(processor_D_mask);
 
-	//elect the permanent processor (if needed)
-	schedule.get_task(task_index)->elect_permanent_processor();
-
-	//update the permanent processor if we have a switch
+	/*//update the permanent processor if we have a switch
 	int permanent_processor_index = schedule.get_task(task_index)->get_permanent_processor_index();
 	int permanent_processor_core = schedule.get_task(task_index)->get_permanent_processor_core();
 
@@ -369,7 +388,7 @@ void reschedule(){
 		CPU_SET(real_core_index, &local_cpuset);
 		pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &local_cpuset);
 
-	}
+	}*/
 
 	//all pretty printing crap
 	#ifdef PRETTY_PRINTING
@@ -528,8 +547,37 @@ int main(int argc, char *argv[])
 	
 	char *barrier_name = argv[8];
 	explicit_sync = std::stoi(std::string(argv[9])) == 1;
-	int task_argc = argc - 10;                                             
-	char **task_argv = &argv[10];
+	
+	// Parse processor topology from arguments 10-13 (after explicit_sync)
+	if (argc < 14) {  // Need at least 10 standard args + 4 topology args
+		print_module::print(std::cerr, "ERROR: Not enough arguments for topology information\n");
+		kill(0, SIGTERM);
+		return RT_GOMP_TASK_MANAGER_ARG_PARSE_ERROR;
+	}
+	
+	processor_topology_A = std::stoi(std::string(argv[10]));
+	processor_topology_B = std::stoi(std::string(argv[11]));
+	processor_topology_C = std::stoi(std::string(argv[12]));
+	processor_topology_D = std::stoi(std::string(argv[13]));
+	
+	// Print processor topology information for debugging
+	print_module::print(std::cerr, "Task Processor Topology Configuration:\n");
+	print_module::print(std::cerr, "  A -> ", 
+		(processor_topology_A == 0 ? "A" : processor_topology_A == 1 ? "B" : 
+		 processor_topology_A == 2 ? "C" : "D"), "\n");
+	print_module::print(std::cerr, "  B -> ", 
+		(processor_topology_B == 0 ? "A" : processor_topology_B == 1 ? "B" : 
+		 processor_topology_B == 2 ? "C" : "D"), "\n");
+	print_module::print(std::cerr, "  C -> ", 
+		(processor_topology_C == 0 ? "A" : processor_topology_C == 1 ? "B" : 
+		 processor_topology_C == 2 ? "C" : "D"), "\n");
+	print_module::print(std::cerr, "  D -> ", 
+		(processor_topology_D == 0 ? "A" : processor_topology_D == 1 ? "B" : 
+		 processor_topology_D == 2 ? "C" : "D"), "\n");
+	
+	// Task arguments start at position 14 (after topology)
+	int task_argc = argc - 14;                                             
+	char **task_argv = &argv[14];
 
 	//fetch the scheduler lock
 	rescheduling_lock = smm::fetch<struct p_mutex>(reschedule_lock);

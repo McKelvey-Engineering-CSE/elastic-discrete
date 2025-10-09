@@ -553,16 +553,8 @@ struct parsed_task_info {
 	int max_iterations = -1;
 	// Default priority carried over from the original scheduler code - no particular reason for this otherwise
 	int sched_priority = 7;
-	std::vector<struct parsed_task_mode_info> modes;
-};
-
-struct parsed_shared_objects {
-
-	int schedulable;
-	unsigned sec_to_run = 0;
-	long nsec_to_run = 0;
-
-	// Processor configuration: (processor_type, ratio) tuples
+	
+	// Per-task processor equivalence configuration
 	// processor_type: 0=A, 1=B, 2=C, 3=D
 	// ratio: scaling factor relative to the equivalent processor
 	int processor_A_type = 0;
@@ -573,6 +565,22 @@ struct parsed_shared_objects {
 	double processor_C_ratio = 1.0;
 	int processor_D_type = 3;
 	double processor_D_ratio = 1.0;
+	
+	std::vector<struct parsed_task_mode_info> modes;
+};
+
+struct parsed_shared_objects {
+
+	int schedulable;
+	unsigned sec_to_run = 0;
+	long nsec_to_run = 0;
+
+	// Processor topology configuration
+	// Maps each processor type to its physical topology
+	int processor_topology_A = 0;  // 0=A, 1=B, 2=C, 3=D
+	int processor_topology_B = 1;
+	int processor_topology_C = 2;
+	int processor_topology_D = 3;
 
 	int num_tasks_parsed = 0;
 	parsed_task_info parsed_tasks[50];
@@ -707,20 +715,27 @@ int main(int argc, char *argv[])
 	sec_to_run = yaml_object->sec_to_run;
 	nsec_to_run = yaml_object->nsec_to_run;
 
-	// Print processor configuration for testing
-	print_module::print(std::cerr, "Processor Configuration:\n");
-	print_module::print(std::cerr, "  A: type=", yaml_object->processor_A_type, " (", 
-		(yaml_object->processor_A_type == 0 ? "A" : yaml_object->processor_A_type == 1 ? "B" : 
-		 yaml_object->processor_A_type == 2 ? "C" : "D"), "), ratio=", yaml_object->processor_A_ratio, "\n");
-	print_module::print(std::cerr, "  B: type=", yaml_object->processor_B_type, " (", 
-		(yaml_object->processor_B_type == 0 ? "A" : yaml_object->processor_B_type == 1 ? "B" : 
-		 yaml_object->processor_B_type == 2 ? "C" : "D"), "), ratio=", yaml_object->processor_B_ratio, "\n");
-	print_module::print(std::cerr, "  C: type=", yaml_object->processor_C_type, " (", 
-		(yaml_object->processor_C_type == 0 ? "A" : yaml_object->processor_C_type == 1 ? "B" : 
-		 yaml_object->processor_C_type == 2 ? "C" : "D"), "), ratio=", yaml_object->processor_C_ratio, "\n");
-	print_module::print(std::cerr, "  D: type=", yaml_object->processor_D_type, " (", 
-		(yaml_object->processor_D_type == 0 ? "A" : yaml_object->processor_D_type == 1 ? "B" : 
-		 yaml_object->processor_D_type == 2 ? "C" : "D"), "), ratio=", yaml_object->processor_D_ratio, "\n");
+	// Store processor topology configuration
+	int processor_topology_A = yaml_object->processor_topology_A;
+	int processor_topology_B = yaml_object->processor_topology_B;
+	int processor_topology_C = yaml_object->processor_topology_C;
+	int processor_topology_D = yaml_object->processor_topology_D;
+
+	// Print processor topology configuration for debugging
+	print_module::print(std::cerr, "Processor Topology Configuration:\n");
+	print_module::print(std::cerr, "  A -> ", 
+		(processor_topology_A == 0 ? "A" : processor_topology_A == 1 ? "B" : 
+		 processor_topology_A == 2 ? "C" : "D"), "\n");
+	print_module::print(std::cerr, "  B -> ", 
+		(processor_topology_B == 0 ? "A" : processor_topology_B == 1 ? "B" : 
+		 processor_topology_B == 2 ? "C" : "D"), "\n");
+	print_module::print(std::cerr, "  C -> ", 
+		(processor_topology_C == 0 ? "A" : processor_topology_C == 1 ? "B" : 
+		 processor_topology_C == 2 ? "C" : "D"), "\n");
+	print_module::print(std::cerr, "  D -> ", 
+		(processor_topology_D == 0 ? "A" : processor_topology_D == 1 ? "B" : 
+		 processor_topology_D == 2 ? "C" : "D"), "\n");
+
 
 	for (int i = 0; i < yaml_object->num_tasks_parsed; i++){
 
@@ -729,6 +744,31 @@ int main(int argc, char *argv[])
 		task_info.elasticity = yaml_object->parsed_tasks[i].elasticity;
 		task_info.max_iterations = yaml_object->parsed_tasks[i].max_iterations;
 		task_info.sched_priority = yaml_object->parsed_tasks[i].sched_priority;
+
+		// Copy per-task processor equivalence configuration
+		task_info.processor_A_type = yaml_object->parsed_tasks[i].processor_A_type;
+		task_info.processor_A_ratio = yaml_object->parsed_tasks[i].processor_A_ratio;
+		task_info.processor_B_type = yaml_object->parsed_tasks[i].processor_B_type;
+		task_info.processor_B_ratio = yaml_object->parsed_tasks[i].processor_B_ratio;
+		task_info.processor_C_type = yaml_object->parsed_tasks[i].processor_C_type;
+		task_info.processor_C_ratio = yaml_object->parsed_tasks[i].processor_C_ratio;
+		task_info.processor_D_type = yaml_object->parsed_tasks[i].processor_D_type;
+		task_info.processor_D_ratio = yaml_object->parsed_tasks[i].processor_D_ratio;
+
+		// Print per-task processor configuration for debugging
+		print_module::print(std::cerr, "Task ", i, " Processor Configuration:\n");
+		print_module::print(std::cerr, "  A: type=", task_info.processor_A_type, " (", 
+			(task_info.processor_A_type == 0 ? "A" : task_info.processor_A_type == 1 ? "B" : 
+			 task_info.processor_A_type == 2 ? "C" : "D"), "), ratio=", task_info.processor_A_ratio, "\n");
+		print_module::print(std::cerr, "  B: type=", task_info.processor_B_type, " (", 
+			(task_info.processor_B_type == 0 ? "A" : task_info.processor_B_type == 1 ? "B" : 
+			 task_info.processor_B_type == 2 ? "C" : "D"), "), ratio=", task_info.processor_B_ratio, "\n");
+		print_module::print(std::cerr, "  C: type=", task_info.processor_C_type, " (", 
+			(task_info.processor_C_type == 0 ? "A" : task_info.processor_C_type == 1 ? "B" : 
+			 task_info.processor_C_type == 2 ? "C" : "D"), "), ratio=", task_info.processor_C_ratio, "\n");
+		print_module::print(std::cerr, "  D: type=", task_info.processor_D_type, " (", 
+			(task_info.processor_D_type == 0 ? "A" : task_info.processor_D_type == 1 ? "B" : 
+			 task_info.processor_D_type == 2 ? "C" : "D"), "), ratio=", task_info.processor_D_ratio, "\n");
 
 		for (int j = 0; j < 1024; j++){
 			
@@ -778,13 +818,16 @@ int main(int argc, char *argv[])
 	//(retain CPU 0 for the scheduler)
 	scheduler = new Scheduler(parsed_tasks.size(),(int) NUM_PROCESSOR_A, explicit_sync, FPTAS);
 
-	//set up the equivalency vector
-	std::tuple<int, float> equivalency_vector[4] = {std::make_tuple(yaml_object->processor_A_type, yaml_object->processor_A_ratio),
-													 std::make_tuple(yaml_object->processor_B_type, yaml_object->processor_B_ratio),
-													 std::make_tuple(yaml_object->processor_C_type, yaml_object->processor_C_ratio),
-													 std::make_tuple(yaml_object->processor_D_type, yaml_object->processor_D_ratio)};
+	//build an equivalency vector for each task 
+	std::vector<std::tuple<int, float>> task_equivalency_vectors;
+	for (int i = 0; i < parsed_tasks.size(); i++){
+		task_equivalency_vectors.push_back(std::make_tuple(parsed_tasks[i].processor_A_type, parsed_tasks[i].processor_A_ratio));
+		task_equivalency_vectors.push_back(std::make_tuple(parsed_tasks[i].processor_B_type, parsed_tasks[i].processor_B_ratio));
+		task_equivalency_vectors.push_back(std::make_tuple(parsed_tasks[i].processor_C_type, parsed_tasks[i].processor_C_ratio));
+		task_equivalency_vectors.push_back(std::make_tuple(parsed_tasks[i].processor_D_type, parsed_tasks[i].processor_D_ratio));
+	}
 
-	scheduler->get_schedule()->set_equivalency_vector(equivalency_vector);
+	scheduler->get_schedule()->set_equivalency_vector(task_equivalency_vectors);
 
 	//warn if set higher than real cpu amount
 	if ((NUM_PROCESSOR_A > std::thread::hardware_concurrency()) && !simulated_task_mode){
@@ -899,6 +942,12 @@ int main(int argc, char *argv[])
 
 		// Add whether or not the system has explicit sync enabled
 		task_manager_argvector.push_back(std::to_string(explicit_sync));
+
+		// Add processor topology information right after explicit_sync
+		task_manager_argvector.push_back(std::to_string(processor_topology_A));
+		task_manager_argvector.push_back(std::to_string(processor_topology_B));
+		task_manager_argvector.push_back(std::to_string(processor_topology_C));
+		task_manager_argvector.push_back(std::to_string(processor_topology_D));
 		
 		// Add the task arguments to the argument vector
 		task_manager_argvector.push_back(std::string(task_info.C_program_name));
@@ -985,8 +1034,6 @@ int main(int argc, char *argv[])
 
 		//microsecond tracker
 		unsigned long long nanoseconds_passed = 0;
-
-
 
 		//task run trackers
 		unsigned long long current_periods_counting_down[parsed_tasks.size()];

@@ -134,16 +134,8 @@ struct parsed_task_info {
 	int max_iterations = -1;
 	// Default priority carried over from the original scheduler code - no particular reason for this otherwise
 	int sched_priority = 7;
-	std::vector<struct parsed_task_mode_info> modes;
-};
-
-struct parsed_shared_objects {
-
-	int schedulable;
-	unsigned sec_to_run = 0;
-	long nsec_to_run = 0;
-
-	// Processor configuration: (processor_type, ratio) tuples
+	
+	// Per-task processor equivalence configuration
 	// processor_type: 0=A, 1=B, 2=C, 3=D
 	// ratio: scaling factor relative to the equivalent processor
 	int processor_A_type = 0;
@@ -154,6 +146,22 @@ struct parsed_shared_objects {
 	double processor_C_ratio = 1.0;
 	int processor_D_type = 3;
 	double processor_D_ratio = 1.0;
+	
+	std::vector<struct parsed_task_mode_info> modes;
+};
+
+struct parsed_shared_objects {
+
+	int schedulable;
+	unsigned sec_to_run = 0;
+	long nsec_to_run = 0;
+
+	// Processor topology configuration
+	// Maps each processor type to its physical topology
+	int processor_topology_A = 0;  // 0=A, 1=B, 2=C, 3=D
+	int processor_topology_B = 1;
+	int processor_topology_C = 2;
+	int processor_topology_D = 3;
 
 	int num_tasks_parsed = 0;
 	parsed_task_info parsed_tasks[50];
@@ -172,10 +180,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						std::vector<parsed_task_info>* parsed_tasks, 
 						unsigned* sec_to_run, 
 						long* nsec_to_run,
-						int* proc_A_type, double* proc_A_ratio,
-						int* proc_B_type, double* proc_B_ratio,
-						int* proc_C_type, double* proc_C_ratio,
-						int* proc_D_type, double* proc_D_ratio){
+						int* proc_topology_A, int* proc_topology_B, 
+						int* proc_topology_C, int* proc_topology_D){
 	std::stringstream buffer;
 	buffer << ifs.rdbuf();
 	std::string contents = buffer.str();
@@ -197,71 +203,46 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 		*schedulable = 0;
 	}
 
-	// Parse processor configuration
-	if (config["processorConfiguration"]) {
-		YAML::Node proc_config = config["processorConfiguration"];
+	// Parse processor topology configuration
+	if (config["processor_topology"]) {
+		YAML::Node topology_config = config["processor_topology"];
 		
 		// Parse each processor type (A, B, C, D)
-		for (YAML::const_iterator it = proc_config.begin(); it != proc_config.end(); ++it) {
+		for (YAML::const_iterator it = topology_config.begin(); it != topology_config.end(); ++it) {
 			std::string proc_type = it->first.as<std::string>();
-			std::string proc_value = it->second.as<std::string>();
+			std::string topology_value = it->second.as<std::string>();
 			
-			// Extract the equivalent processor type and ratio
-			// Format is like "0.8A" or "1A" or "1C"
-			char equivalent_proc = proc_value.back(); // Get the last character (A, B, C, or D)
-			std::string ratio_str = proc_value.substr(0, proc_value.length() - 1);
-			double ratio = 1.0; // Default ratio
-			if (!ratio_str.empty()) {
-				try {
-					ratio = std::stod(ratio_str);
-				} catch (const std::exception& e) {
-					std::cerr << "Error parsing ratio from '" << ratio_str << "' for processor " << proc_type << std::endl;
-					ratio = 1.0;
-				}
+			// Map topology values to indices (0=A, 1=B, 2=C, 3=D)
+			int topology_index = -1;
+			if (topology_value == "A") topology_index = 0;
+			else if (topology_value == "B") topology_index = 1;
+			else if (topology_value == "C") topology_index = 2;
+			else if (topology_value == "D") topology_index = 3;
+			else {
+				std::cerr << "Invalid topology value: " << topology_value << std::endl;
+				continue;
 			}
 			
-			// Map processor types to indices (0=A, 1=B, 2=C, 3=D)
-			int proc_index = -1;
-			int equivalent_index = -1;
-			
-			if (proc_type == "A") proc_index = 0;
-			else if (proc_type == "B") proc_index = 1;
-			else if (proc_type == "C") proc_index = 2;
-			else if (proc_type == "D") proc_index = 3;
-			else {
+			// Store the topology configuration based on processor type
+			if (proc_type == "A") {
+				*proc_topology_A = topology_index;
+			} else if (proc_type == "B") {
+				*proc_topology_B = topology_index;
+			} else if (proc_type == "C") {
+				*proc_topology_C = topology_index;
+			} else if (proc_type == "D") {
+				*proc_topology_D = topology_index;
+			} else {
 				std::cerr << "Invalid processor type: " << proc_type << std::endl;
 				continue;
 			}
 			
-			if (equivalent_proc == 'A') equivalent_index = 0;
-			else if (equivalent_proc == 'B') equivalent_index = 1;
-			else if (equivalent_proc == 'C') equivalent_index = 2;
-			else if (equivalent_proc == 'D') equivalent_index = 3;
-			else {
-				std::cerr << "Invalid equivalent processor: " << equivalent_proc << std::endl;
-				continue;
-			}
-			
-			// Store the configuration based on processor type
-			if (proc_index == 0) { // A
-				*proc_A_type = equivalent_index;
-				*proc_A_ratio = ratio;
-			} else if (proc_index == 1) { // B
-				*proc_B_type = equivalent_index;
-				*proc_B_ratio = ratio;
-			} else if (proc_index == 2) { // C
-				*proc_C_type = equivalent_index;
-				*proc_C_ratio = ratio;
-			} else if (proc_index == 3) { // D
-				*proc_D_type = equivalent_index;
-				*proc_D_ratio = ratio;
-			}
-			
 			// Debug output
-			std::cout << "Parsed processor config: " << proc_type << " -> " << proc_value 
-				<< " (type=" << equivalent_index << ", ratio=" << ratio << ")" << std::endl;
+			std::cout << "Parsed processor topology: " << proc_type << " -> " << topology_value 
+				<< " (index=" << topology_index << ")" << std::endl;
 		}
 	}
+
 
 	if (yaml_is_time(config["maxRuntime"])) {
 		*sec_to_run = config["maxRuntime"]["sec"].as<unsigned int>();
@@ -303,6 +284,71 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 			task_info.sched_priority = task["priority"].as<int>();
 		}
 
+		// Parse per-task processor equivalence configuration
+		if (task["processor_equivalence"]) {
+			YAML::Node proc_equiv = task["processor_equivalence"];
+			
+			// Parse each processor type (A, B, C, D)
+			for (YAML::const_iterator it = proc_equiv.begin(); it != proc_equiv.end(); ++it) {
+				std::string proc_type = it->first.as<std::string>();
+				std::string proc_value = it->second.as<std::string>();
+				
+				// Extract the equivalent processor type and ratio
+				// Format is like "0.8A" or "1A" or "1C"
+				char equivalent_proc = proc_value.back(); // Get the last character (A, B, C, or D)
+				std::string ratio_str = proc_value.substr(0, proc_value.length() - 1);
+				double ratio = 1.0; // Default ratio
+				if (!ratio_str.empty()) {
+					try {
+						ratio = std::stod(ratio_str);
+					} catch (const std::exception& e) {
+						std::cerr << "Error parsing ratio from '" << ratio_str << "' for processor " << proc_type << std::endl;
+						ratio = 1.0;
+					}
+				}
+				
+				// Map processor types to indices (0=A, 1=B, 2=C, 3=D)
+				int proc_index = -1;
+				int equivalent_index = -1;
+				
+				if (proc_type == "A") proc_index = 0;
+				else if (proc_type == "B") proc_index = 1;
+				else if (proc_type == "C") proc_index = 2;
+				else if (proc_type == "D") proc_index = 3;
+				else {
+					std::cerr << "Invalid processor type: " << proc_type << std::endl;
+					continue;
+				}
+				
+				if (equivalent_proc == 'A') equivalent_index = 0;
+				else if (equivalent_proc == 'B') equivalent_index = 1;
+				else if (equivalent_proc == 'C') equivalent_index = 2;
+				else if (equivalent_proc == 'D') equivalent_index = 3;
+				else {
+					std::cerr << "Invalid equivalent processor: " << equivalent_proc << std::endl;
+					continue;
+				}
+				
+				// Store the configuration based on processor type
+				if (proc_index == 0) { // A
+					task_info.processor_A_type = equivalent_index;
+					task_info.processor_A_ratio = ratio;
+				} else if (proc_index == 1) { // B
+					task_info.processor_B_type = equivalent_index;
+					task_info.processor_B_ratio = ratio;
+				} else if (proc_index == 2) { // C
+					task_info.processor_C_type = equivalent_index;
+					task_info.processor_C_ratio = ratio;
+				} else if (proc_index == 3) { // D
+					task_info.processor_D_type = equivalent_index;
+					task_info.processor_D_ratio = ratio;
+				}
+				
+				// Debug output
+				std::cout << "Parsed task processor config: " << proc_type << " -> " << proc_value 
+					<< " (type=" << equivalent_index << ", ratio=" << ratio << ")" << std::endl;
+			}
+		}
 
 		if (task["maxIterations"]) {
 			task_info.max_iterations = task["maxIterations"].as<int>();
@@ -1018,13 +1064,11 @@ int main(int argc, char *argv[])
 
 	if (get_scheduling_file(args[1], ifs) != 0) return RT_GOMP_CLUSTERING_LAUNCHER_FILE_OPEN_ERROR;
 
-	// Initialize processor configuration variables
-	int proc_A_type = 0, proc_B_type = 1, proc_C_type = 2, proc_D_type = 3;
-	double proc_A_ratio = 1.0, proc_B_ratio = 1.0, proc_C_ratio = 1.0, proc_D_ratio = 1.0;
+	// Initialize processor topology variables
+	int proc_topology_A = 0, proc_topology_B = 1, proc_topology_C = 2, proc_topology_D = 3;
 	
 	if (read_scheduling_yaml_file(ifs, &schedulable, &parsed_tasks, &sec_to_run, &nsec_to_run, 
-		&proc_A_type, &proc_A_ratio, &proc_B_type, &proc_B_ratio, 
-		&proc_C_type, &proc_C_ratio, &proc_D_type, &proc_D_ratio) != 0) 
+		&proc_topology_A, &proc_topology_B, &proc_topology_C, &proc_topology_D) != 0) 
 		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 
 	//move all the data to the shared memory
@@ -1032,15 +1076,11 @@ int main(int argc, char *argv[])
 	yaml_object->sec_to_run = sec_to_run;
 	yaml_object->nsec_to_run = nsec_to_run;
 	
-	// Store processor configuration
-	yaml_object->processor_A_type = proc_A_type;
-	yaml_object->processor_A_ratio = proc_A_ratio;
-	yaml_object->processor_B_type = proc_B_type;
-	yaml_object->processor_B_ratio = proc_B_ratio;
-	yaml_object->processor_C_type = proc_C_type;
-	yaml_object->processor_C_ratio = proc_C_ratio;
-	yaml_object->processor_D_type = proc_D_type;
-	yaml_object->processor_D_ratio = proc_D_ratio;
+	// Store processor topology configuration
+	yaml_object->processor_topology_A = proc_topology_A;
+	yaml_object->processor_topology_B = proc_topology_B;
+	yaml_object->processor_topology_C = proc_topology_C;
+	yaml_object->processor_topology_D = proc_topology_D;
 	
 	yaml_object->num_tasks_parsed = parsed_tasks.size();
 

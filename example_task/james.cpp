@@ -47,7 +47,7 @@ void update_core_B(__uint128_t mask) {
 
     //for a hybrid CPU, omp_replacement still controls both the A and B cores
     //but you must update the mask to reflect the B cores the task owns as well
-    omp_threadpool->set_thread_pool_affinity(processor_A_mask | (processor_B_mask << NUM_PROCESSOR_A));
+    //omp_threadpool->set_thread_pool_affinity(processor_A_mask | (processor_B_mask << NUM_PROCESSOR_A));
 
     return;
 

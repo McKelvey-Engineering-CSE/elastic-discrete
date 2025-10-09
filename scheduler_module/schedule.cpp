@@ -37,7 +37,15 @@ Schedule::~Schedule() {
 TaskData * Schedule::add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, timespec * cpu_C_work_, timespec * cpu_C_span_, timespec * cpu_C_period_, timespec * gpu_D_work_, timespec * gpu_D_span_, timespec * gpu_D_period_, bool safe)
 {
 
-	underlying_object->task[underlying_object->next_task++] = TaskData(elasticity_, num_modes_, work_, span_, period_, gpu_work_, gpu_span_, gpu_period_, cpu_C_work_, cpu_C_span_, cpu_C_period_, gpu_D_work_, gpu_D_span_, gpu_D_period_, safe, equivalent_vector, print);
+	//build the quivalency vector from the equivalent vector we have stored
+	std::tuple<int, float> equivalent_vector_partial[4];
+	for (int i = 0; i < 4; i++)
+		equivalent_vector_partial[i] = equivalent_vector[i];
+
+	//now remove the first 4 elements from the equivalent vector
+	equivalent_vector.erase(equivalent_vector.begin(), equivalent_vector.begin() + 4);
+
+	underlying_object->task[underlying_object->next_task++] = TaskData(elasticity_, num_modes_, work_, span_, period_, gpu_work_, gpu_span_, gpu_period_, cpu_C_work_, cpu_C_span_, cpu_C_period_, gpu_D_work_, gpu_D_span_, gpu_D_period_, safe, equivalent_vector_partial, print);
 
 	print = false;
 
@@ -60,9 +68,9 @@ void Schedule::setTermination(){
 	smm::delete_memory<schedule_object>(name);
 }
 
-void Schedule::set_equivalency_vector(std::tuple<int, float> _equivalent_vector[4]){
+void Schedule::set_equivalency_vector(std::vector<std::tuple<int, float>> _equivalent_vector){
 	
-	for (int i = 0; i < 4; i++)
-		equivalent_vector[i] = _equivalent_vector[i];
+	for (int i = 0; i < _equivalent_vector.size(); i++)
+		equivalent_vector.push_back(_equivalent_vector[i]);
 
 }

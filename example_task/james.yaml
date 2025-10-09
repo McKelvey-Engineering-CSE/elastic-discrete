@@ -2,12 +2,13 @@
 schedulable: true
 explicit_sync: false
 maxRuntime: {sec: 30, nsec: 0}
-processorConfiguration: {A: 1A, B: 0.75A, C: 1C, D: 1D}
+processor_topology: {A: A, B: A, C: C, D: D}
 tasks:
   - program:
       name: james
       args: "0 61428571 2 10"
     elasticity: 2
+    processor_equivalence: {A: 1A, B: 0.75A, C: 1C, D: 1D}
     modes:
       - work_A: {sec: 0, nsec: 470800046}
         span_A: {sec: 0, nsec: 195409155}
@@ -34,6 +35,7 @@ tasks:
       name: james
       args: "0 61428571 2 10"
     elasticity: 2
+    processor_equivalence: {A: 1A, B: 0.75A, C: 1C, D: 1D}
     modes:
       - work_A: {sec: 0, nsec: 196033520}
         span_A: {sec: 0, nsec: 114590357}
@@ -60,6 +62,7 @@ tasks:
       name: james
       args: "0 61428571 2 10"
     elasticity: 9
+    processor_equivalence: {A: 1A, B: 0.75A, C: 1C, D: 1D}
     modes:
       - work_A: {sec: 0, nsec: 255194725}
         span_A: {sec: 0, nsec: 124362767}
@@ -86,6 +89,7 @@ tasks:
       name: james
       args: "0 61428571 2 10"
     elasticity: 71
+    processor_equivalence: {A: 1A, B: 0.75A, C: 1C, D: 1D}
     modes:
       - work_A: {sec: 0, nsec: 239772324}
         span_A: {sec: 0, nsec: 100075125}
@@ -107,81 +111,3 @@ tasks:
         work_C: {sec: 0, nsec: 405528678}
         span_C: {sec: 0, nsec: 101142705}
         period: {sec: 0, nsec: 322842339}
-
-  - program:
-      name: james
-      args: "0 61428571 2 10"
-    elasticity: 2
-    modes:
-      - work_A: {sec: 0, nsec: 557879499}
-        span_A: {sec: 0, nsec: 233422005}
-        work_C: {sec: 0, nsec: 818309453}
-        span_C: {sec: 0, nsec: 236126372}
-        period: {sec: 0, nsec: 891068774}
-      - work_A: {sec: 0, nsec: 689038913}
-        span_A: {sec: 0, nsec: 233422005}
-        work_C: {sec: 0, nsec: 997167312}
-        span_C: {sec: 0, nsec: 236126372}
-        period: {sec: 0, nsec: 891068774}
-      - work_A: {sec: 0, nsec: 820198327}
-        span_A: {sec: 0, nsec: 233422005}
-        work_C: {sec: 1, nsec: 176025172}
-        span_C: {sec: 0, nsec: 236126372}
-        period: {sec: 0, nsec: 891068774}
-      - work_A: {sec: 0, nsec: 951357741}
-        span_A: {sec: 0, nsec: 233422005}
-        work_C: {sec: 1, nsec: 354883032}
-        span_C: {sec: 0, nsec: 236126372}
-        period: {sec: 0, nsec: 891068774}
-
-  - program:
-      name: james
-      args: "0 61428571 2 10"
-    elasticity: 2
-    modes:
-      - work_A: {sec: 0, nsec: 483770107}
-        span_A: {sec: 0, nsec: 196012468}
-        work_C: {sec: 0, nsec: 641915364}
-        span_C: {sec: 0, nsec: 191024551}
-        period: {sec: 0, nsec: 661223716}
-      - work_A: {sec: 0, nsec: 592867813}
-        span_A: {sec: 0, nsec: 196012468}
-        work_C: {sec: 0, nsec: 780349388}
-        span_C: {sec: 0, nsec: 191024551}
-        period: {sec: 0, nsec: 661223716}
-      - work_A: {sec: 0, nsec: 701965518}
-        span_A: {sec: 0, nsec: 196012468}
-        work_C: {sec: 0, nsec: 918783411}
-        span_C: {sec: 0, nsec: 191024551}
-        period: {sec: 0, nsec: 661223716}
-      - work_A: {sec: 0, nsec: 811063224}
-        span_A: {sec: 0, nsec: 196012468}
-        work_C: {sec: 1, nsec: 57217435}
-        span_C: {sec: 0, nsec: 191024551}
-        period: {sec: 0, nsec: 661223716}
-
-  - program:
-      name: james
-      args: "0 61428571 2 10"
-    elasticity: 2
-    modes:
-      - work_A: {sec: 0, nsec: 386770824}
-        span_A: {sec: 0, nsec: 174220481}
-        work_C: {sec: 0, nsec: 563001659}
-        span_C: {sec: 0, nsec: 174663083}
-        period: {sec: 0, nsec: 470602834}
-      - work_A: {sec: 0, nsec: 477870268}
-        span_A: {sec: 0, nsec: 174220481}
-        work_C: {sec: 0, nsec: 563001659}
-        span_C: {sec: 0, nsec: 174663083}
-        period: {sec: 0, nsec: 503924449}
-      - work_A: {sec: 0, nsec: 568969711}
-        span_A: {sec: 0, nsec: 174220481}
-        work_C: {sec: 0, nsec: 563001659}
-        span_C: {sec: 0, nsec: 174663083}
-        period: {sec: 0, nsec: 537246065}
-      - work_A: {sec: 0, nsec: 660069155}
-        span_A: {sec: 0, nsec: 174220481}
-        work_C: {sec: 0, nsec: 563001659}
-        span_C: {sec: 0, nsec: 174663083}
-        period: {sec: 0, nsec: 570567681}
