@@ -73,4 +73,8 @@ void Schedule::set_equivalency_vector(std::vector<std::tuple<int, float>> _equiv
 	for (int i = 0; i < _equivalent_vector.size(); i++)
 		equivalent_vector.push_back(_equivalent_vector[i]);
 
+	//clone the last 4 elements of the equivalent vector
+	for (int i = 0; i < 4; i++)
+		equivalent_vector.push_back(equivalent_vector[equivalent_vector.size() - 4]);
+
 }
