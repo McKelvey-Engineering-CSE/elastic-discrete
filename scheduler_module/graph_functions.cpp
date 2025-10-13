@@ -199,12 +199,8 @@ bool Scheduler::build_resource_graph(std::vector<std::tuple<int, int, int, int>>
 	//loop and discover all nodes and fix transformers
 	//(providers are just ignored)
 	int processed_transformers = 0;
-	int last_recorded_transformers = -1;
 
 	while (processed_transformers < (int) discovered_transformers.size()){
-
-		//reset
-		last_recorded_transformers = processed_transformers;
 
 		//try to resolve the transformers
 		for (int& current_transformer : discovered_transformers){

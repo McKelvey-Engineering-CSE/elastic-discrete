@@ -869,16 +869,6 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			}
 
-			//we now need to determine whether or not the RAG builder ended up building 
-			//a single transition mode change or multiple mode changes. If it built a single
-			//mode change, we can just execute the RAG. If it built multiple mode changes, we
-			//need to do the first transition and then bring the system back up to the state 
-			//indicated by the original result vector.
-			bool multiple_mode_changes = false;
-			for (int i = 0; i < (int)task_modes.size(); i++)
-				if (task_modes.at(i) != result.at(i))
-					multiple_mode_changes = true;
-
 			//execute the RAG we proved exists
 			execute_resource_allocation_graph(dependencies, nodes);
 

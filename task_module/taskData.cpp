@@ -346,7 +346,7 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 
 	//remove all combinations (mark as dead) which do not meet
 	//the minimum held processors requirement
-	for (int i = 0; i < valid_combinations.size(); i++){
+	for (size_t i = 0; i < valid_combinations.size(); i++){
 
 		//filter non-held minimums
 		bool holds_minimum_proc = false;
@@ -371,7 +371,7 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 	//keeping list. Otherwise, we keep the better one and continue.
 	for (int i = 3; i >= 0; i--){
 
-		for (int combinations = 0; combinations < valid_combinations.size(); combinations++){
+		for (size_t combinations = 0; combinations < valid_combinations.size(); combinations++){
 
 			if (dead_entries[combinations])
 				continue;
@@ -380,7 +380,7 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 
 			int prefix[4] = {std::get<0>(currently_selected), std::get<1>(currently_selected), std::get<2>(currently_selected), std::get<3>(currently_selected)};
 
-			for (int other_combinations = combinations; other_combinations < valid_combinations.size(); other_combinations++){
+			for (size_t other_combinations = combinations; other_combinations < valid_combinations.size(); other_combinations++){
 
 				if (dead_entries[other_combinations] || other_combinations == combinations)
 					continue;
@@ -435,7 +435,7 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 	}
 
 	//now we can make the final list of valid combinations
-	for (int i = 0; i < valid_combinations.size(); i++){
+	for (size_t i = 0; i < valid_combinations.size(); i++){
 
 		if (!dead_entries[i]){
 			result_filtered.push_back(valid_combinations[i]);

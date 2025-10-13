@@ -211,11 +211,12 @@ void mimic_simulator(int task_index){
 
 	int mode_moving_to = ((task_current_mode + 1) % td->get_original_modes_passed());
 
-	if (modify_self(mode_moving_to))
+	
 	#ifdef PRETTY_PRINTING
-		pm::print(std::cerr, "Task ", task_index, " is instigating a reschedule to mode ", mode_moving_to, " from mode ", task_current_mode, "\n");
+		if (modify_self(mode_moving_to))
+			pm::print(std::cerr, "Task ", task_index, " is instigating a reschedule to mode ", mode_moving_to, " from mode ", task_current_mode, "\n");
 	#else
-		1==1;
+		modify_self(mode_moving_to);
 	#endif
 }
 
@@ -953,7 +954,7 @@ int main(int argc, char *argv[])
 	std::string timings_file_name = "task_" + std::to_string(task_index) + "_timings.txt";
 	std::ofstream timings_file(timings_file_name, std::ios::out);
 	if (timings_file.is_open()){
-		for (int i = 0; i < num_iters; i++)
+		for (size_t i = 0; i < num_iters; i++)
 			print_module::print(timings_file, all_times[i].tv_sec, " ", all_times[i].tv_nsec, "\n");
 		timings_file.close();
 	}

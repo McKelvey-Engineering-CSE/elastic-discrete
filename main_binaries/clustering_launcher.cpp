@@ -820,7 +820,7 @@ int main(int argc, char *argv[])
 
 	//build an equivalency vector for each task 
 	std::vector<std::tuple<int, float>> task_equivalency_vectors;
-	for (int i = 0; i < parsed_tasks.size(); i++){
+	for (size_t i = 0; i < parsed_tasks.size(); i++){
 		task_equivalency_vectors.push_back(std::make_tuple(parsed_tasks[i].processor_A_type, parsed_tasks[i].processor_A_ratio));
 		task_equivalency_vectors.push_back(std::make_tuple(parsed_tasks[i].processor_B_type, parsed_tasks[i].processor_B_ratio));
 		task_equivalency_vectors.push_back(std::make_tuple(parsed_tasks[i].processor_C_type, parsed_tasks[i].processor_C_ratio));
@@ -1131,7 +1131,7 @@ int main(int argc, char *argv[])
 		while(nanoseconds_passed < time_to_run){
 
 			//look through the list of task period we have and find the shortest one
-			unsigned long long smallest_period = -1;
+			unsigned long long smallest_period = UINT64_MAX;
 			for (size_t i = 0; i < parsed_tasks.size(); i++){
 				
 				unsigned long long current_period = current_periods_counting_down[i];

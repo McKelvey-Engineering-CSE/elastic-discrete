@@ -70,7 +70,7 @@ void Schedule::setTermination(){
 
 void Schedule::set_equivalency_vector(std::vector<std::tuple<int, float>> _equivalent_vector){
 	
-	for (int i = 0; i < _equivalent_vector.size(); i++)
+	for (size_t i = 0; i < _equivalent_vector.size(); i++)
 		equivalent_vector.push_back(_equivalent_vector[i]);
 
 	//clone the last 4 elements of the equivalent vector
