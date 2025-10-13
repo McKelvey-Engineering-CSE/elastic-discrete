@@ -157,19 +157,16 @@ int init(int argc, char *argv[])
 
 int run(int argc, char *argv[]){
 
-    std::atomic<int> count = 0;
+    //int count = 0;
 
     #pragma omp parallel
     {
 
-        std::ostringstream buffer;
-
-        //#ifdef LOUD_PRINT
+        #ifdef PRETTY_PRINTING
+            std::ostringstream buffer;
             pm::buffered_print(buffer, "[", task_index, "] omp Thread ", omp_get_thread_num(), " on core ", sched_getcpu(), " of ", omp_get_num_threads(), " threads\n");
             pm::flush(std::cerr, buffer);
-        //#endif
-        
-        count++;
+        #endif
 
         busy_work(spin_tv);
         

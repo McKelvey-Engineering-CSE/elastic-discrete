@@ -6,7 +6,7 @@ processor_topology: {A: A, B: A, C: C, D: D}
 tasks:
   - program:
       name: james
-      args: "0 61428571 2 10"
+      args: "0 1028571 2 10"
     elasticity: 2
     processor_equivalence: {A: 1A, B: 0.75A, C: 1C, D: 1D}
     modes:
@@ -33,7 +33,7 @@ tasks:
 
   - program:
       name: james
-      args: "0 61428571 2 10"
+      args: "0 1028571 2 10"
     elasticity: 2
     processor_equivalence: {A: 1A, B: 0.75A, C: 1C, D: 1D}
     modes:
@@ -60,7 +60,7 @@ tasks:
 
   - program:
       name: james
-      args: "0 61428571 2 10"
+      args: "0 1028571 2 10"
     elasticity: 9
     processor_equivalence: {A: 1A, B: 0.75A, C: 1C, D: 1D}
     modes:
@@ -87,7 +87,7 @@ tasks:
 
   - program:
       name: james
-      args: "0 61428571 2 10"
+      args: "0 1028571 2 10"
     elasticity: 71
     processor_equivalence: {A: 1A, B: 0.75A, C: 1C, D: 1D}
     modes:

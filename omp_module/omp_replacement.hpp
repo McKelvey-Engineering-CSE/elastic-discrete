@@ -29,6 +29,12 @@ class OMPThreadPool {
             //make each thread fetch their handle
             #pragma omp parallel
             {
+
+                //make each thread set their scheduling policy to SCHED_FIFO with priority 90
+                struct sched_param param;
+                param.sched_priority = 90;
+                pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
+
                 threads[omp_get_thread_num()] = pthread_self();
             }
 
@@ -38,41 +44,39 @@ class OMPThreadPool {
             threads.clear();
         }
 
+        void get_set_bits(unsigned long long n, int* indices) {
+            int count = 0;
+            while (n) {
+                int index = __builtin_ctzll(n);
+                indices[count++] = index;
+                n &= n - 1;
+            }
+        }
+
         void set_thread_pool_affinity(__uint128_t affinity_mask){
 
+            int current_num_threads = __builtin_popcount(affinity_mask);
+
             //set the omp thread count
-            omp_set_num_threads(num_threads);
+            omp_set_num_threads(current_num_threads);
 
             //translate the mask into a vector
-            std::vector<int> cores;
+            int cores[current_num_threads];
 
-            for (int i = 0; i < 128; i++) {
-                if (affinity_mask & ((__uint128_t)1 << i)) {
-                    cores.push_back(i);
-                }
-            }
-
-            if (cores.size() == 0) {
-                //no cores available
-                return;
-            }
+            //get all the set bits in the mask
+            get_set_bits(affinity_mask, cores);
 
             //set thread affinity for all threads (1 core to each thread in a circle buffer)
             #pragma omp parallel
             {
                 cpu_set_t cpuset;
                 CPU_ZERO(&cpuset);
-                CPU_SET(cores[omp_get_thread_num() % cores.size()], &cpuset);
+                CPU_SET(cores[omp_get_thread_num()], &cpuset);
 
                 
-                if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0) {
-                    perror("pthread_setaffinity_np");
-                }
+                pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
 
             }
-
-            //set the omp thread count
-            omp_set_num_threads(cores.size());
 
         }
 };

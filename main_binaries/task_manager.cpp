@@ -212,8 +212,11 @@ void mimic_simulator(int task_index){
 	int mode_moving_to = ((task_current_mode + 1) % td->get_original_modes_passed());
 
 	if (modify_self(mode_moving_to))
+	#ifdef PRETTY_PRINTING
 		pm::print(std::cerr, "Task ", task_index, " is instigating a reschedule to mode ", mode_moving_to, " from mode ", task_current_mode, "\n");
-
+	#else
+		1==1;
+	#endif
 }
 
 void set_cooperative(bool value){
@@ -424,22 +427,6 @@ void reschedule(){
 
 	#endif
 
-	//sync all threads
-	bar.mc_bar_reinit(schedule.get_task(task_index)->get_current_processors_A());	
-
-	//wait at barrier for all other tasks if we have to
-	if (explicit_sync){
-
-		if (process_barrier::await_and_rearm_barrier("EX_SYNC") != 0){
-
-			print_module::print(std::cerr, "ERROR: Barrier error for task ", task_index, "\n");
-			kill(0, SIGTERM);
-			exit(-1);
-
-		}
-
-	}	
-
 	//set the completion bool
 	mode_change_finished = true;
 
@@ -516,6 +503,13 @@ int main(int argc, char *argv[])
 	const char *task_name = argv[0];
 
 	int iterations = 0;
+
+	//set scheduling polify to SCHED_FIFO with priority 90
+	struct sched_param main_param;
+	main_param.sched_priority = 90;
+	ret_val = sched_setscheduler(getpid(), SCHED_FIFO, &main_param);
+	if (ret_val != 0)
+		print_module::print(std::cerr,  "WARNING: " , getpid() , " Could not set priority. Returned: " , errno , "  (" , strerror(errno) , ")\n");
 	
 	if(!((std::istringstream(argv[1]) >> start_sec) &&
 		(std::istringstream(argv[2]) >> start_nsec) &&
@@ -826,8 +820,15 @@ int main(int argc, char *argv[])
 		//when we start doing the work
    		get_time(&actual_period_start);
 
+		auto start_time = std::chrono::high_resolution_clock::now();
 		if (schedule.get_task(task_index))
 			ret_val = task.run(task_argc, task_argv);
+		auto end_time = std::chrono::high_resolution_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+		if (duration.count() > 2000){
+			std::cout << "Time taken for run: " << duration.count() << " microseconds" << std::endl;
+		}
 
 		//Get the finishing time of the current period
 		get_time(&period_finish);
@@ -901,16 +902,18 @@ int main(int argc, char *argv[])
 
 				//update our transition count (debugging)
 				schedule.get_task(task_index)->set_num_adaptations(schedule.get_task(task_index)->get_num_adaptations() + 1);
-				
 
 			}
 
 			else{
 
 				//Gaining a processor that wasn't ready yet.
+				#ifdef PRETTY_PRINTING
 				print_module::print(std::cerr,  "Task ", getpid(), " can't reschedule yet due to resources not yet being available!\n");
+				#endif
 			
 			}
+
 		}
 
 		//sleep until we are supposed to run again	
