@@ -602,6 +602,14 @@ Main Process:
 int main(int argc, char *argv[])
 {
 
+	//we demand root privileges
+	if (geteuid() != 0) {
+
+		print_module::print(std::cerr, "ERROR: Scheduler must be run as root.\n");
+		return 1;
+		
+	}
+
 	/*
 	The clustering launcher sometimes sends signals to its entire process group.
 	If the launcher is run as a subprocess (eg of test_runner), we don't want the parent

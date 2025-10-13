@@ -58,6 +58,9 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 	std::vector<std::pair<double, double>> processor_information = { {CpA, L_A}, {CpB, L_B}, {CpC, L_C}, {CpD, L_D} };
 	std::vector<int> system_processors = {NUM_PROCESSOR_A, NUM_PROCESSOR_B, NUM_PROCESSOR_C, NUM_PROCESSOR_D};
 
+	//we also remove the time for the core handoff latency
+	T -= MAX_CORE_HANDOFF_LATENCY_NSEC;
+
 	//Im tired of this. Just generate all possible combinations and we are going 
 	//to walk through them all. If there is a way to meet the deadline, we keep the 
 	//combination
