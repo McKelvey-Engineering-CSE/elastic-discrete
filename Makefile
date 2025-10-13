@@ -82,7 +82,7 @@ libclustering.a: $(CLUSTERING_OBJECTS)
 
 # Object compilation rules
 task.o: ./task_module/task.cpp timespec_functions.o
-	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $< $(LIBS)
 
 scheduler.o: ./scheduler_module/scheduler.cpp timespec_functions.o
 	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
