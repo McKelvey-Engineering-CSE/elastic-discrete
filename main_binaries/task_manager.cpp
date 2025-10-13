@@ -820,15 +820,8 @@ int main(int argc, char *argv[])
 		//when we start doing the work
    		get_time(&actual_period_start);
 
-		auto start_time = std::chrono::high_resolution_clock::now();
 		if (schedule.get_task(task_index))
 			ret_val = task.run(task_argc, task_argv);
-		auto end_time = std::chrono::high_resolution_clock::now();
-		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-
-		if (duration.count() > 2000){
-			std::cout << "Time taken for run: " << duration.count() << " microseconds" << std::endl;
-		}
 
 		//Get the finishing time of the current period
 		get_time(&period_finish);
