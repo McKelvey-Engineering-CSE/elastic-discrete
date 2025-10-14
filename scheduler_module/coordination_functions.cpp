@@ -700,21 +700,16 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			}
 
-			//if this task actually has any TPCs assigned
-			if (!(schedule.get_task(i))->pure_A_task()){
+			(schedule.get_task(i))->set_current_lowest_processor_B(next_processor_B);
 
-				(schedule.get_task(i))->set_current_lowest_processor_B(next_processor_B);
+			for (int j = 0; j < (schedule.get_task(i))->get_current_processors_B(); j++)
+				(schedule.get_task(i))->push_back_processor_B(next_processor_B ++);
 
-				for (int j = 0; j < (schedule.get_task(i))->get_current_processors_B(); j++)
-					(schedule.get_task(i))->push_back_processor_B(next_processor_B ++);
+			if (next_processor_B > (int)(NUM_PROCESSOR_B) + 1){
 
-				if (next_processor_B > (int)(NUM_PROCESSOR_B) + 1){
-
-					print_module::print(std::cerr, "Error in task ", i, ": too many Processors B have been allocated.", next_processor_B, " ", NUM_PROCESSOR_B, " \n");
-					killpg(process_group, SIGINT);
-					return;
-
-				}
+				print_module::print(std::cerr, "Error in task ", i, ": too many Processors B have been allocated.", next_processor_B, " ", NUM_PROCESSOR_B, " \n");
+				killpg(process_group, SIGINT);
+				return;
 
 			}
 		}
