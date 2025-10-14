@@ -60,15 +60,6 @@ void exit_on_signal(int sig){
 //There are one trillion nanoseconds in a second, or one with nine zeroes
 const unsigned nsec_in_sec = 1000000000; 
 
-//The priority that we finalize the program with
-const unsigned FINALIZE_PRIORITY = 1;
-
-//The priority that we use when sleeping.
-const unsigned SLEEP_PRIORITY = 97;
-
-//The priority that we use during normal execution (configurable by user)
-unsigned EXEC_PRIORITY = 7;
-
 //These variables are declared extern in task.h, but need to be
 //visible in both places
 int futex_val;
@@ -95,9 +86,6 @@ bool mode_change_finished = true;
 
 //buffer to share with james simply for vanity
 std::ostringstream reschedule_buffer;
-
-cpu_set_t global_cpuset;
-struct sched_param global_param;
 
 //omp replacement thread pool
 __uint128_t processor_A_mask;
@@ -517,7 +505,7 @@ int main(int argc, char *argv[])
 		(std::istringstream(argv[3]) >> iterations) &&
 		(std::istringstream(argv[4]) >> end_sec) &&
         (std::istringstream(argv[5]) >> end_nsec) &&
-		(std::istringstream(argv[6]) >> EXEC_PRIORITY) &&
+		//(std::istringstream(argv[6]) >> EXEC_PRIORITY) &&
 		(std::istringstream(argv[7]) >> task_index)))
 	{
 		print_module::print(std::cerr,  "ERROR: Cannot parse input argument for task " , task_name , "\n");
@@ -611,14 +599,6 @@ int main(int argc, char *argv[])
 	print_module::buffered_print(task_info, "	- Period s: ", schedule.get_task(task_index)->get_current_period().tv_sec , " s\n");
 	print_module::buffered_print(task_info, "	- Period ns: ", schedule.get_task(task_index)->get_current_period().tv_nsec , " ns\n\n");
 
-	struct sched_param param;
-
-	param.sched_priority = EXEC_PRIORITY;
-	ret_val = sched_setscheduler(getpid(), SCHED_RR, &param);
-
-	if (ret_val != 0)
- 		print_module::print(std::cerr,  "WARNING: " , getpid() , " Could not set priority. Returned: " , errno , "  (" , strerror(errno) , ")\n");
-	
 	#ifndef OMP_OVERRIDE
 		omp_set_num_threads(NUM_PROCESSOR_A);
 	#endif
@@ -664,8 +644,6 @@ int main(int argc, char *argv[])
 		}
 		if (j >= schedule.get_task(task_index)->get_current_lowest_processor_A() && j < schedule.get_task(task_index)->get_current_lowest_processor_A() + schedule.get_task(task_index)->get_current_processors_A()){
 
-			global_param.sched_priority = EXEC_PRIORITY;
-
 			active_cpu_string += std::to_string(j) + ", ";
 
 			schedule.get_task(task_index)->push_back_processor_A(j);
@@ -674,47 +652,11 @@ int main(int argc, char *argv[])
 
 		else {
 
-			global_param.sched_priority = SLEEP_PRIORITY;
-
 			passive_cpu_string += std::to_string(j) + ", ";
 
 		}
  
   	}
-
-	//always set the permanent processor to A optimally, this ensures we don't need
-	//to care about the equivalent processors. Start with D and work our way to A, setting
-	//the permanent processor to the lowest of each we can find
-	for (int i = 0; i < 4; i++){
-		std::vector<int> processor_vectors;
-		
-		switch (i){
-
-			case 0:
-				processor_vectors = schedule.get_task(task_index)->get_processor_D_owned_by_process();
-				break;
-
-			case 1:
-				processor_vectors = schedule.get_task(task_index)->get_processor_C_owned_by_process();
-				break;
-
-			case 2:
-				processor_vectors = schedule.get_task(task_index)->get_processor_B_owned_by_process();
-				break;
-
-			case 3:
-				processor_vectors = schedule.get_task(task_index)->get_processor_A_owned_by_process();	
-				break;
-
-		}
-
-		if (processor_vectors.size() != 0){
-			schedule.get_task(task_index)->set_permanent_processor_index(3 - i);
-			schedule.get_task(task_index)->set_permanent_processor_core(processor_vectors.at(0));
-			schedule.get_task(task_index)->acknowledge_permanent_processor_switch();
-		}
-
-	}
 
 	//set the cpu mask
 	processor_A_mask = schedule.get_task(task_index)->get_processor_A_mask();
@@ -732,9 +674,6 @@ int main(int argc, char *argv[])
 
 	//flush all task info to terminal
 	print_module::flush(std::cerr, task_info);
-
-	//Initialize the program barrier
-	bar.mc_bar_init(schedule.get_task(task_index)->get_current_processors_A());
 
 	#ifdef PER_PERIOD_VERBOSE
 		std::vector<uint64_t> period_timings;
@@ -920,13 +859,6 @@ int main(int argc, char *argv[])
 		get_time(&current_time);
 		
 	}
-
-	// Lower priority as soon as we're done running in real-time
-	sp.sched_priority = FINALIZE_PRIORITY;
-	ret_val = sched_setscheduler(getpid(), SCHED_RR, &sp);
-	
-	if (ret_val != 0)
-		std::perror("WARNING: Could not set FINALIZE_PRIORITY");
 	
 	#ifdef TRACING
 		fclose(fd);
