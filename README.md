@@ -3,7 +3,7 @@
 [![C++](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://isocpp.org/std/the-standard)
 [![CUDA](https://img.shields.io/badge/CUDA-Supported-green.svg)](https://developer.nvidia.com/cuda-zone)
 
-**Last updated:** 1 August 2025 by Tyler Martin
+**Last updated:** 15 October 2025 by Tyler Martin
 
 ## Table of Contents
 - [Overview](#overview)
@@ -91,21 +91,25 @@ task_t task = { init, run, finalize, update_core_B, update_core_C, update_core_D
 ### 2. Define Configuration
 ```yaml
 # my_config.yaml
+---
 schedulable: true
 explicit_sync: false
 maxRuntime: {sec: 30, nsec: 0}
-processorConfiguration: {A: 1A, B: 0.75A, C: 1C, D: 1D}
+processor_topology: {A: A, B: A, C: C, D: D}
 tasks:
   - program:
-      name: "my_task"
+      name: my_task
       args: "arg1 arg2"
     elasticity: 2
-    priority: 7
+    processor_equivalence: {A: 1A, B: 0.3A, C: 1.5A, D: 1D}
     modes:
-      - work_A: {sec: 0, nsec: 100000000}
-        span_A: {sec: 0, nsec: 50000000}
-        period: {sec: 0, nsec: 200000000}
+      - work_A: {sec: 0, nsec: 6000000}
+        span_A: {sec: 0, nsec: 10000}
+        period: {sec: 0, nsec: 1000000}
 ```
+
+**Task Parameters:**
+For each task you can define a processor_equivalence. This tells the scheduler that it can use capacity scheduling to determine how to use the heterogeneous system to make forward progress on the work that the task has. In the example shown above, this means that processor A, B and C may all do work on work_A, but that processor B is only 30% the speed of processor A while processor C is 150% the speed.
 
 **Mode Parameters:**
 For each mode, you can specify `work_(A-D)` and `span_(A-D)` parameters that determine:
@@ -124,24 +128,35 @@ For each mode, you can specify `work_(A-D)` and `span_(A-D)` parameters that det
 
 ## Heterogeneous CPU Support
 
-RT-HEART provides specialized support for heterogeneous CPUs with performance-tiered cores (e.g., Intel's P-cores and E-cores, ARM big.LITTLE architecture). This is achieved through the `processorConfiguration` field in the YAML configuration.
+RT-HEART provides specialized support for heterogeneous CPUs with performance-tiered cores (e.g., Intel's P-cores and E-cores, ARM big.LITTLE architecture). This is achieved through the `processor_topology` field in the YAML configuration.
 
-### Configuration Format
+### Topology Format (System Wide)
 ```yaml
-processorConfiguration:
-  A: 1A      # Processor A is independent (baseline)
-  B: 0.75A   # Processor B is 75% as fast as processor A
-  C: 1C      # Processor C is independent
-  D: 1D      # Processor D is independent
+processor_topology:
+  A: A      # Processor A is independent
+  B: A      # Processor B is a different core but same processor as A
+  C: C      # Processor C is independent
+  D: D      # Processor D is independent
+```
+
+### Equivalency Format (Task Specific)
+```yaml
+processor_equivalence: 
+  A: 1A     # Processor A is independent
+  B: 0.3A   # Processor B is 30% the speed of A and may work on A's work
+  C: 1.5A   # Processor C is 150% the speed of A and may work on A's work
+  D: 1D     # Processor D is independent
 ```
 
 ### How It Works
-When you specify that a processor is equivalent to processor A with a performance ratio, the scheduler:
+When you specify that a processor is equivalent to processor A for a given task with a performance ratio, the scheduler:
 
 1. **Analyzes the DAG**: Examines the canonical form of your task's Directed Acyclic Graph
 2. **Calculates Completion Time**: Determines time-to-completion across variable-speed processors
 3. **Optimizes Allocation**: Generates safe core allocations for each processor type
 4. **Accounts for Heterogeneity**: Considers performance differences when scheduling
+
+The scheduler does this for each task by looking at it's processor_equivalence field. This is done so that each task can specify what processors it sees as equivalent. For one task, maybe the GPU and CPU can make forward progress on the same work and therefore are equivalent, but not for another task. This ensures each task can specify how it wants to be treated.
 
 ### Example Use Case
 For a system with:
@@ -150,7 +165,7 @@ For a system with:
 - **Processor C**: GPU accelerator - independent performance
 - **Processor D**: FPGA accelerator - independent performance
 
-The scheduler will automatically account for the performance difference between P-cores and E-cores when calculating optimal task assignments and mode transitions.
+The scheduler will automatically account for the performance difference between P-cores and E-cores when calculating optimal task assignments and mode transitions. And since it knows the topology of the system processors, it will also have OMP handle the thread pinning for both A and B cores automatically.
 
 ### Benefits
 - **Automatic Optimization**: No manual core assignment needed
@@ -176,25 +191,26 @@ void update_core_D(__uint128_t mask); // Update accelerator D assignment
 schedulable: true/false                                     # Bool which specifies if task set can be scheduled at all (for offline analysis)
 explicit_sync: false                                        # Optional explicit synchronization (unused for now)
 maxRuntime: {sec: 0, ns: 0}                                 # Optional global runtime limit (Needed if no iteration count, or tasks run forever)
-processorConfiguration:  {A: 1A, B: 0.75A, C: 1C, D: 1D}    # Processor description (see above)
+processor_topology: {A: A, B: A, C: C, D: D}                # Processor description (see above)
 
 tasks:
   - program:
-      name: "executable_name"        # Task binary name
-      args: "command line arguments" # Task arguments
-    elasticity: 150                  # Elasticity coefficient (1 for non-elastic)
-    maxIterations: 100               # Optional iteration limit
-    priority: 1                      # Optional SCHED_RR priority (default: 7)
-    modes:                           # Available execution modes (candidate modes)
-      - work_A: {sec: 5, nsec: 0}    # Work for accelerator A
-        span_A: {sec: 1, nsec: 0}    # Span for accelerator A
-        work_B: {sec: 3, nsec: 0}    # Work for accelerator B (optional)
-        span_B: {sec: 1, nsec: 0}    # Span for accelerator B (optional)
-        work_C: {sec: 2, nsec: 0}    # Work for accelerator C (optional)
-        span_C: {sec: 1, nsec: 0}    # Span for accelerator C (optional)
-        work_D: {sec: 1, nsec: 0}    # Work for accelerator D (optional)
-        span_D: {sec: 1, nsec: 0}    # Span for accelerator D (optional)
-        period: {sec: 5, nsec: 0}    # Task period
+      name: "executable_name"                               # Task binary name
+      args: "command line arguments"                        # Task arguments
+    elasticity: 150                                         # Elasticity coefficient (1 for non-elastic)
+    processor_equivalence: {A: 1A, B: 0.75A, C: 1C, D: 1D}  # Processor Equivalence for this task (see above)
+    maxIterations: 100                                      # Optional iteration limit
+    priority: 1                                             # Optional SCHED_FIFO priority (default: 7)
+    modes:                                                  # Available execution modes (candidate modes)
+      - work_A: {sec: 5, nsec: 0}                           # Work for accelerator A
+        span_A: {sec: 1, nsec: 0}                           # Span for accelerator A
+        work_B: {sec: 3, nsec: 0}                           # Work for accelerator B (optional)
+        span_B: {sec: 1, nsec: 0}                           # Span for accelerator B (optional)
+        work_C: {sec: 2, nsec: 0}                           # Work for accelerator C (optional)
+        span_C: {sec: 1, nsec: 0}                           # Span for accelerator C (optional)
+        work_D: {sec: 1, nsec: 0}                           # Work for accelerator D (optional)
+        span_D: {sec: 1, nsec: 0}                           # Span for accelerator D (optional)
+        period: {sec: 5, nsec: 0}                           # Task period
 ```
 
 ### Execution Modes
