@@ -357,7 +357,7 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 		int processor_counts[4] = {std::get<0>(valid_combinations[i]), std::get<1>(valid_combinations[i]), std::get<2>(valid_combinations[i]), std::get<3>(valid_combinations[i])};
 		
 		for (int j = 0; j < 4; j++)
-			if (cond_vec[j] == 1 && processor_counts[j] > 1)
+			if (cond_vec[j] == 1 && processor_counts[j] >= 1)
 				holds_minimum_proc = true;
 		
 		if (!holds_minimum_proc)
@@ -544,6 +544,10 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 		//pass to the computeModeResources function
 		auto resources = computeModeResources(work_long, span_long, processor_B_work_long, processor_B_span_long, period_long, processor_C_work_long, processor_C_span_long, processor_D_work_long, processor_D_span_long, equivalent_vector);
 		mode_options += resources.size();
+
+		if (resources.size() == 0){
+			print_module::print(std::cerr, "ERROR: No resources found for task ", index, " in mode ", i, "\n");
+		}
 
 		//loop over the resources and store them in the table
 		for (auto res : resources){
