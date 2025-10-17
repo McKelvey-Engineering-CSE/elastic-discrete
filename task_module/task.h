@@ -56,6 +56,8 @@ extern double percentile;
 
 extern void modify_self(timespec new_value);
 
+extern int get_current_mode();
+
 extern void set_cooperative(bool value);
 
 extern void mimic_simulator(int task_index);

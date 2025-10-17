@@ -193,7 +193,7 @@ public:
 
 	void generate_unsafe_combinations(size_t maxCPU = NUM_PROCESSOR_A - 1);
 
-	void do_schedule(size_t maxCPU, bool check_max_possible = false);
+	bool do_schedule(size_t maxCPU, bool check_max_possible = false);
 
 	std::vector<int> sort_classes(std::vector<int> items_in_candidate);
 
@@ -216,7 +216,7 @@ public:
 	void execute_resource_allocation_graph(std::vector<std::tuple<int, int, int, int>> resource_pairs, 
                         std::unordered_map<int, Node>& nodes);
 
-	void print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes);
+	bool print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes);
 
 	TaskData * add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, timespec * cpu_C_work_, timespec * cpu_C_span_, timespec * cpu_C_period_, timespec * gpu_D_work_, timespec * gpu_D_span_, timespec * gpu_D_period_, bool safe);
 };

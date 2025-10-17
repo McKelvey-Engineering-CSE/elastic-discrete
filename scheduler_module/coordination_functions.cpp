@@ -108,10 +108,13 @@ enabled, runs the CUDA version of the scheduler. It also builds
 the RAG and executes it if a solution is found
 
 *************************************************************/
-void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
+bool Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	//lock the scheduler mutex
 	scheduler_running = true;
+
+	//bool to track if we have a handoff
+	bool has_handoff = false;
 
 	//If we compiled with CUDA enabled, we need 
 	//to initialize the CUDA context and stream
@@ -279,7 +282,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 				
 				std::cout << "Processor A Count Mismatch. Process:" << i << " | Processor A assigned: " << previous_modes.at(i).processors_A << " | Processor A found: " << task_owned_cpus.size() << " | Cannot Continue" << std::endl;
 				killpg(process_group, SIGINT);
-				return;
+				return false;
 
 			}
 			
@@ -289,7 +292,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 				std::cout << "Processor B Count Mismatch. Process:" << i << " | Processors B assigned: " << previous_modes.at(i).processors_B << " | Processors B found: " << task_owned_gpus.size() << " | Cannot Continue" << std::endl;
 				killpg(process_group, SIGINT);
-				return;
+				return false;
 
 			}
 
@@ -299,7 +302,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 				std::cout << "Processor C Count Mismatch. Process:" << i << " | Processors C assigned: " << previous_modes.at(i).processors_C << " | Processors C found: " << task_owned_cpus_C.size() << " | Cannot Continue" << std::endl;
 				killpg(process_group, SIGINT);
-				return;
+				return false;
 
 			}
 
@@ -309,7 +312,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 				std::cout << "Processor D Count Mismatch. Process:" << i << " | Processors D assigned: " << previous_modes.at(i).processors_D << " | Processors D found: " << task_owned_gpus_D.size() << " | Cannot Continue" << std::endl;
 				killpg(process_group, SIGINT);
-				return;
+				return false;
 
 			}
 
@@ -326,7 +329,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			std::cout << "Processor A Count Mismatch. Total Processor A: " << maxCPU << " | Total Found: " << total_processors_A << " | Free Processor A: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_A_mask()).count() << " | Cannot Continue" << std::endl;
 			killpg(process_group, SIGINT);
-			return;
+			return false;
 
 		}
 
@@ -335,7 +338,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			std::cout << "Processor B Count Mismatch. Total Processors B: " << NUM_PROCESSOR_B << " | Total Found: " << total_processors_B << " | Free Processors B: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_B_mask()).count() << " | Cannot Continue" << std::endl;
 			killpg(process_group, SIGINT);
-			return;
+			return false;
 
 		}
 
@@ -344,7 +347,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			std::cout << "Processor C Count Mismatch. Total Processors C: " << NUM_PROCESSOR_C << " | Total Found: " << total_processors_C << " | Free Processors C: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_C_mask()).count() << " | Cannot Continue" << std::endl;
 			killpg(process_group, SIGINT);
-			return;
+			return false;
 
 		}
 
@@ -353,7 +356,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			std::cout << "Processor D Count Mismatch. Total Processors D: " << NUM_PROCESSOR_D << " | Total Found: " << total_processors_D << " | Free Processors D: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_D_mask()).count() << " | Cannot Continue" << std::endl;
 			killpg(process_group, SIGINT);
-			return;
+			return false;
 
 		}
 
@@ -467,83 +470,11 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 		CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
 
-		//if we are running the scheduler twice to compare 
-		//against maximum possible value for a given transition
-		if (check_max_possible){
-
-			//first check just the constrained version of the problem
-			device_do_schedule<<<1, 1024, 0, scheduler_stream>>>(N - 1, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, slack_C, slack_D, 1);
-
-			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
-
-			//copy the error
-			double constrained_value = 0;
-			CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&constrained_value, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, scheduler_stream));
-			CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
-
-
-			//enable unsafe checking
-			int optimal_modes[MAXTASKS * 4];
-			memset(optimal_modes, 0, sizeof(int) * MAXTASKS * 4);
-
-			CUDA_NEW_SAFE_CALL(cudaMemcpy(d_current_task_modes, optimal_modes, sizeof(int) * MAXTASKS * 4, cudaMemcpyHostToDevice));
-
-			device_do_schedule<<<1, 1024, 0, scheduler_stream>>>(N - 1, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, slack_C, slack_D, 0);
-
-			CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
-
-			//copy the error
-			double max_possible_value = 0;
-			CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&max_possible_value, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, scheduler_stream));
-			CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
-
-			//print the percentage our values are worse than optimal
-			double best_possible_percentage = ((max_loss - max_possible_value) / max_loss);
-
-			if (((constrained_value > max_loss) || (loss > max_loss)) && (max_possible_value < max_loss)){
-
-				if (constrained_value > max_loss)
-					pm::print(std::cerr, "Constrained Scheduler Has No Solution \n");
-
-				if (loss > max_loss)
-					pm::print(std::cerr, "System Scheduler Has No Solution \n");
-
-			}
-			
-			else {
-
-				pm::print(std::cerr, "Amount the constrained result worse than the optimal system state: ", best_possible_percentage - ((max_loss - constrained_value) / max_loss), "\n");
-				pm::print(std::cerr, "Amount our result is worse than the optimal system state: ", best_possible_percentage - ((max_loss - loss) / max_loss), "\n");
-			
-			}
-			
-		}
-
 	#else
 
 		device_do_schedule(N - 1, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution, slack_A, slack_B, slack_C, slack_D, 0);
 
 		loss = *d_final_loss;
-
-		//if we are running the scheduler twice to compare 
-		//against maximum possible value for a given transition
-		if (check_max_possible){
-
-			//enable unsafe checking
-			int optimal_modes[MAXTASKS * 4];
-			memset(optimal_modes, 0, sizeof(int) * MAXTASKS * 4);
-
-			int* toss_d_final_solution = (int*)malloc(sizeof(int) * MAXTASKS);
-
-			device_do_schedule(N - 1, host_current_modes, d_losses, d_final_loss, host_uncooperative, toss_d_final_solution, slack_A, slack_B, slack_C, slack_D, 1);
-
-			//copy the error
-			double max_possible_value = *d_final_loss;
-
-			//print the difference 
-			pm::print(std::cerr, "Max Possible Value: ", max_possible_value, " What We Safely Got: ", loss, "\n");
-
-		}
 
 	#endif
 
@@ -585,7 +516,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 		print_module::print(std::cerr, "Error: System is not schedulable in any configuration. Exiting.\n");
 		killpg(process_group, SIGUSR1);
-		return;
+		return false;
 
 	}
 	
@@ -599,7 +530,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 			(schedule.get_task(i))->set_mode_transition(false);
 		}
 
-		return;
+		return false;
 
 	}
 
@@ -616,7 +547,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 				print_module::print(std::cerr, "Error: Task ", i, " is not in the mode it was supposed to be in. Expected: ", (schedule.get_task(i))->get_real_mode(result.at(i)), " Found: ", (schedule.get_task(i))->get_real_current_mode(), "\n");
 				killpg(process_group, SIGINT);
-				return;
+				return false;
 
 			}
 
@@ -666,7 +597,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest Processor A cleared. (this likely means memory was not cleaned up)\n");
 				killpg(process_group, SIGINT);
-				return;
+				return false;
 
 			}
 
@@ -677,7 +608,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 				print_module::print(std::cerr, "Error in task ", i, ": too many Processors A have been allocated.", next_processor_A, " ", num_CPUs, " \n");
 				killpg(process_group, SIGINT);
-				return;
+				return false;
 
 			}		
 
@@ -696,7 +627,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest Processor B cleared. (this likely means memory was not cleaned up)\n");
 				killpg(process_group, SIGINT);
-				return;
+				return false;		
 
 			}
 
@@ -709,7 +640,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 				print_module::print(std::cerr, "Error in task ", i, ": too many Processors B have been allocated.", next_processor_B, " ", NUM_PROCESSOR_B, " \n");
 				killpg(process_group, SIGINT);
-				return;
+				return false;
 
 			}
 		}
@@ -727,7 +658,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest Processor C cleared. (this likely means memory was not cleaned up)\n");
 				killpg(process_group, SIGINT);
-				return;
+				return false;
 
 			}
 
@@ -743,7 +674,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 				print_module::print(std::cerr, "Error in task ", i, ": too many Processors C have been allocated.", next_processor_C, " ", NUM_PROCESSOR_C, " \n");
 				killpg(process_group, SIGINT);
-				return;
+				return false;
 
 			}
 
@@ -762,7 +693,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 				print_module::print(std::cerr, "Error in task ", i, ": all tasks should have had lowest Processor D cleared. (this likely means memory was not cleaned up)\n");
 				killpg(process_group, SIGINT);
-				return;
+				return false;
 
 			}
 
@@ -778,7 +709,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 				print_module::print(std::cerr, "Error in task ", i, ": too many Processors D have been allocated.", next_processor_D, " ", NUM_PROCESSOR_D, " \n");
 				killpg(process_group, SIGINT);
-				return;
+				return false;
 
 			}
 
@@ -849,7 +780,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 			//show the resource graph (debugging)
 			print_module::print(std::cerr, "\n========================= \n", "New Schedule RAG:\n");
-			print_graph(nodes, static_nodes);
+			has_handoff = print_graph(nodes, static_nodes);
 			print_module::print(std::cerr, "========================= \n\n");
 
 			//by this point the RAG has either the previous solution inside of it, or it has
@@ -881,7 +812,7 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 				(schedule.get_task(i))->set_mode_transition(false);
 			}
 
-			return;
+			return false;
 	
 		}
 
@@ -911,6 +842,8 @@ void Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	//unlock the scheduler mutex
 	scheduler_running = false;
+
+	return has_handoff;
 
 }
 

@@ -877,9 +877,11 @@ void Scheduler::execute_resource_allocation_graph(std::vector<std::tuple<int, in
 
 
 //convert the print_graph function to use buffered print
-void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes) {
+bool Scheduler::print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes) {
 
 	std::ostringstream mode_strings;
+
+	bool has_handoff = false;
 
 	print_module::buffered_print(mode_strings, "\nNodes and resource transfers:\n");
 	
@@ -894,6 +896,8 @@ void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes, std::uno
 			print_module::buffered_print(mode_strings, "no edges");
 
 		else {
+
+			has_handoff = true;
 			
 			for (const Edge& edge : node.edges) {
 
@@ -936,4 +940,6 @@ void Scheduler::print_graph(const std::unordered_map<int, Node>& nodes, std::uno
 	print_module::buffered_print(mode_strings, "\n");
 
 	print_module::flush(std::cerr, mode_strings);
+
+	return has_handoff;
 }

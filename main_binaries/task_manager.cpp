@@ -197,8 +197,7 @@ void mimic_simulator(int task_index){
 
 	int task_current_mode = td->get_real_mode(td->get_current_virtual_mode());
 
-	int mode_moving_to = ((task_current_mode + 1) % td->get_original_modes_passed());
-
+	int mode_moving_to = (task_current_mode == 0) ? td->get_original_modes_passed() - 1 : 0;
 	
 	#ifdef PRETTY_PRINTING
 		if (modify_self(mode_moving_to))

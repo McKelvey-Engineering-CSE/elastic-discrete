@@ -66,7 +66,7 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 	//combination
 	std::vector<std::tuple<int,int,int,int>> valid_combinations;
 
-	for (int a = 0; a < 128; a++){
+	for (int a = 1; a < 128; a++){
 
 		if (a > NUM_PROCESSOR_A)
 			continue;

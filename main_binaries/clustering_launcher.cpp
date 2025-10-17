@@ -340,7 +340,7 @@ void scheduler_task()
 			//lock the scheduler so no other task can request a reschedule
 			rescheduling_lock->lock();
 
-			scheduler->do_schedule(NUM_PROCESSOR_A - 1, true);
+			bool has_handoff = scheduler->do_schedule(NUM_PROCESSOR_A - 1, true);
 			needs_scheduling = false;
 			killpg(process_group, SIGRTMIN+1);
 
@@ -356,6 +356,28 @@ void scheduler_task()
 
 				}
 		
+			}
+
+			//if we had no handoff, we need to rerun the scheduler
+			if (!has_handoff){
+
+				scheduler->do_schedule(NUM_PROCESSOR_A - 1, true);
+				killpg(process_group, SIGRTMIN+1);
+	
+				//wait for all tasks to actually finish rescheduling
+				for (int i = 0; i < scheduler->get_schedule()->count(); i++){
+	
+					while(scheduler->get_schedule()->get_task(i)->check_mode_transition() == false){
+	
+						get_time(&cur_time);
+						
+						if (cur_time > end_time)
+							break;
+	
+					}
+			
+				}
+
 			}
 
 			//unlock the scheduler so other tasks can request a reschedule
@@ -1288,4 +1310,3 @@ int main(int argc, char *argv[])
 	
 	return 0;
 }
-
