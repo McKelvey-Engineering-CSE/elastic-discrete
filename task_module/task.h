@@ -62,6 +62,10 @@ extern void set_cooperative(bool value);
 
 extern void mimic_simulator(int task_index);
 
+extern void set_victim_prevention(bool value);
+
+extern int get_previous_mode();
+
 // Used to determine current task and its features.
 extern bool missed_dl;
 

@@ -151,6 +151,8 @@ class Scheduler{
 	int* cautious_d_final_solution;
 	int* d_uncooperative_tasks;
 
+	int* previous_uncooperative_tasks = nullptr;
+
 	#ifdef __NVCC__
 		
 		CUgreenCtx green_ctx;
@@ -167,6 +169,12 @@ class Scheduler{
 
 	//FIXME: REPLACE WITH REAL LOCK
 	bool scheduler_running = false;
+	
+	// Runtime resource overrides for knapsack solver (defaults to compile-time constants)
+	int knapsack_override_A = NUM_PROCESSOR_A;
+	int knapsack_override_B = NUM_PROCESSOR_B;
+	int knapsack_override_C = NUM_PROCESSOR_C;
+	int knapsack_override_D = NUM_PROCESSOR_D;
 	
 public:
 
@@ -193,7 +201,7 @@ public:
 
 	void generate_unsafe_combinations(size_t maxCPU = NUM_PROCESSOR_A - 1);
 
-	bool do_schedule(size_t maxCPU, bool check_max_possible = false);
+	bool do_schedule(size_t maxCPU, bool rerunning = false);
 
 	std::vector<int> sort_classes(std::vector<int> items_in_candidate);
 
@@ -219,6 +227,9 @@ public:
 	bool print_graph(const std::unordered_map<int, Node>& nodes, std::unordered_map<int, Node> static_nodes);
 
 	TaskData * add_task (double elasticity_,  int num_modes_, timespec * work_, timespec * span_, timespec * period_, timespec * gpu_work_, timespec * gpu_span_, timespec * gpu_period_, timespec * cpu_C_work_, timespec * cpu_C_span_, timespec * cpu_C_period_, timespec * gpu_D_work_, timespec * gpu_D_span_, timespec * gpu_D_period_, bool safe);
+
+	// Set runtime resource overrides for knapsack solver
+	void set_knapsack_resource_overrides(int override_A, int override_B, int override_C, int override_D);
 };
 
 

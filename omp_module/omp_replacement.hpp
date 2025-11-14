@@ -14,14 +14,10 @@
 class OMPThreadPool {
 
     private:
-        std::vector<pthread_t> threads;
         int num_threads;
 
     public:
         OMPThreadPool(int _num_threads) : num_threads(_num_threads) {
-
-            //make array for pthread handles
-            threads = std::vector<pthread_t>(_num_threads);
 
             //set omp num threads
             omp_set_num_threads(_num_threads);
@@ -35,13 +31,11 @@ class OMPThreadPool {
                 param.sched_priority = 90;
                 pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
 
-                threads[omp_get_thread_num()] = pthread_self();
             }
 
         }
 
         ~OMPThreadPool(){
-            threads.clear();
         }
 
         void get_set_bits(unsigned long long n, int* indices) {
@@ -69,12 +63,15 @@ class OMPThreadPool {
             //set thread affinity for all threads (1 core to each thread in a circle buffer)
             #pragma omp parallel
             {
-                cpu_set_t cpuset;
-                CPU_ZERO(&cpuset);
-                CPU_SET(cores[omp_get_thread_num()], &cpuset);
 
+                if (omp_get_thread_num() != 0){
+
+                    cpu_set_t cpuset;
+                    CPU_ZERO(&cpuset);
+                    CPU_SET(cores[omp_get_thread_num()], &cpuset);
+                    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
                 
-                pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+                }
 
             }
 

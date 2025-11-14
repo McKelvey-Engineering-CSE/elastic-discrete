@@ -73,6 +73,9 @@ int current_threads_active = 0;
 //This value is used as a return value for system calls
 int ret_val;
 
+//int to track what mode we were in the last time we rescheduled
+int previous_mode = -1;
+
 //if we set this then we will need a barrier for explicit sync
 bool explicit_sync = false;
 
@@ -213,10 +216,22 @@ void set_cooperative(bool value){
 
 }
 
+void set_victim_prevention(bool value){
+
+	schedule.get_task(task_index)->set_victim_prevention(value);
+
+}
+
 void allow_change(){
 
 	schedule.get_task(task_index)->reset_changeable();
 	killpg(process_group, SIGRTMIN+0);
+
+}
+
+int get_previous_mode(){
+
+	return schedule.get_task(task_index)->get_real_mode(previous_mode);
 
 }
 
@@ -303,6 +318,8 @@ std::string convertToRanges(const std::string& input) {
     return result.str();
 }
 
+bool just_rescheduled = false;
+
 //function to either pass off resources or take them from other tasks
 void reschedule(){
 
@@ -310,6 +327,7 @@ void reschedule(){
     current_period = schedule.get_task(task_index)->get_current_period();
     current_work = schedule.get_task(task_index)->get_current_work();
 	current_mode = schedule.get_task(task_index)->get_current_virtual_mode();
+	previous_mode = current_mode;
 	deadline = current_period;
 	percentile = schedule.get_task(task_index)->get_percentage_workload();
 
@@ -417,7 +435,7 @@ void reschedule(){
 
 	//set the completion bool
 	mode_change_finished = true;
-
+	just_rescheduled = true;
 }
 
 bool execution_condition(timespec current_time, timespec end_time, int iterations, int current_iterations)
@@ -493,9 +511,6 @@ int main(int argc, char *argv[])
 	int iterations = 0;
 
 	//set scheduling polify to SCHED_FIFO with priority 90
-	struct sched_param main_param;
-	main_param.sched_priority = 90;
-	ret_val = sched_setscheduler(getpid(), SCHED_FIFO, &main_param);
 	if (ret_val != 0)
 		print_module::print(std::cerr,  "WARNING: " , getpid() , " Could not set priority. Returned: " , errno , "  (" , strerror(errno) , ")\n");
 	
@@ -517,7 +532,7 @@ int main(int argc, char *argv[])
 	end_time = {end_sec, end_nsec};
 	
 	char *barrier_name = argv[8];
-	explicit_sync = std::stoi(std::string(argv[9])) == 1;
+	explicit_sync = std::stoi(std::string(argv[9])) == 1;	
 	
 	// Parse processor topology from arguments 10-13 (after explicit_sync)
 	if (argc < 14) {  // Need at least 10 standard args + 4 topology args
@@ -597,6 +612,10 @@ int main(int argc, char *argv[])
 	print_module::buffered_print(task_info, "Timing Metrics: \n");
 	print_module::buffered_print(task_info, "	- Period s: ", schedule.get_task(task_index)->get_current_period().tv_sec , " s\n");
 	print_module::buffered_print(task_info, "	- Period ns: ", schedule.get_task(task_index)->get_current_period().tv_nsec , " ns\n\n");
+
+	struct sched_param main_param;
+	main_param.sched_priority = 90;
+	ret_val = sched_setscheduler(getpid(), SCHED_FIFO, &main_param);
 
 	#ifndef OMP_OVERRIDE
 		omp_set_num_threads(NUM_PROCESSOR_A);
@@ -778,11 +797,6 @@ int main(int argc, char *argv[])
 
 			deadlines_missed += 1;
 			missed_dl = true;
-
-			#ifdef TRACING
-				fprintf( fd, "thread %d: missed deadline iteration %d\n", getpid() ,num_iters);
-				fflush( fd );
-            #endif
 		
 		}
 		
@@ -847,6 +861,9 @@ int main(int argc, char *argv[])
 			}
 
 		}
+
+		else 
+			just_rescheduled = false;
 
 		//sleep until we are supposed to run again	
 		timespec sleep_time, current_sleep;

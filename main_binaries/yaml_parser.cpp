@@ -163,6 +163,14 @@ struct parsed_shared_objects {
 	int processor_topology_C = 2;
 	int processor_topology_D = 3;
 
+	// Processor count configuration
+	// Override values for knapsack solver resource counts
+	// -1 indicates no override (use compiled-in defaults)
+	int processor_count_A = -1;
+	int processor_count_B = -1;
+	int processor_count_C = -1;
+	int processor_count_D = -1;
+
 	int num_tasks_parsed = 0;
 	parsed_task_info parsed_tasks[50];
 
@@ -181,7 +189,9 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						unsigned* sec_to_run, 
 						long* nsec_to_run,
 						int* proc_topology_A, int* proc_topology_B, 
-						int* proc_topology_C, int* proc_topology_D){
+						int* proc_topology_C, int* proc_topology_D,
+						int* proc_count_A, int* proc_count_B,
+						int* proc_count_C, int* proc_count_D){
 	std::stringstream buffer;
 	buffer << ifs.rdbuf();
 	std::string contents = buffer.str();
@@ -243,6 +253,33 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 		}
 	}
 
+	// Parse processor count configuration
+	if (config["processor_count"]) {
+		YAML::Node proc_count_config = config["processor_count"];
+		
+		// Parse each processor type (A, B, C, D)
+		for (YAML::const_iterator it = proc_count_config.begin(); it != proc_count_config.end(); ++it) {
+			std::string proc_type = it->first.as<std::string>();
+			int count_value = it->second.as<int>();
+			
+			// Store the processor count based on processor type
+			if (proc_type == "A" || proc_type == "a") {
+				*proc_count_A = count_value;
+			} else if (proc_type == "B" || proc_type == "b") {
+				*proc_count_B = count_value;
+			} else if (proc_type == "C" || proc_type == "c") {
+				*proc_count_C = count_value;
+			} else if (proc_type == "D" || proc_type == "d") {
+				*proc_count_D = count_value;
+			} else {
+				std::cerr << "Invalid processor type in processor_count: " << proc_type << std::endl;
+				continue;
+			}
+			
+			// Debug output
+			std::cout << "Parsed processor count: " << proc_type << " -> " << count_value << std::endl;
+		}
+	}
 
 	if (yaml_is_time(config["maxRuntime"])) {
 		*sec_to_run = config["maxRuntime"]["sec"].as<unsigned int>();
@@ -1067,8 +1104,12 @@ int main(int argc, char *argv[])
 	// Initialize processor topology variables
 	int proc_topology_A = 0, proc_topology_B = 1, proc_topology_C = 2, proc_topology_D = 3;
 	
+	// Initialize processor count variables (-1 indicates no override)
+	int proc_count_A = -1, proc_count_B = -1, proc_count_C = -1, proc_count_D = -1;
+	
 	if (read_scheduling_yaml_file(ifs, &schedulable, &parsed_tasks, &sec_to_run, &nsec_to_run, 
-		&proc_topology_A, &proc_topology_B, &proc_topology_C, &proc_topology_D) != 0) 
+		&proc_topology_A, &proc_topology_B, &proc_topology_C, &proc_topology_D,
+		&proc_count_A, &proc_count_B, &proc_count_C, &proc_count_D) != 0) 
 		return RT_GOMP_CLUSTERING_LAUNCHER_FILE_PARSE_ERROR;
 
 	//move all the data to the shared memory
@@ -1081,6 +1122,12 @@ int main(int argc, char *argv[])
 	yaml_object->processor_topology_B = proc_topology_B;
 	yaml_object->processor_topology_C = proc_topology_C;
 	yaml_object->processor_topology_D = proc_topology_D;
+	
+	// Store processor count configuration
+	yaml_object->processor_count_A = proc_count_A;
+	yaml_object->processor_count_B = proc_count_B;
+	yaml_object->processor_count_C = proc_count_C;
+	yaml_object->processor_count_D = proc_count_D;
 	
 	yaml_object->num_tasks_parsed = parsed_tasks.size();
 

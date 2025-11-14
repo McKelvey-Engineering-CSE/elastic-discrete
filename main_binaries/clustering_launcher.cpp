@@ -340,7 +340,12 @@ void scheduler_task()
 			//lock the scheduler so no other task can request a reschedule
 			rescheduling_lock->lock();
 
-			bool has_handoff = scheduler->do_schedule(NUM_PROCESSOR_A - 1, true);
+			bool has_handoff = scheduler->do_schedule(NUM_PROCESSOR_A - 1, false);
+
+			if (!has_handoff){
+				std::cout << "No handoff, rerunning scheduler" << std::endl;
+			}
+
 			needs_scheduling = false;
 			killpg(process_group, SIGRTMIN+1);
 
@@ -604,6 +609,14 @@ struct parsed_shared_objects {
 	int processor_topology_C = 2;
 	int processor_topology_D = 3;
 
+	// Processor count configuration
+	// Override values for knapsack solver resource counts
+	// -1 indicates no override (use compiled-in defaults)
+	int processor_count_A = -1;
+	int processor_count_B = -1;
+	int processor_count_C = -1;
+	int processor_count_D = -1;
+
 	int num_tasks_parsed = 0;
 	parsed_task_info parsed_tasks[50];
 
@@ -640,6 +653,7 @@ int main(int argc, char *argv[])
 	if (setpgid(0, 0) != 0) {
 		print_module::print(std::cerr, "Failed to set process group\n");
 	}
+
 
 	process_group = getpgrp();
 
@@ -847,6 +861,34 @@ int main(int argc, char *argv[])
 	//create the scheduling object
 	//(retain CPU 0 for the scheduler)
 	scheduler = new Scheduler(parsed_tasks.size(),(int) NUM_PROCESSOR_A, explicit_sync, FPTAS);
+
+	// Read processor count overrides from YAML file (via shared memory)
+	// This allows runtime override of resource counts for the knapsack solver
+	int override_A = NUM_PROCESSOR_A;
+	int override_B = NUM_PROCESSOR_B;
+	int override_C = NUM_PROCESSOR_C;
+	int override_D = NUM_PROCESSOR_D;
+	
+	// Check if processor counts were specified in the YAML file
+	if (yaml_object->processor_count_A >= 0) {
+		override_A = yaml_object->processor_count_A;
+	}
+	if (yaml_object->processor_count_B >= 0) {
+		override_B = yaml_object->processor_count_B;
+	}
+	if (yaml_object->processor_count_C >= 0) {
+		override_C = yaml_object->processor_count_C;
+	}
+	if (yaml_object->processor_count_D >= 0) {
+		override_D = yaml_object->processor_count_D;
+	}
+	
+	// Only set overrides if at least one was specified in YAML
+	if (yaml_object->processor_count_A >= 0 || yaml_object->processor_count_B >= 0 ||
+	    yaml_object->processor_count_C >= 0 || yaml_object->processor_count_D >= 0) {
+		scheduler->set_knapsack_resource_overrides(override_A, override_B, override_C, override_D);
+		print_module::print(std::cerr, "Loaded knapsack resource overrides from YAML processor_count: A=", override_A, " B=", override_B, " C=", override_C, " D=", override_D, "\n");
+	}
 
 	//build an equivalency vector for each task 
 	std::vector<std::tuple<int, float>> task_equivalency_vectors;

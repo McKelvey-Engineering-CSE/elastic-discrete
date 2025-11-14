@@ -59,7 +59,7 @@ HOST_DEVICE_SCOPE float shared_dp_two[2][NUM_PROCESSOR_A + 1][NUM_PROCESSOR_B + 
 
 HOST_DEVICE_SCOPE char free_resource_pool[2][NUM_PROCESSOR_A + 1][NUM_PROCESSOR_B + 1][NUM_PROCESSOR_C + 1][NUM_PROCESSOR_D + 1][4];
 
-HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution, int slack_A, int slack_B, int slack_C, int slack_D, int constricted){
+HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int* task_table, double* losses, double* final_loss, int* uncooperative_tasks, int* final_solution, int slack_A, int slack_B, int slack_C, int slack_D, int constricted, int max_A, int max_B, int max_C, int max_D){
 
 	//shared variables for determining the start and end of 
 	//the indices for uncooperative tasks
@@ -95,8 +95,14 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int* task_table, doubl
 
 	#endif*/
 
+	// Clamp max bounds to not exceed compile-time array bounds
+	const int clamped_max_A = (max_A < 0 || max_A > NUM_PROCESSOR_A) ? NUM_PROCESSOR_A : max_A;
+	const int clamped_max_B = (max_B < 0 || max_B > NUM_PROCESSOR_B) ? NUM_PROCESSOR_B : max_B;
+	const int clamped_max_C = (max_C < 0 || max_C > NUM_PROCESSOR_C) ? NUM_PROCESSOR_C : max_C;
+	const int clamped_max_D = (max_D < 0 || max_D > NUM_PROCESSOR_D) ? NUM_PROCESSOR_D : max_D;
+	
 	//assume 1 block of 1024 threads for now
-	const int pass_count = ceil(((NUM_PROCESSOR_A + 1) * (NUM_PROCESSOR_B + 1) * (NUM_PROCESSOR_C + 1) * (NUM_PROCESSOR_D + 1)) / HOST_DEVICE_BLOCK_DIM) + 1;
+	const int pass_count = ceil(((clamped_max_A + 1) * (clamped_max_B + 1) * (clamped_max_C + 1) * (clamped_max_D + 1)) / HOST_DEVICE_BLOCK_DIM) + 1;
 
 	//loopback variables to ensure we process
 	//the uncooperative tasks last every time
@@ -148,18 +154,18 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int* task_table, doubl
 			int thread_id = (k * HOST_DEVICE_BLOCK_DIM) + HOST_DEVICE_THREAD_IDX;
 			
 			//a = processor A
-			int a = (thread_id / ((NUM_PROCESSOR_B + 1) * (NUM_PROCESSOR_C + 1) * (NUM_PROCESSOR_D + 1))) % (NUM_PROCESSOR_A + 1);
+			int a = (thread_id / ((clamped_max_B + 1) * (clamped_max_C + 1) * (clamped_max_D + 1))) % (clamped_max_A + 1);
 			
 			//b = processor B
-			int b = (thread_id / ((NUM_PROCESSOR_C + 1) * (NUM_PROCESSOR_D + 1))) % (NUM_PROCESSOR_B + 1);
+			int b = (thread_id / ((clamped_max_C + 1) * (clamped_max_D + 1))) % (clamped_max_B + 1);
 			
 			//c = processor C
-			int c = (thread_id / (NUM_PROCESSOR_D + 1)) % (NUM_PROCESSOR_C + 1);
+			int c = (thread_id / (clamped_max_D + 1)) % (clamped_max_C + 1);
 			
 			//d = processor D
-			int d = thread_id % (NUM_PROCESSOR_D + 1);
+			int d = thread_id % (clamped_max_D + 1);
 
-			if (a > NUM_PROCESSOR_A || b > NUM_PROCESSOR_B || c > NUM_PROCESSOR_C || d > NUM_PROCESSOR_D)
+			if (a > clamped_max_A || b > clamped_max_B || c > clamped_max_C || d > clamped_max_D)
 				continue;
 
 			//invalid state
@@ -182,10 +188,20 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int* task_table, doubl
 				int current_item_cores_D = constant_task_table[(group_idx - 1) * MAXMODES * 5 + j * 5 + 3];
 				int current_item_real_mode = constant_task_table[(group_idx - 1) * MAXMODES * 5 + j * 5 + 4];
 
-				if (desired_state != -1)
-					if (current_item_real_mode != desired_state){
-						continue;
+				if (desired_state != -1){
+					   
+					//this means we have a desired state we must stay in
+					if (desired_state > -1)
+						if (current_item_real_mode != desired_state)
+							continue;
+
+					//this means we have a desired state that we must not go below
+					else {
+						if (current_item_real_mode < (desired_state * -1) - 1)
+							continue;
 					}
+
+				}
 
 				//check the change in processors
 				int delta_cores_A = task_table[(group_idx - 1) * 4 + 0] - current_item_cores_A;
@@ -292,10 +308,10 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int* task_table, doubl
 	if (HOST_DEVICE_THREAD_IDX < 1){
 
 		bool valid_solution = true;
-		int current_a = NUM_PROCESSOR_A - 1;
-		int current_b = NUM_PROCESSOR_B;
-		int current_c = NUM_PROCESSOR_C;
-		int current_d = NUM_PROCESSOR_D;
+		int current_a = clamped_max_A - 1;
+		int current_b = clamped_max_B;
+		int current_c = clamped_max_C;
+		int current_d = clamped_max_D;
 
 		for (int i = num_tasks; i > 0; i--){
 
@@ -332,7 +348,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int* task_table, doubl
 		//print the final loss 
 		if (valid_solution){
 
-			*final_loss = shared_dp_two[num_tasks & 1][NUM_PROCESSOR_A - 1][NUM_PROCESSOR_B][NUM_PROCESSOR_C][NUM_PROCESSOR_D];
+			*final_loss = shared_dp_two[num_tasks & 1][clamped_max_A - 1][clamped_max_B][clamped_max_C][clamped_max_D];
 
 		} else {
 

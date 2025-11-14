@@ -169,6 +169,8 @@ private:
 
 	bool cooperative_bool = true;
 
+	bool victim_prevention_bool = false;
+
 	int number_of_modes = 0;
 
 	//processor B mask
@@ -439,6 +441,10 @@ public:
 	void set_cooperative(bool state);
 
 	bool cooperative();
+
+	bool victim_prevention();
+
+	void set_victim_prevention(bool state);
 
 	//new message based resource passing functions
 	void set_processors_to_send_to_other_processes(int task_to_send_to, int processor_type, int processor_ct);

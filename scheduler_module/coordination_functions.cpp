@@ -1,27 +1,26 @@
+#include "libsmctrl.h"
 #ifdef __NVCC__
+    
+    cudaStream_t libsmctrl_stream;
+
+	__device__ inline static unsigned int smid()
+	{
+	unsigned int r;
+
+	asm("mov.u32 %0, %%smid;" : "=r"(r));
+
+	return r;
+	}
+
+	__global__ void sanity_check_kernel(){
+
+		unsigned int sm_id = smid();
+		if (threadIdx.x == 1)
+		printf("SM ID: %d\n", sm_id);
+
+	}
 
 	void Scheduler::create_scheduler_stream(){
-
-		CUdevResource initial_resources;
-		unsigned int partition_num = 2;
-		CUdevResource resources[partition_num];
-
-		//device specs
-		CUdevResourceDesc device_resource_descriptor;
-
-		//fill the initial descriptor
-		CUDA_SAFE_CALL(cuDeviceGetDevResource(0, &initial_resources, CU_DEV_RESOURCE_TYPE_SM));
-
-		//take the previous element above us and split it 
-		//fill the corresponding portions of the matrix as we go
-		CUDA_SAFE_CALL(cuDevSmResourceSplitByCount(resources, &partition_num, &initial_resources, NULL, CU_DEV_SM_RESOURCE_SPLIT_IGNORE_SM_COSCHEDULING, 2));
-
-		//now set aside the first position and make a green context from it
-		CUDA_SAFE_CALL(cuDevResourceGenerateDesc(&device_resource_descriptor, &resources[0], 1));
-		CUDA_SAFE_CALL(cuGreenCtxCreate(&green_ctx, device_resource_descriptor, 0, CU_GREEN_CTX_DEFAULT_STREAM));
-
-		CUDA_SAFE_CALL(cuGreenCtxStreamCreate(&scheduler_stream, green_ctx, CU_STREAM_NON_BLOCKING, 0));
-		CUDA_SAFE_CALL(cuGreenCtxStreamCreate(&cautious_stream, green_ctx, CU_STREAM_NON_BLOCKING, 0));
 
 	}
 
@@ -35,6 +34,14 @@ class Schedule * Scheduler::get_schedule(){
 
 int Scheduler::get_num_tasks(){
 	return task_table.size();
+}
+
+void Scheduler::set_knapsack_resource_overrides(int override_A, int override_B, int override_C, int override_D){
+	// Clamp override values to not exceed compile-time array bounds
+	knapsack_override_A = (override_A < 0 || override_A > NUM_PROCESSOR_A) ? NUM_PROCESSOR_A : override_A;
+	knapsack_override_B = (override_B < 0 || override_B > NUM_PROCESSOR_B) ? NUM_PROCESSOR_B : override_B;
+	knapsack_override_C = (override_C < 0 || override_C > NUM_PROCESSOR_C) ? NUM_PROCESSOR_C : override_C;
+	knapsack_override_D = (override_D < 0 || override_D > NUM_PROCESSOR_D) ? NUM_PROCESSOR_D : override_D;
 }
 
 void Scheduler::generate_unsafe_combinations(size_t maxCPU){}
@@ -108,7 +115,7 @@ enabled, runs the CUDA version of the scheduler. It also builds
 the RAG and executes it if a solution is found
 
 *************************************************************/
-bool Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
+bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 
 	//lock the scheduler mutex
 	scheduler_running = true;
@@ -122,14 +129,20 @@ bool Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 		if (first_time) {
 
-			CUDA_SAFE_CALL(cuInit(0));
+			//CUDA_SAFE_CALL(cuInit(0));
 
-			create_scheduler_stream();
+			//create the libsmctrl stream
+			CUDA_NEW_SAFE_CALL(cudaStreamCreateWithFlags(&libsmctrl_stream, cudaStreamNonBlocking));
 
-			CUDA_SAFE_CALL(cuCtxFromGreenCtx(&primary_scheduler_context, green_ctx));
-			
-			//set current
-			CUDA_SAFE_CALL(cuCtxSetCurrent(primary_scheduler_context));
+			unsigned long long mask = 1;
+
+			mask <<= 8;
+
+			//set the stream for the libsmctrl
+			libsmctrl_set_stream_mask(libsmctrl_stream, ~mask);
+
+			//launch the sanity check kernel
+			sanity_check_kernel<<<2, 1024, 0, libsmctrl_stream>>>();
 
 		}
 
@@ -362,6 +375,57 @@ bool Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	}
 
+	//next re-fetch all the processors owned by the tasks and ensure no task owns the same processor as another task
+	auto current_A_mask = schedule.get_task(0)->get_processor_A_mask();
+	auto current_B_mask = schedule.get_task(0)->get_processor_B_mask();
+	auto current_C_mask = schedule.get_task(0)->get_processor_C_mask();
+	auto current_D_mask = schedule.get_task(0)->get_processor_D_mask();
+
+	for (int i = 1; i < schedule.count(); i++){
+
+		//for each mask, check for same bits
+		auto task_i_A_mask = schedule.get_task(i)->get_processor_A_mask();
+		auto task_i_B_mask = schedule.get_task(i)->get_processor_B_mask();
+		auto task_i_C_mask = schedule.get_task(i)->get_processor_C_mask();
+		auto task_i_D_mask = schedule.get_task(i)->get_processor_D_mask();
+
+		// Check for overlapping bits using AND
+		// If AND result is non-zero, there are common bits (error condition)
+		if ((current_A_mask & task_i_A_mask) != 0) {
+			std::cout << "Processor A Mask Overlap Detected. Task 0 and Task " << i << " share processor bits. Cannot Continue" << std::endl;
+			killpg(process_group, SIGINT);
+			return false;
+		}
+
+		if ((current_B_mask & task_i_B_mask) != 0) {
+			std::cout << "Processor B Mask Overlap Detected. Task 0 and Task " << i << " share processor bits. Cannot Continue" << std::endl;
+			killpg(process_group, SIGINT);
+			return false;
+		}
+
+		if ((current_C_mask & task_i_C_mask) != 0) {
+			std::cout << "Processor C Mask Overlap Detected. Task 0 and Task " << i << " share processor bits. Cannot Continue" << std::endl;
+			killpg(process_group, SIGINT);
+			return false;
+		}
+
+		if ((current_D_mask & task_i_D_mask) != 0) {
+			std::cout << "Processor D Mask Overlap Detected. Task 0 and Task " << i << " share processor bits. Cannot Continue" << std::endl;
+			killpg(process_group, SIGINT);
+			return false;
+		}
+
+		// Update current masks using OR to accumulate for next comparison
+		// This ensures we check task i+1 against all previous tasks (0 through i)
+		current_A_mask |= task_i_A_mask;
+		current_B_mask |= task_i_B_mask;
+		current_C_mask |= task_i_C_mask;
+		current_D_mask |= task_i_D_mask;
+
+	}
+
+	std::cout << "All masks are unique. Continuing." << std::endl;
+
 	//get current time
 	timespec start_time, end_time;
 	clock_gettime(CLOCK_MONOTONIC, &start_time);
@@ -379,6 +443,12 @@ bool Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 	int host_uncooperative[MAXTASKS] = {-1};
 	memset(host_uncooperative, -1, sizeof(int) * MAXTASKS);
 
+	//check if previous uncooperative is available
+	if (previous_uncooperative_tasks == nullptr){
+		previous_uncooperative_tasks = (int*)malloc(sizeof(int) * MAXTASKS);
+
+	}
+
 	//loopback variables to ensure we process
 	//the uncooperative tasks last every time
 	int real_order_of_tasks[num_tasks];
@@ -387,7 +457,9 @@ bool Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	for (int i = 0; i < schedule.count(); i++){
 
-		if (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative()){
+		//if task is not willing to change it's mode, put it in the back
+		if ((!rerunning && (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative())) || 
+			(rerunning && previous_uncooperative_tasks[i] != -1)){
 				
 			if (!first_time)
 				host_uncooperative[i] = schedule.get_task(i)->get_real_current_mode();
@@ -396,10 +468,19 @@ bool Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 		}
 
+		//if task is willing to change it's mode, but is not willing to be a victim, put it in the back
+		else if ((schedule.get_task(i))->victim_prevention()){
+			host_uncooperative[i] = (schedule.get_task(i)->get_real_current_mode() + 1) * -1;
+			real_order_of_tasks[loopback_back--] = i;
+		}
+
 		else 
 			real_order_of_tasks[loopback_front++] = i;
 
 	}
+
+	//copy the uncooperative tasks to the previous uncooperative tasks
+	memcpy(previous_uncooperative_tasks, host_uncooperative, sizeof(int) * MAXTASKS);
 
 	//copy over the current state of the task system
 	int host_current_modes[MAXTASKS * 4];
@@ -424,10 +505,17 @@ bool Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 	//if CUDA is not enabled, just run the knapsack algorithm
 	//on the host
 
+	// Use override values for knapsack solver bounds, but still calculate slack based on actual available resources
 	int slack_A = maxCPU;
 	int slack_B = NUM_PROCESSOR_B;
 	int slack_C = NUM_PROCESSOR_C;
 	int slack_D = NUM_PROCESSOR_D;
+	
+	// Get override values for knapsack solver (these limit the search space)
+	int knapsack_max_A = knapsack_override_A;
+	int knapsack_max_B = knapsack_override_B;
+	int knapsack_max_C = knapsack_override_C;
+	int knapsack_max_D = knapsack_override_D;
 
 	if (first_time) {
 		
@@ -448,7 +536,15 @@ bool Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 
 	}
 
+	// Clamp slack values to not exceed knapsack override bounds
+	// The knapsack solver can't use more resources than the override allows
+	int clamped_slack_A = (slack_A > knapsack_max_A) ? knapsack_max_A : slack_A;
+	int clamped_slack_B = (slack_B > knapsack_max_B) ? knapsack_max_B : slack_B;
+	int clamped_slack_C = (slack_C > knapsack_max_C) ? knapsack_max_C : slack_C;
+	int clamped_slack_D = (slack_D > knapsack_max_D) ? knapsack_max_D : slack_D;
+
 	pm::print(std::cerr, "[Starting Slack] Slack A: ", slack_A, " Slack B: ", slack_B, " Slack C: ", slack_C, " Slack D: ", slack_D, "\n");
+	pm::print(std::cerr, "[Knapsack Bounds] Max A: ", knapsack_max_A, " Max B: ", knapsack_max_B, " Max C: ", knapsack_max_C, " Max D: ", knapsack_max_D, "\n");
 
 	#ifdef __NVCC__
 
@@ -456,7 +552,7 @@ bool Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		CUDA_NEW_SAFE_CALL(cudaMemcpy(d_uncooperative_tasks, host_uncooperative, MAXTASKS * sizeof(int), cudaMemcpyHostToDevice));
 
 		//Execute exact solution
-		device_do_schedule<<<1, 1024, 0, scheduler_stream>>>(N - 1, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, slack_A, slack_B, slack_C, slack_D, 0);
+		device_do_schedule<<<1, 1024, 0, libsmctrl_stream>>>(N - 1, d_current_task_modes, d_losses, d_final_loss, d_uncooperative_tasks, d_final_solution, clamped_slack_A, clamped_slack_B, clamped_slack_C, clamped_slack_D, 0, knapsack_max_A, knapsack_max_B, knapsack_max_C, knapsack_max_D);
 
 		//peek for launch errors
 		CUDA_NEW_SAFE_CALL(cudaPeekAtLastError());
@@ -465,14 +561,14 @@ bool Scheduler::do_schedule(size_t maxCPU, bool check_max_possible){
 		int host_final[MAXTASKS] = {0};
 
 		//copy it 
-		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(host_final, d_final_solution, MAXTASKS * sizeof(int), cudaMemcpyDeviceToHost, scheduler_stream));
-		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&loss, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, scheduler_stream));
+		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(host_final, d_final_solution, MAXTASKS * sizeof(int), cudaMemcpyDeviceToHost, libsmctrl_stream));
+		CUDA_NEW_SAFE_CALL(cudaMemcpyAsync(&loss, d_final_loss, sizeof(double), cudaMemcpyDeviceToHost, libsmctrl_stream));
 
-		CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(scheduler_stream));
+		CUDA_NEW_SAFE_CALL(cudaStreamSynchronize(libsmctrl_stream));
 
 	#else
 
-		device_do_schedule(N - 1, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution, slack_A, slack_B, slack_C, slack_D, 0);
+		device_do_schedule(N - 1, host_current_modes, d_losses, d_final_loss, host_uncooperative, d_final_solution, clamped_slack_A, clamped_slack_B, clamped_slack_C, clamped_slack_D, 0, knapsack_max_A, knapsack_max_B, knapsack_max_C, knapsack_max_D);
 
 		loss = *d_final_loss;
 

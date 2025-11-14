@@ -1967,6 +1967,14 @@ bool TaskData::cooperative(){
 
 }
 
+bool TaskData::victim_prevention(){
+	return victim_prevention_bool;
+}
+
+void TaskData::set_victim_prevention(bool state){
+	victim_prevention_bool = state;
+}
+
 int TaskData::get_permanent_processor_index(){
 
 	return permanent_processor_index;
