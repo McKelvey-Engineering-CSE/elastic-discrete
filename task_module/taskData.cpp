@@ -1233,8 +1233,10 @@ int TaskData::pop_back_processor_A(){
     int msb = 127;  // Start from highest possible bit
     __uint128_t test_bit = (__uint128_t)1 << 127;
 
+	auto processor_A_mask_copy = processor_A_mask & ~((__uint128_t)1 << permanent_processor_A);
+
     // Find the most significant 1 bit
-    while ((processor_A_mask & test_bit) == 0) {
+    while ((processor_A_mask_copy & test_bit) == 0) {
         msb--;
         test_bit >>= 1;
     }

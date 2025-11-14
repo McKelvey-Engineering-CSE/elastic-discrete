@@ -10,6 +10,7 @@
 #include <bitset>
 #include <cassert>
 #include <omp.h>
+#include <iostream>
 
 class OMPThreadPool {
 
@@ -18,20 +19,6 @@ class OMPThreadPool {
 
     public:
         OMPThreadPool(int _num_threads) : num_threads(_num_threads) {
-
-            //set omp num threads
-            omp_set_num_threads(_num_threads);
-
-            //make each thread fetch their handle
-            #pragma omp parallel
-            {
-
-                //make each thread set their scheduling policy to SCHED_FIFO with priority 90
-                struct sched_param param;
-                param.sched_priority = 90;
-                pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
-
-            }
 
         }
 
@@ -51,28 +38,44 @@ class OMPThreadPool {
 
             int current_num_threads = __builtin_popcount(affinity_mask);
 
-            //set the omp thread count
-            omp_set_num_threads(current_num_threads);
+            //kill all threads
+            omp_set_num_threads(1);
 
             //translate the mask into a vector
             int cores[current_num_threads];
 
-            //get all the set bits in the mask
-            get_set_bits(affinity_mask, cores);
+            //core we do not touch 
+            int permanent_core = sched_getcpu();
 
-            //set thread affinity for all threads (1 core to each thread in a circle buffer)
+            //mask without the permanent core
+            auto affinity_mask_without_permanent_core = affinity_mask & ~((__uint128_t)1 << permanent_core);
+
+            //get all the set bits in the mask
+            get_set_bits(affinity_mask_without_permanent_core, cores);
+
+            //set our priority to low non-rt
+            struct sched_param param;
+            param.sched_priority = 0;
+            pthread_setschedparam(pthread_self(), SCHED_OTHER, &param);
+
+            //spawn threads back up
+            omp_set_num_threads(current_num_threads);
+
+            //make each thread migrate to their core
             #pragma omp parallel
             {
+                cpu_set_t cpuset;
+                CPU_ZERO(&cpuset);
+                CPU_SET(cores[omp_get_thread_num() - 1], &cpuset);
+                pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+            }
 
-                if (omp_get_thread_num() != 0){
-
-                    cpu_set_t cpuset;
-                    CPU_ZERO(&cpuset);
-                    CPU_SET(cores[omp_get_thread_num()], &cpuset);
-                    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
-                
-                }
-
+            //now make all threads set their priority to high rt
+            #pragma omp parallel
+            {
+                struct sched_param param;
+                param.sched_priority = 90;
+                pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
             }
 
         }
