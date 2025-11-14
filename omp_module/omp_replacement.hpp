@@ -64,10 +64,16 @@ class OMPThreadPool {
             //make each thread migrate to their core
             #pragma omp parallel
             {
-                cpu_set_t cpuset;
-                CPU_ZERO(&cpuset);
-                CPU_SET(cores[omp_get_thread_num() - 1], &cpuset);
-                pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+
+                if (omp_get_thread_num() != 0){
+
+                    cpu_set_t cpuset;
+                    CPU_ZERO(&cpuset);
+                    CPU_SET(cores[omp_get_thread_num() - 1], &cpuset);
+                    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+
+                }
+                
             }
 
             //now make all threads set their priority to high rt
