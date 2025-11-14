@@ -96,6 +96,7 @@ schedulable: true
 explicit_sync: false
 maxRuntime: {sec: 30, nsec: 0}
 processor_topology: {A: A, B: A, C: C, D: D}
+processor_count: {A: 8, B: 2, C: 16, D: 1}
 tasks:
   - program:
       name: my_task
@@ -173,6 +174,18 @@ The scheduler will automatically account for the performance difference between 
 - **Elastic Adaptation**: System can adapt to changing performance characteristics
 - **Deadline Compliance**: Ensures real-time guarantees across heterogeneous cores
 
+### Processor Count
+
+The scheduler is compiled with a *maximum* number of acceptable resources for processors A, B, C and D. This however does not always mean that you want to run the scheduler with all those resources. To help with this, each task file can be provided a "processor_count" option which overwrites the compiled number of processors and treats the system as though it only has that many processors. This allows you to test various system configurations, test subsystem partitions, or simply compile for one machine and move the binary across many different systems with unique hardware. The format of the field is simply the number of processors for each resource type, following it's string:
+
+```yaml
+processor_topology:
+  A: 8      # Processor A count
+  B: 8      # Processor B count
+  C: 8      # Processor C count
+  D: 1      # Processor D count
+```
+
 ## Usage
 
 ### Task Structure
@@ -192,6 +205,7 @@ schedulable: true/false                                     # Bool which specifi
 explicit_sync: false                                        # Optional explicit synchronization (unused for now)
 maxRuntime: {sec: 0, ns: 0}                                 # Optional global runtime limit (Needed if no iteration count, or tasks run forever)
 processor_topology: {A: A, B: A, C: C, D: D}                # Processor description (see above)
+processor_count: {A: 8, B: 2, C: 16, D: 1}                  # Processor count override (see above)
 
 tasks:
   - program:
