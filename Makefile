@@ -5,7 +5,7 @@ HAS_NVCC := $(if $(filter nvcc,$(NVCC)),true,false)
 
 # Common settings
 COMMON_FLAGS := -std=c++20 -O0 -I. -g
-COMMON_LIBS := -lrt -lm -L./libyaml-cpp/build/ -lyaml-cpp
+COMMON_LIBS := -lrt -lm -L./libyaml-cpp/build/ -lyaml-cpp -L /usr/lib64/
 
 # Omp library control
 OMP_LIB := -DOMP_OVERRIDE #-DPRETTY_PRINTING
@@ -23,7 +23,7 @@ endif
 # Compiler-specific settings
 ifeq ($(HAS_NVCC),true)
     CC := nvcc $(OMP_LIB)
-    FLAGS := $(COMMON_FLAGS) -arch=native --expt-relaxed-constexpr -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -lcuda -lcudart -Xcompiler -mcmodel=medium -Xcompiler "-mavx2 -march=native -mfma -lopenblas"
+    FLAGS := $(COMMON_FLAGS) -arch=native --expt-relaxed-constexpr -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -lcuda -lcudart -Xcompiler -mcmodel=medium -Xcompiler "-mavx2 -march=native -mfma -lopenblaso" -lopenblaso
     LIBS := $(COMMON_LIBS) -Xcompiler -fopenmp -L./omp_module -Xlinker -rpath,./omp_module -lcublas
 	NVCC_OVERRIDE := --x=cu
     ifneq (,$(X86_64_ARCH))
@@ -84,8 +84,12 @@ libclustering.a: $(CLUSTERING_OBJECTS)
 task.o: ./task_module/task.cpp timespec_functions.o
 	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $< $(LIBS)
 
-scheduler.o: ./scheduler_module/scheduler.cpp timespec_functions.o
-	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
+scheduler_piece.o: ./scheduler_module/scheduler.cpp timespec_functions.o
+	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $< -o $@
+
+#force link it with libsmctrl.o
+scheduler.o: scheduler_piece.o libsmctrl/libsmctrl.o
+	ld -relocatable $^ -o $@
 
 schedule.o: ./scheduler_module/schedule.cpp timespec_functions.o
 	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
@@ -121,5 +125,6 @@ clustering_launcher: yaml_parser clustering_launcher-bin timespec_functions.o ta
 james-bin: ./example_task/james.cpp 
 	$(CC) $(FLAGS) $(NVCC_OVERRIDE) ./example_task/james.cpp -c $< $(LIBS)
 
-james: james-bin task_manager.o print_library.o $(BARRIER_OBJECTS) timespec_functions.o scheduler.o schedule.o taskData.o task.o
-	$(CC) $(FLAGS) james.o timespec_functions.o scheduler.o schedule.o taskData.o task.o task_manager.o print_library.o $(BARRIER_OBJECTS) -o james $(LIBS)
+james: james-bin task_manager.o print_library.o $(BARRIER_OBJECTS) timespec_functions.o schedule.o taskData.o task.o
+	$(CC) $(FLAGS) james.o timespec_functions.o schedule.o taskData.o task.o libsmctrl/libsmctrl.o task_manager.o print_library.o $(BARRIER_OBJECTS) -o james $(LIBS)
+
