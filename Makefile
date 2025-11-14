@@ -81,6 +81,9 @@ libclustering.a: $(CLUSTERING_OBJECTS)
 	ar rcsf $@ $^
 
 # Object compilation rules
+libsmctrl.o:
+	cd libsmctrl && make libsmctrl.a
+
 task.o: ./task_module/task.cpp timespec_functions.o
 	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $< $(LIBS)
 

@@ -29,12 +29,11 @@ bool first_time = true;
     #include <cuda_runtime.h>
 
     #include "sm_mapper.cuh"
+    #include "libsmctrl.h"
  
     cudaStream_t stream;
 
-    CUgreenCtx task_green_ctx;
-
-    CUdevResource resources[128];
+    bool streams_initialized = false;
 
     bool display_sms = true;
 
@@ -59,63 +58,26 @@ void update_core_C(__uint128_t mask) {
     return;
 
     //example of how to use an additional core mask
-    //for something like a GPU, in this case we are 
-    //using green contexts to control the GPU TPCs
+    //for something like a GPU via libsmctrl
     #ifdef __NVCC__
 
-        //device specs
-        CUdevResourceDesc device_resource_descriptor;
-        CUdevResource initial_resources;
-        unsigned int partition_num;
+    if (mask == 0){
+        
+        return;
 
-        //fill the initial descriptor
-        cuDeviceGetDevResource(0, &initial_resources, CU_DEV_RESOURCE_TYPE_SM);
+    }
 
-        partition_num = initial_resources.sm.smCount / 2;
-
-        //take the previous element above us and split it 
-        //fill the corresponding portions of the matrix as we go
-        CUDA_SAFE_CALL(cuDevSmResourceSplitByCount(resources, &partition_num, &initial_resources, NULL, CU_DEV_SM_RESOURCE_SPLIT_IGNORE_SM_COSCHEDULING, 2));
-
-        //now copy the TPC elements we have been granted
-        unsigned int total_TPCS = __builtin_popcount(mask);
-
-        std::cerr << "Total TPCS: " << total_TPCS << std::endl;
-
-        if (total_TPCS == 0)
-            return;
-
-        CUdevResource my_resources[total_TPCS];
-        int next = 0;
-
-        for (int i = 0; i < 128; i++){
-
-            if (mask & ((__uint128_t)1 << i)) {
-
-                my_resources[next++] = resources[i];
-
-            }
-
-        }
-
-        //now make a green context from all the other resources
-        CUDA_SAFE_CALL(cuDevResourceGenerateDesc(&device_resource_descriptor, my_resources, total_TPCS));
-        CUDA_SAFE_CALL(cuGreenCtxCreate(&task_green_ctx, device_resource_descriptor, 0, CU_GREEN_CTX_DEFAULT_STREAM));
-
-        //make a stream as well
-        CUDA_SAFE_CALL(cuGreenCtxStreamCreate(&stream, task_green_ctx, CU_STREAM_NON_BLOCKING, 0));
-
-    //if first time, print sms
-    #ifdef SM_PRINT
+    //make the streams if they are not already made
+    if (!streams_initialized){
     
-        if (display_sms) {
+        cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+        streams_initialized = true;
+    
+    }
 
-            visualize_sm_partitions_interprocess(task_green_ctx, 1, "JAMESSM");
-            display_sms = false;
-            
-        }
+    libsmctrl_set_stream_mask(stream, ~mask);
 
-    #endif
+    return;
 
     #endif
 
