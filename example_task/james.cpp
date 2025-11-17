@@ -130,7 +130,7 @@ int run(int argc, char *argv[]){
             pm::flush(std::cerr, buffer);
         #endif
 
-        busy_work(spin_tv);
+        sleep_for_ts(spin_tv);
         
     }
 

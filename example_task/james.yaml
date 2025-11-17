@@ -7,7 +7,7 @@ processor_count: {A: 8, B: 2, C: 16, D: 1}
 tasks:
   - program:
       name: james
-      args: "0 1028571 2 10"
+      args: "0 514285 2 10"
     elasticity: 5
     processor_equivalence: {A: 1A, B: 0.3A, C: 1.75A, D: 1D}
     modes:
@@ -54,7 +54,7 @@ tasks:
 
   - program:
       name: james
-      args: "1 1028571 2 10"
+      args: "1 514285 2 10"
     elasticity: 5
     processor_equivalence: {A: 1A, B: 0.3A, C: 1.75A, D: 1D}
     modes:
@@ -100,7 +100,7 @@ tasks:
 
   - program:
       name: james
-      args: "2 1028571 2 10"
+      args: "2 514285 2 10"
     elasticity: 5
     processor_equivalence: {A: 1A, B: 0.3A, C: 1.75A, D: 1D}
     modes:
@@ -146,7 +146,7 @@ tasks:
 
   - program:
       name: james
-      args: "3 1028571 2 10"
+      args: "3 514285 2 10"
     elasticity: 7
     processor_equivalence: {A: 1A, B: 0.3A, C: 1.75A, D: 1D}
     modes:
