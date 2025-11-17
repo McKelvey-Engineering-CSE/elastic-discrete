@@ -113,16 +113,22 @@ void sleep_until_ts (timespec& end_time){
 	return;
 }
 
-void sleep_for_ts (timespec& sleep_time){
 
-  //Otherwise, nanosleep
-  timespec zero = { 0, 0 };
-	while( nanosleep(&sleep_time,&sleep_time) != 0 )
-	{
-		if (sleep_time <= zero) break;
-	}
+void sleep_for_ts (timespec& length){
+  
+  timespec start_time, current_time; 
+  timespec diff = {0, 0};
+  
+  get_time(&start_time);
+  get_time(&current_time);
 
-	return;
+  while(diff < length){
+    get_time(&current_time);
+    ts_diff(start_time, current_time, diff);
+  }
+
+  return;
+
 }
 
 /*
