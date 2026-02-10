@@ -32,6 +32,8 @@
 #include "print_module.h"
 #include <thread>
 
+//#define PRETTY_PRINTING
+
 #ifdef OMP_OVERRIDE
 
 	#include "omp_replacement.hpp"
@@ -232,6 +234,68 @@ void allow_change(){
 int get_previous_mode(){
 
 	return schedule.get_task(task_index)->get_real_mode(previous_mode);
+
+}
+
+void set_uncooperative_mode(int mode){
+
+	schedule.get_task(task_index)->set_uncooperative_mode(mode);
+
+}
+
+void clear_uncooperative_mode(int mode){
+
+	schedule.get_task(task_index)->clear_uncooperative_mode(mode);
+
+}
+
+void clear_all_uncooperative_modes(){
+
+	schedule.get_task(task_index)->clear_all_uncooperative_modes();
+
+}
+
+void set_uncooperative_modes_mask(uint32_t mask){
+
+	schedule.get_task(task_index)->set_uncooperative_modes_mask(mask);
+
+	//if we are in a mode that is allowed, then we don't need to reschedule
+	if (mask & (1 << schedule.get_task(task_index)->get_real_current_mode()))
+		return;
+
+	//otherwise we need to reschedule
+	if (rescheduling_lock->try_lock() == 0){
+		
+		mode_change_finished = false;
+		killpg(process_group, SIGRTMIN+0);
+
+		rescheduling_lock->unlock();
+
+	}
+
+}
+
+void set_uncooperative_modes(std::initializer_list<int> modes){
+
+	schedule.get_task(task_index)->set_uncooperative_modes(modes);
+
+	//if we are in a mode that is allowed, then we don't need to reschedule
+	uint32_t allowed_mask = 0;
+	for (int mode : modes) {
+		allowed_mask |= (1 << mode);
+	}
+	if (allowed_mask & (1 << schedule.get_task(task_index)->get_real_current_mode()))
+		return;
+
+	//otherwise we need to reschedule
+	if (rescheduling_lock->try_lock() == 0){
+		
+		mode_change_finished = false;
+		killpg(process_group, SIGRTMIN+0);
+
+		rescheduling_lock->unlock();
+
+	}
 
 }
 

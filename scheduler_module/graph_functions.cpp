@@ -167,7 +167,7 @@ bool Scheduler::build_resource_graph(std::vector<std::tuple<int, int, int, int>>
 
 			discovered_providers.push_back(i);
 
-			std::cout << "Provider: " << i << std::endl;
+			print_module::print(std::cerr, "Provider: " , i , "\n");
 
 		}
 
@@ -176,7 +176,7 @@ bool Scheduler::build_resource_graph(std::vector<std::tuple<int, int, int, int>>
 
 			discovered_consumers.push_back(i);
 
-			std::cout << "Consumer: " << i << std::endl;
+			print_module::print(std::cerr, "Consumer: " , i , "\n");
 
 		}
 
@@ -185,7 +185,7 @@ bool Scheduler::build_resource_graph(std::vector<std::tuple<int, int, int, int>>
 
 			discovered_transformers.push_back(i);
 
-			std::cout << "Transformer: " << i << std::endl;
+			print_module::print(std::cerr, "Transformer: " , i , "\n");
 
 		}
 

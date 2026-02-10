@@ -79,35 +79,9 @@ Functions
 
 void simulated_scheduler()
 {
-	//Call the scheduler to compute the new allocation
-	scheduler->do_schedule(NUM_PROCESSOR_A - 1, false);
 	
-	//Now act as each task: mimic the reschedule process
-	//First, all tasks start their transition (read queue 1 to get wait masks)
-	for (int i = 0; i < scheduler->get_schedule()->count(); i++){
-		TaskData* task = scheduler->get_schedule()->get_task(i);
-		task->start_transition();
-	}
-	
-	//Then all tasks give away processors they're supposed to send
-	//Read from queue 3, write to queue 2
-	for (int i = 0; i < scheduler->get_schedule()->count(); i++){
-		TaskData* task = scheduler->get_schedule()->get_task(i);
-		task->give_processors_to_other_tasks();
-	}
-	
-	//Finally, all tasks receive and acquire processors
-	//Read from queue 2 (may be empty if no transfers needed)
-	for (int i = 0; i < scheduler->get_schedule()->count(); i++){
-		TaskData* task = scheduler->get_schedule()->get_task(i);
-		
-		//get_processors_granted_from_other_tasks() reads all available messages
-		//from queue 2 (non-blocking), returns true when all expected processors received
-		task->get_processors_granted_from_other_tasks();
-		
-		//Acquire whatever processors we received (may be none)
-		task->acquire_all_processors();
-	}
+	scheduler->do_schedule(NUM_PROCESSOR_A - 1, true);
+
 }
 
 //function of pure vanity courtesy of claude
@@ -247,32 +221,95 @@ void simulated_task_start(int task_index, timespec * current_period, timespec * 
 
 bool simulated_reschedule(int task_index, timespec* current_period, timespec* current_work, int* current_mode, timespec* deadline, int* percentile, __uint128_t* processor_A_mask, __uint128_t* processor_B_mask, __uint128_t* processor_C_mask, __uint128_t* processor_D_mask, Schedule* schedule){
 
-	//In the simulator, all handoffs are completed synchronously by simulated_scheduler()
-	//This function just updates the local task state variables
-	
-	// Set up everything to begin as scheduled.
-	*current_period = schedule->get_task(task_index)->get_current_period();
-	*current_work = schedule->get_task(task_index)->get_current_work();
-	*current_mode = schedule->get_task(task_index)->get_current_virtual_mode();
-	*deadline = *current_period;
-	*percentile = schedule->get_task(task_index)->get_percentage_workload();
+	//Fetch the mask of tasks which we are waiting on
+	//(safe to call multiple times)
+	schedule->get_task(task_index)->start_transition();
 
-	//update our cpu mask
-	*processor_A_mask = schedule->get_task(task_index)->get_processor_A_mask();
+	//now fetch any resources which have been granted to us
+	//(will return true when our mask is empty due to all
+	//resources being granted)
+	if (schedule->get_task(task_index)->get_processors_granted_from_other_tasks()){
+		
+		//semantically a bit strange, but we can only give or
+		//take from each pool, so we call this and then call our
+		//giving requirements
 
-	//update our gpu mask
-	*processor_B_mask = schedule->get_task(task_index)->get_processor_B_mask();
+		//finalize the transition of resources to us (we now really own them)
+		schedule->get_task(task_index)->acquire_all_processors();
 
-	//update our cpu C mask
-	*processor_C_mask = schedule->get_task(task_index)->get_processor_C_mask();
+		//transition any resources we are supposed to be giving up
+		schedule->get_task(task_index)->give_processors_to_other_tasks();
 
-	//update our gpu D mask
-	*processor_D_mask = schedule->get_task(task_index)->get_processor_D_mask();
+		// Set up everything to begin as scheduled.
+		*current_period = schedule->get_task(task_index)->get_current_period();
+		*current_work = schedule->get_task(task_index)->get_current_work();
+		*current_mode = schedule->get_task(task_index)->get_current_virtual_mode();
 
-	//mark transition as complete
-	schedule->get_task(task_index)->set_mode_transition(true);
+		//update our cpu mask
+		*processor_A_mask = schedule->get_task(task_index)->get_processor_A_mask();
 
-	return true;
+		//update our gpu mask
+		*processor_B_mask = schedule->get_task(task_index)->get_processor_B_mask();
+
+		//update our cpu C mask
+		*processor_C_mask = schedule->get_task(task_index)->get_processor_C_mask();
+
+		//update our gpu D mask
+		*processor_D_mask = schedule->get_task(task_index)->get_processor_D_mask();
+
+		std::ostringstream reschedule_buffer;
+
+		//all pretty printing crap
+		#ifdef PRETTY_PRINTING
+
+			print_module::buffered_print(reschedule_buffer, "\nTask ", task_index, " finished reschedule:\n");	
+
+			//core A
+			print_module::buffered_print(reschedule_buffer, "Core A Owned: [ ");
+
+			std::bitset<128> cpu_mask(*processor_A_mask);
+			for (int i = 0 ; i < 128; i++)
+				print_module::buffered_print(reschedule_buffer, cpu_mask.test(i) ? std::to_string(i) + " " : "");
+
+			print_module::buffered_print(reschedule_buffer, "]\n");
+
+			//core B
+			print_module::buffered_print(reschedule_buffer, "Core B Owned: [ ");
+
+			std::bitset<128> gpu_mask(*processor_B_mask);
+			for (int i = 0 ; i < 128; i++)
+				print_module::buffered_print(reschedule_buffer, gpu_mask.test(i) ? std::to_string(i) + " " : "");
+
+			print_module::buffered_print(reschedule_buffer, "]\n");
+
+			//core C
+			print_module::buffered_print(reschedule_buffer, "Core C Owned: [ ");
+
+			std::bitset<128> cpu_C_mask(*processor_C_mask);
+			for (int i = 0 ; i < 128; i++)
+				print_module::buffered_print(reschedule_buffer, cpu_C_mask.test(i) ? std::to_string(i) + " " : "");
+
+			print_module::buffered_print(reschedule_buffer, "]\n");
+
+			//core D
+			print_module::buffered_print(reschedule_buffer, "Core D Owned: [ ");
+
+			std::bitset<128> gpu_D_mask(*processor_D_mask);
+			for (int i = 0 ; i < 128; i++)
+				print_module::buffered_print(reschedule_buffer, gpu_D_mask.test(i) ? std::to_string(i) + " " : "");
+
+			print_module::buffered_print(reschedule_buffer, "]\n");
+
+			print_module::flush(std::cerr, reschedule_buffer);
+
+		#endif
+
+		return true;
+
+	}
+
+	return false;
+
 }
 
 
@@ -303,10 +340,10 @@ void scheduler_task()
 			//lock the scheduler so no other task can request a reschedule
 			rescheduling_lock->lock();
 
-			bool has_handoff = scheduler->do_schedule(NUM_PROCESSOR_A - 1, false);
+			int has_handoff = scheduler->do_schedule(NUM_PROCESSOR_A - 1, false);
 
 			if (!has_handoff){
-				std::cout << "No handoff, rerunning scheduler" << std::endl;
+				print_module::print(std::cerr, "No handoff, rerunning scheduler\n");
 			}
 
 			needs_scheduling = false;
@@ -327,7 +364,7 @@ void scheduler_task()
 			}
 
 			//if we had no handoff, we need to rerun the scheduler
-			if (!has_handoff){
+			if (has_handoff == 0){
 
 				scheduler->do_schedule(NUM_PROCESSOR_A - 1, true);
 				killpg(process_group, SIGRTMIN+1);
@@ -347,6 +384,73 @@ void scheduler_task()
 				}
 
 			}
+
+			else if (has_handoff == 2){
+
+				print_module::print(std::cerr, "System not schedulable. Attempting mode slamming fallback...\n");
+				
+				// Save current cooperative states and modes
+				std::vector<bool> original_cooperative_states;
+				std::vector<int> original_modes;
+				
+				for (int i = 0; i < scheduler->get_schedule()->count(); i++){
+					TaskData* task = scheduler->get_schedule()->get_task(i);
+					original_cooperative_states.push_back(task->cooperative());
+					original_modes.push_back(task->get_current_virtual_mode());
+				}
+				
+				// Mode slamming: set cooperative tasks to uncooperative and put them in dominated modes
+				for (int i = 0; i < scheduler->get_schedule()->count(); i++){
+					TaskData* task = scheduler->get_schedule()->get_task(i);
+					
+					if (task->cooperative()){
+						// Set task to uncooperative
+						task->set_cooperative(false);
+						
+						// Put task in its dominated mode if it has one
+						int dominated_mode = task->get_dominated_mode();
+						if (dominated_mode != -1){
+							task->set_current_virtual_mode(dominated_mode, true);
+							print_module::print(std::cerr, "Task " , i , " (cooperative) set to dominated mode " , dominated_mode , "\n");
+						}
+						else {
+							print_module::print(std::cerr, "Task " , i , " (cooperative) has no dominated mode, keeping current mode\n");
+						}
+					}
+					// Uncooperative tasks keep their requested modes (already set)
+				}
+				
+			// Try scheduling again with mode slamming configuration (this is the actual reschedule)
+			print_module::print(std::cerr, "Attempting reschedule with mode slamming...\n");
+			int mode_slam_result = scheduler->do_schedule(NUM_PROCESSOR_A - 1, false);
+			
+			if (mode_slam_result != 2) {
+				// Mode slamming worked! Signal tasks to transition
+				print_module::print(std::cerr, "Mode slamming succeeded! System is schedulable.\n");
+				killpg(process_group, SIGRTMIN+1);
+				
+				// Wait for all tasks to finish transitioning
+				for (int i = 0; i < scheduler->get_schedule()->count(); i++){
+					while(scheduler->get_schedule()->get_task(i)->check_mode_transition() == false){
+						get_time(&cur_time);
+						if (cur_time > end_time)
+							break;
+					}
+				}
+			}
+			else {
+				// Mode slamming failed - restore original cooperative states
+				print_module::print(std::cerr, "Mode slamming failed. Restoring original task states.\n");
+
+			}
+
+			for (int i = 0; i < scheduler->get_schedule()->count(); i++){
+				TaskData* task = scheduler->get_schedule()->get_task(i);
+				task->set_cooperative(original_cooperative_states[i]);
+				task->set_current_virtual_mode(original_modes[i], false);
+			}
+
+		}
 
 			//unlock the scheduler so other tasks can request a reschedule
 			rescheduling_lock->unlock();

@@ -201,7 +201,7 @@ public:
 
 	void generate_unsafe_combinations(size_t maxCPU = NUM_PROCESSOR_A - 1);
 
-	bool do_schedule(size_t maxCPU, bool rerunning = false);
+	int do_schedule(size_t maxCPU, bool rerunning = false);
 
 	std::vector<int> sort_classes(std::vector<int> items_in_candidate);
 

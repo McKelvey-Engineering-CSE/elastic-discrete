@@ -113,7 +113,7 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int* task_table, doubl
 	//initialize the loopback variables
 	for (int i = 1; i <= num_tasks; i++){
 
-		if (uncooperative_tasks[i - 1] != -1)
+		if (uncooperative_tasks[i - 1] != ~0)
 			loopback_indices[loopback_back--] = i;
 		else
 			loopback_indices[loopback_front++] = i;
@@ -135,11 +135,12 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int* task_table, doubl
 		int j_start = 0;
 		int j_end = MAXMODES;
 
-		//check if it is cooperative
-		int desired_state = -1;
-
-		if (uncooperative_tasks[group_idx - 1] != -1)
-			desired_state = uncooperative_tasks[group_idx - 1];
+		//check if task has mode restrictions
+		// uncooperative_tasks stores a bitmask:
+		// - Bit N = 1 means mode N IS allowed
+		// - Bit N = 0 means mode N is NOT allowed
+		// - Default ~0 (all bits set) means all modes allowed
+		int allowed_modes_mask = uncooperative_tasks[group_idx - 1];
 	
 		//for each pass we are supposed to do
 		for (int k = 0; k < pass_count; k++){
@@ -188,19 +189,13 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int* task_table, doubl
 				int current_item_cores_D = constant_task_table[(group_idx - 1) * MAXMODES * 5 + j * 5 + 3];
 				int current_item_real_mode = constant_task_table[(group_idx - 1) * MAXMODES * 5 + j * 5 + 4];
 
-				if (desired_state != -1){
-					   
-					//this means we have a desired state we must stay in
-					if (desired_state > -1)
-						if (current_item_real_mode != desired_state)
-							continue;
-
-					//this means we have a desired state that we must not go below
-					else {
-						if (current_item_real_mode < (desired_state * -1) - 1)
-							continue;
+				// Check if this mode is allowed based on the bitmask
+				// If the bit for this mode is 0, it's not allowed
+				if (current_item_real_mode >= 0 && current_item_real_mode < 32){
+					if ((allowed_modes_mask & (1u << current_item_real_mode)) == 0){
+						// This mode is NOT allowed (bit is 0), skip it
+						continue;
 					}
-
 				}
 
 				//check the change in processors
@@ -303,6 +298,24 @@ HOST_DEVICE_GLOBAL void device_do_schedule(int num_tasks, int* task_table, doubl
 		__syncthreads();
 
 	#endif
+
+	//DEBUG: Print all values in the last layer of DP table
+	/*if (HOST_DEVICE_THREAD_IDX < 1){
+		printf("\n========== DEBUG: Last Layer DP Values ==========\n");
+		for (int a = 0; a <= clamped_max_A; a++) {
+			for (int b = 0; b <= clamped_max_B; b++) {
+				for (int c = 0; c <= clamped_max_C; c++) {
+					for (int d = 0; d <= clamped_max_D; d++) {
+						float loss_val = shared_dp_two[num_tasks & 1][a][b][c][d];
+						if (loss_val < 100000) {  // Only print valid solutions
+							printf("DP[%d][%d][%d][%d] = %.6f\n", a, b, c, d, loss_val);
+						}
+					}
+				}
+			}
+		}
+		printf("========== END DEBUG ==========\n\n");
+	} */
 
 	//to get the final answer, start at the end and work backwards, taking the j values
 	if (HOST_DEVICE_THREAD_IDX < 1){

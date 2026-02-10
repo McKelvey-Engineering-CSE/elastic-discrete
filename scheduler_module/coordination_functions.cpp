@@ -68,7 +68,7 @@ TaskData * Scheduler::add_task(double elasticity_,  int num_modes_, timespec * w
 			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - (taskData_object->get_work(j) / taskData_object->get_period(j)), 2)));// * 1000;
 		
 		else 
-			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - ((taskData_object->get_work(j) / taskData_object->get_period(j)) + (taskData_object->get_processor_B_work(j) / taskData_object->get_period(j))), 2)));// * 1000;
+			item.cpuLoss = (1.0 / taskData_object->get_elasticity() * (std::pow(taskData_object->get_max_utilization() - ((taskData_object->get_work(j) / taskData_object->get_period(j)) + (taskData_object->get_processor_B_work(j) / taskData_object->get_period(j)) + (taskData_object->get_processor_C_work(j) / taskData_object->get_period(j)) + (taskData_object->get_processor_D_work(j) / taskData_object->get_period(j))), 2)));// * 1000;
 
 		std::cout << "Mode "<< j << " Loss: " << item.cpuLoss << " Processor A: " << taskData_object->get_processors_A(j) << " Processor B: " << taskData_object->get_processors_B(j) << " Processor C: " << taskData_object->get_processors_C(j) << " Processor D: " << taskData_object->get_processors_D(j) << std::endl;
 
@@ -115,7 +115,7 @@ enabled, runs the CUDA version of the scheduler. It also builds
 the RAG and executes it if a solution is found
 
 *************************************************************/
-bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
+int Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 
 	//lock the scheduler mutex
 	scheduler_running = true;
@@ -293,7 +293,7 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 
 			if (((previous_modes.at(i).processors_A) != (int) task_owned_cpus.size())){
 				
-				std::cout << "Processor A Count Mismatch. Process:" << i << " | Processor A assigned: " << previous_modes.at(i).processors_A << " | Processor A found: " << task_owned_cpus.size() << " | Cannot Continue" << std::endl;
+				print_module::print(std::cerr, "Processor A Count Mismatch. Process:" , i , " | Processor A assigned: " , previous_modes.at(i).processors_A , " | Processor A found: " , task_owned_cpus.size() , " | Cannot Continue\n");
 				killpg(process_group, SIGINT);
 				return false;
 
@@ -303,7 +303,7 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 
 			if ((previous_modes.at(i).processors_B) != (int) task_owned_gpus.size()){
 
-				std::cout << "Processor B Count Mismatch. Process:" << i << " | Processors B assigned: " << previous_modes.at(i).processors_B << " | Processors B found: " << task_owned_gpus.size() << " | Cannot Continue" << std::endl;
+				print_module::print(std::cerr, "Processor B Count Mismatch. Process:" , i , " | Processors B assigned: " , previous_modes.at(i).processors_B , " | Processors B found: " , task_owned_gpus.size() , " | Cannot Continue\n");
 				killpg(process_group, SIGINT);
 				return false;
 
@@ -313,7 +313,7 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 
 			if ((previous_modes.at(i).processors_C) != (int) task_owned_cpus_C.size()){
 
-				std::cout << "Processor C Count Mismatch. Process:" << i << " | Processors C assigned: " << previous_modes.at(i).processors_C << " | Processors C found: " << task_owned_cpus_C.size() << " | Cannot Continue" << std::endl;
+				print_module::print(std::cerr, "Processor C Count Mismatch. Process:" , i , " | Processors C assigned: " , previous_modes.at(i).processors_C , " | Processors C found: " , task_owned_cpus_C.size() , " | Cannot Continue\n");
 				killpg(process_group, SIGINT);
 				return false;
 
@@ -323,7 +323,7 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 
 			if ((previous_modes.at(i).processors_D) != (int) task_owned_gpus_D.size()){
 
-				std::cout << "Processor D Count Mismatch. Process:" << i << " | Processors D assigned: " << previous_modes.at(i).processors_D << " | Processors D found: " << task_owned_gpus_D.size() << " | Cannot Continue" << std::endl;
+				print_module::print(std::cerr, "Processor D Count Mismatch. Process:" , i , " | Processors D assigned: " , previous_modes.at(i).processors_D , " | Processors D found: " , task_owned_gpus_D.size() , " | Cannot Continue\n");
 				killpg(process_group, SIGINT);
 				return false;
 
@@ -340,7 +340,7 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 		//check that the total processors A in the system - the total found is the free count
 		if (((int) maxCPU - total_processors_A) != (int) schedule.get_task(previous_modes.size())->get_processor_A_owned_by_process().size()){
 
-			std::cout << "Processor A Count Mismatch. Total Processor A: " << maxCPU << " | Total Found: " << total_processors_A << " | Free Processor A: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_A_mask()).count() << " | Cannot Continue" << std::endl;
+			print_module::print(std::cerr, "Processor A Count Mismatch. Total Processor A: " , maxCPU , " | Total Found: " , total_processors_A , " | Free Processor A: " , std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_A_mask()).count() , " | Cannot Continue\n");
 			killpg(process_group, SIGINT);
 			return false;
 
@@ -349,7 +349,7 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 		//check that the total processors B in the system - the total found is the free count
 		if (((int) NUM_PROCESSOR_B - total_processors_B) != (int) schedule.get_task(previous_modes.size())->get_processor_B_owned_by_process().size()){
 
-			std::cout << "Processor B Count Mismatch. Total Processors B: " << NUM_PROCESSOR_B << " | Total Found: " << total_processors_B << " | Free Processors B: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_B_mask()).count() << " | Cannot Continue" << std::endl;
+			print_module::print(std::cerr, "Processor B Count Mismatch. Total Processors B: " , NUM_PROCESSOR_B , " | Total Found: " , total_processors_B , " | Free Processors B: " , std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_B_mask()).count() , " | Cannot Continue\n");
 			killpg(process_group, SIGINT);
 			return false;
 
@@ -358,7 +358,7 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 		//check that the total processors C in the system - the total found is the free count
 		if (((int) NUM_PROCESSOR_C - total_processors_C) != (int) schedule.get_task(previous_modes.size())->get_processor_C_owned_by_process().size()){
 
-			std::cout << "Processor C Count Mismatch. Total Processors C: " << NUM_PROCESSOR_C << " | Total Found: " << total_processors_C << " | Free Processors C: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_C_mask()).count() << " | Cannot Continue" << std::endl;
+			print_module::print(std::cerr, "Processor C Count Mismatch. Total Processors C: " , NUM_PROCESSOR_C , " | Total Found: " , total_processors_C , " | Free Processors C: " , std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_C_mask()).count() , " | Cannot Continue\n");
 			killpg(process_group, SIGINT);
 			return false;
 
@@ -367,7 +367,7 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 		//check that the total processors D in the system - the total found is the free count
 		if (((int) NUM_PROCESSOR_D - total_processors_D) != (int) schedule.get_task(previous_modes.size())->get_processor_D_owned_by_process().size()){
 
-			std::cout << "Processor D Count Mismatch. Total Processors D: " << NUM_PROCESSOR_D << " | Total Found: " << total_processors_D << " | Free Processors D: " << std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_D_mask()).count() << " | Cannot Continue" << std::endl;
+			print_module::print(std::cerr, "Processor D Count Mismatch. Total Processors D: " , NUM_PROCESSOR_D , " | Total Found: " , total_processors_D , " | Free Processors D: " , std::bitset<128>(schedule.get_task(previous_modes.size())->get_processor_D_mask()).count() , " | Cannot Continue\n");
 			killpg(process_group, SIGINT);
 			return false;
 
@@ -392,25 +392,25 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 		// Check for overlapping bits using AND
 		// If AND result is non-zero, there are common bits (error condition)
 		if ((current_A_mask & task_i_A_mask) != 0) {
-			std::cout << "Processor A Mask Overlap Detected. Task 0 and Task " << i << " share processor bits. Cannot Continue" << std::endl;
+			print_module::print(std::cerr, "Processor A Mask Overlap Detected. Task 0 and Task " , i , " share processor bits. Cannot Continue\n");
 			killpg(process_group, SIGINT);
 			return false;
 		}
 
 		if ((current_B_mask & task_i_B_mask) != 0) {
-			std::cout << "Processor B Mask Overlap Detected. Task 0 and Task " << i << " share processor bits. Cannot Continue" << std::endl;
+			print_module::print(std::cerr, "Processor B Mask Overlap Detected. Task 0 and Task " , i , " share processor bits. Cannot Continue\n");
 			killpg(process_group, SIGINT);
 			return false;
 		}
 
 		if ((current_C_mask & task_i_C_mask) != 0) {
-			std::cout << "Processor C Mask Overlap Detected. Task 0 and Task " << i << " share processor bits. Cannot Continue" << std::endl;
+			print_module::print(std::cerr, "Processor C Mask Overlap Detected. Task 0 and Task " , i , " share processor bits. Cannot Continue\n");
 			killpg(process_group, SIGINT);
 			return false;
 		}
 
 		if ((current_D_mask & task_i_D_mask) != 0) {
-			std::cout << "Processor D Mask Overlap Detected. Task 0 and Task " << i << " share processor bits. Cannot Continue" << std::endl;
+			print_module::print(std::cerr, "Processor D Mask Overlap Detected. Task 0 and Task " , i , " share processor bits. Cannot Continue\n");
 			killpg(process_group, SIGINT);
 			return false;
 		}
@@ -424,7 +424,7 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 
 	}
 
-	std::cout << "All masks are unique. Continuing." << std::endl;
+	print_module::print(std::cerr, "All masks are unique. Continuing.\n");
 
 	//get current time
 	timespec start_time, end_time;
@@ -437,16 +437,25 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 	//ones are set to be uncooperative. An uncooperative
 	//task is either transitioning or has just permanently
 	//set itself to be uncooperative. Either way, these tasks
-	//are not allowed to change their modes in the knapsack
-	//algorithm. We take note of which tasks are uncooperative
-	//and send them to the device
-	int host_uncooperative[MAXTASKS] = {-1};
-	memset(host_uncooperative, -1, sizeof(int) * MAXTASKS);
+	//are restricted in which modes they can transition to.
+	//We take note of which tasks are uncooperative and send
+	//them to the device
+	//
+	// NOTE: Now using bitmask where each bit represents a mode
+	// Bit N set to 1 means the task CAN transition to mode N (allowed)
+	// Bit N set to 0 means the task CANNOT transition to mode N (not allowed)
+	// Default mask is ~0 (all bits set) = all modes allowed (fully cooperative)
+	int host_uncooperative[MAXTASKS];
+	for (int i = 0; i < MAXTASKS; i++){
+		host_uncooperative[i] = ~0;  // Default: all modes allowed
+	}
 
 	//check if previous uncooperative is available
 	if (previous_uncooperative_tasks == nullptr){
 		previous_uncooperative_tasks = (int*)malloc(sizeof(int) * MAXTASKS);
-
+		for (int i = 0; i < MAXTASKS; i++){
+			previous_uncooperative_tasks[i] = ~0;  // Default: all modes allowed
+		}
 	}
 
 	//loopback variables to ensure we process
@@ -459,10 +468,22 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 
 		//if task is not willing to change it's mode, put it in the back
 		if ((!rerunning && (!(schedule.get_task(i))->get_changeable() || !(schedule.get_task(i))->cooperative())) || 
-			(rerunning && previous_uncooperative_tasks[i] != -1)){
+			(rerunning && previous_uncooperative_tasks[i] != ~0)){
 				
-			if (!first_time)
-				host_uncooperative[i] = schedule.get_task(i)->get_real_current_mode();
+			if (!first_time){ 
+				// Check if task has set a specific mask - that takes precedence
+				if (schedule.get_task(i)->get_uncooperative_modes_mask() != ~0u){
+					// Task has specified exactly which modes it will accept
+					host_uncooperative[i] = schedule.get_task(i)->get_uncooperative_modes_mask();
+					print_module::print(std::cerr, "Task ", i, " is uncooperative with allowed modes mask: 0x", std::hex, host_uncooperative[i], std::dec, "\n");
+				} else {
+					// Task is completely uncooperative - can only stay in current mode
+					// Set ONLY the current mode bit (all other bits are 0 = not allowed)
+					int current_mode = schedule.get_task(i)->get_real_current_mode();
+					host_uncooperative[i] = (1u << current_mode);
+					print_module::print(std::cerr, "Task ", i, " is uncooperative. Can only stay in mode: ", current_mode, " (mask: 0x", std::hex, host_uncooperative[i], std::dec, ")\n");
+				}
+			}
 
 			real_order_of_tasks[loopback_back--] = i;
 
@@ -470,7 +491,18 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 
 		//if task is willing to change it's mode, but is not willing to be a victim, put it in the back
 		else if ((schedule.get_task(i))->victim_prevention()){
-			host_uncooperative[i] = (schedule.get_task(i)->get_real_current_mode() + 1) * -1;
+			// Task can change mode but not go below current mode
+			// Set bits for current mode and all modes above it
+			int current_mode = schedule.get_task(i)->get_real_current_mode();
+			// Clear all bits below current_mode (not allowed), keep current and above
+			host_uncooperative[i] = ~((1u << current_mode) - 1);
+			real_order_of_tasks[loopback_back--] = i;
+		}
+
+		// Check if task has set specific uncooperative modes via bitmask (and is otherwise cooperative)
+		else if (schedule.get_task(i)->get_uncooperative_modes_mask() != ~0u){
+			host_uncooperative[i] = schedule.get_task(i)->get_uncooperative_modes_mask();
+			print_module::print(std::cerr, "Task ", i, " has allowed modes mask: 0x", std::hex, host_uncooperative[i], std::dec, "\n");
 			real_order_of_tasks[loopback_back--] = i;
 		}
 
@@ -618,7 +650,6 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 	
 	else if ((result.size() == 0 || loss == 100001)){
 
-
 		print_module::print(std::cerr, "Error: System is not schedulable in any configuration with specified constraints. Not updating modes.\n");
 
 		for (int i = 0; i < schedule.count(); i++){
@@ -626,7 +657,7 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 			(schedule.get_task(i))->set_mode_transition(false);
 		}
 
-		return false;
+		return 2;
 
 	}
 
@@ -656,7 +687,15 @@ bool Scheduler::do_schedule(size_t maxCPU, bool rerunning){
 	print_module::buffered_print(mode_strings, "\n========================= \n", "New Schedule Layout (virtual/real):\n");
 	for (size_t i = 0; i < result.size(); i++)
 		print_module::buffered_print(mode_strings, "Task ", i, " is now in mode: (", result.at(i), "/", schedule.get_task(i)->get_real_mode(result.at(i)), ")\n");
-	print_module::buffered_print(mode_strings, "Total Loss from Mode Change: ", loss, "\n=========================\n\n");
+	print_module::buffered_print(mode_strings, "Total Loss from Mode Change: ", loss, "\n");
+	
+	// Calculate and print sum of loss for last 3 tasks
+	double last_3_loss = 0.0;
+	for (int i = std::max(0, (int)result.size() - 3); i < (int)result.size(); i++) {
+		last_3_loss += task_table.at(i).at(result.at(i)).cpuLoss;
+	}
+	print_module::buffered_print(mode_strings, "Last 3 Tasks Total Loss: ", last_3_loss, "\n");
+	print_module::buffered_print(mode_strings, "=========================\n\n");
 
 	//print resources now held by each task
 	print_module::buffered_print(mode_strings, "\n========================= \n", "New Resource Layout:\n");

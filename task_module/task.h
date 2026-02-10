@@ -20,6 +20,7 @@ Struct : task_t
 #include <condition_variable>
 #include <mutex>
 #include <atomic>
+#include <stdint.h>
 #include "thread_barrier.h"
 #include <sched.h>
 #include "include.h"
@@ -65,6 +66,13 @@ extern void mimic_simulator(int task_index);
 extern void set_victim_prevention(bool value);
 
 extern int get_previous_mode();
+
+// Functions to manage uncooperative modes bitmask
+extern void set_uncooperative_mode(int mode);
+extern void clear_uncooperative_mode(int mode);
+extern void clear_all_uncooperative_modes();
+extern void set_uncooperative_modes_mask(uint32_t mask);
+extern void set_uncooperative_modes(std::initializer_list<int> modes);
 
 // Used to determine current task and its features.
 extern bool missed_dl;

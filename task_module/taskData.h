@@ -30,6 +30,8 @@ Class : TaskData
 #include <array>
 #include <tuple>
 #include <functional>
+#include <limits.h>
+#include <stdint.h>
 #include "timespec_functions.h"
 #include "include.h"
 #include "print_module.h"
@@ -173,6 +175,12 @@ private:
 
 	int number_of_modes = 0;
 
+	//bitmask for allowed/uncooperative modes (each bit represents a mode)
+	//bit N set to 1 means mode N IS ALLOWED (task can transition to it)
+	//bit N set to 0 means mode N is NOT ALLOWED (task will not accept it)
+	//Default: ~0 (all bits set) means all modes are allowed (fully cooperative)
+	uint32_t uncooperative_modes_mask = ~0u;
+
 	//processor B mask
 	__uint128_t processor_B_mask = 0;
 
@@ -232,6 +240,10 @@ private:
 	int modes_originally_passed;
 
 	int previous_permanent_processor_index = -1;
+
+	//dominated mode is the mode with the fewest processors (A+B+C+D) across all modes
+	//if no such mode exists (i.e., no mode dominates all others), this is set to -1
+	int dominated_mode = -1;
 
 public:
 
@@ -474,6 +486,21 @@ public:
 	void acknowledge_permanent_processor_switch();
 
 	void elect_permanent_processor();
+
+	//getter and setter for dominated mode
+	int get_dominated_mode();
+	void set_dominated_mode(int mode);
+
+	//functions to manage uncooperative modes bitmask
+	void set_uncooperative_mode(int mode);
+	void clear_uncooperative_mode(int mode);
+	void clear_all_uncooperative_modes();
+	bool is_mode_uncooperative(int mode);
+	uint32_t get_uncooperative_modes_mask();
+	void set_uncooperative_modes_mask(uint32_t mask);
+	
+	// Variadic function using initializer list
+	void set_uncooperative_modes(std::initializer_list<int> modes);
 
 };
 

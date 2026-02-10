@@ -1,4 +1,4 @@
-#include "taskData.h"	
+#include "taskData.h"
 
 TaskData::TaskData(){}
 
@@ -148,7 +148,7 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 					//we now have all the processors which are equivalent to A
 					//and can contribute to the first part of the DAG. Calculate
 					//how long it takes to complete the A portion of the DAG
-					double time_to_complete_A = (total_processors_used > 0 ) ? (L_A + ((CpA - L_A) / processor_average)) : 0;
+					double time_to_complete_A = (total_processors_used > 0 ) ? (L_A + ((CpA - L_A) / (processor_average))) : 0;
 
 					//if it's longer than the period, then we can skip ahead
 					if (time_to_complete_A > time_left)
@@ -164,7 +164,7 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 						processor_average = 0;
 						total_processors_used = 0;
 
-						for (int i = 1; i < 4; i++){
+						for (int i = 0; i < 4; i++){
 
 							if (std::get<0>(equivalent_vector[i]) == 1){
 								
@@ -199,7 +199,7 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 						//we now have all the processors which are equivalent to B
 						//and can contribute to the first part of the DAG. Calculate
 						//how long it takes to complete the B portion of the DAG
-						double time_to_complete_B = (total_processors_used > 0 ) ? L_B + ((CpB - L_B) / ((processor_average / total_processors_used) * (total_processors_used))) : 0;
+						double time_to_complete_B = (total_processors_used > 0 ) ? L_B + ((CpB - L_B) / (processor_average)) : 0;
 
 						//if it's longer than the period, then we can skip ahead
 						if (time_to_complete_B > time_left)
@@ -216,11 +216,9 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 						processor_average = 0;
 						total_processors_used = 0;
 
-						for (int i = 2; i < 4; i++){
+						for (int i = 0; i < 4; i++){
 
 							if (std::get<0>(equivalent_vector[i]) == 2){
-								
-								processor_average += std::get<1>(equivalent_vector[i]);
 								
 								switch (i){
 
@@ -253,7 +251,7 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 						//we now have all the processors which are equivalent to C
 						//and can contribute to the first part of the DAG. Calculate
 						//how long it takes to complete the C portion of the DAG
-						double time_to_complete_C = (total_processors_used > 0 ) ? L_C + ((CpC - L_C) / ((processor_average / total_processors_used) * (total_processors_used))) : 0;
+						double time_to_complete_C = (total_processors_used > 0 ) ? L_C + ((CpC - L_C) / (processor_average)) : 0;
 
 						//if it's longer than the period, then we can skip ahead
 						if (time_to_complete_C > time_left)
@@ -270,11 +268,9 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 						processor_average = 0;
 						total_processors_used = 0;
 
-						for (int i = 3; i < 4; i++){
+						for (int i = 0; i < 4; i++){
 
 							if (std::get<0>(equivalent_vector[i]) == 3){
-								
-								processor_average += std::get<1>(equivalent_vector[i]);
 								
 								switch (i){
 
@@ -310,7 +306,7 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 						//we now have all the processors which are equivalent to D
 						//and can contribute to the first part of the DAG. Calculate
 						//how long it takes to complete the D portion of the DAGs
-						double time_to_complete_D = (total_processors_used > 0 ) ? L_D + ((CpD - L_D) / ((processor_average / total_processors_used) * (total_processors_used))) : 0;
+						double time_to_complete_D = (total_processors_used > 0 ) ? L_D + ((CpD - L_D) / (processor_average)) : 0;
 
 						//if it's longer than the period, then we can skip ahead
 						if (time_to_complete_D > time_left){
@@ -344,8 +340,10 @@ static std::vector<std::tuple<int,int,int,int>> computeModeResources(double CpA,
 	//a bool vector to keep track of dead entries
 	std::vector<bool> dead_entries(valid_combinations.size(), false);
 
-	//FIXME: COND_VEC NEEDS TO BE PASSED IN
-	int cond_vec[4] = {1,1,0,0};
+	//Pretty sure this is not even needed anymore
+	//but I'm leaving it here for if I feel like 
+	//imposing minimum limits in the future
+	int cond_vec[4] = {1,0,0,0};
 
 	//remove all combinations (mark as dead) which do not meet
 	//the minimum held processors requirement
@@ -782,6 +780,47 @@ TaskData::TaskData(double elasticity_,  int num_modes_, timespec * work_, timesp
 	current_processors_B = min_processors_B;
 	current_processors_C = min_processors_C;
 	current_processors_D = min_processors_D;
+
+	//find the dominated mode (mode with fewest processors across all types)
+	//a mode dominates all others if it has <= processors in each category (A, B, C, D)
+	//compared to all other modes. If such a mode exists, store its index.
+	//If no such mode exists, dominated_mode remains -1
+	dominated_mode = -1;
+	
+	for (int i = 0; i < num_modes; i++){
+		
+		//check if this mode has fewer or equal processors in each category compared to all other modes
+		bool dominates_all = true;
+		for (int j = 0; j < num_modes; j++){
+			if (i != j){
+				//if this mode has more processors in any category than mode j, it doesn't dominate
+				if (processors_A[i] > processors_A[j] || 
+					processors_B[i] > processors_B[j] || 
+					processors_C[i] > processors_C[j] || 
+					processors_D[i] > processors_D[j]){
+					dominates_all = false;
+					break;
+				}
+			}
+		}
+		
+		//if this mode dominates all others, record it and break
+		//there should only be one such mode (or none)
+		if (dominates_all){
+			dominated_mode = i;
+			break;
+		}
+	}
+
+	if (dominated_mode != -1){
+		print_module::print(std::cout, "Task ", index, " has dominated mode ", dominated_mode, 
+			" with processors: A=", processors_A[dominated_mode], 
+			", B=", processors_B[dominated_mode], 
+			", C=", processors_C[dominated_mode], 
+			", D=", processors_D[dominated_mode], "\n");
+	} else {
+		print_module::print(std::cout, "Task ", index, " has no dominated mode.\n");
+	}
 
 	//clear the tables so I can actually read them when needed
 	for (int i  = 0; i < MAXTASKS + 1; i++){
@@ -2049,4 +2088,63 @@ void TaskData::elect_permanent_processor(){
 
 	}
 
+}
+
+int TaskData::get_dominated_mode(){
+	return dominated_mode;
+}
+
+void TaskData::set_dominated_mode(int mode){
+	dominated_mode = mode;
+}
+
+void TaskData::set_uncooperative_mode(int mode){
+	// When setting allowed modes, we start fresh with only specified modes
+	// First call clears all bits, then sets only the specified mode
+	if (uncooperative_modes_mask == ~0u){
+		uncooperative_modes_mask = 0;
+	}
+	if (mode >= 0 && mode < 32){
+		uncooperative_modes_mask |= (1u << mode);
+	}
+}
+
+void TaskData::clear_uncooperative_mode(int mode){
+	// Clear the bit for this mode (make it not allowed)
+	if (mode >= 0 && mode < 32){
+		uncooperative_modes_mask &= ~(1u << mode);
+	}
+}
+
+void TaskData::clear_all_uncooperative_modes(){
+	// Return to fully cooperative - all modes allowed
+	uncooperative_modes_mask = ~0u;
+}
+
+bool TaskData::is_mode_uncooperative(int mode){
+	// Check if the bit is set (bit=1 means allowed)
+	if (mode >= 0 && mode < 32){
+		return (uncooperative_modes_mask & (1u << mode)) != 0;
+	}
+	return false;
+}
+
+uint32_t TaskData::get_uncooperative_modes_mask(){
+	return uncooperative_modes_mask;
+}
+
+void TaskData::set_uncooperative_modes_mask(uint32_t mask){
+	uncooperative_modes_mask = mask;
+}
+
+void TaskData::set_uncooperative_modes(std::initializer_list<int> modes){
+	// Start fresh - clear all bits (no modes allowed)
+	uncooperative_modes_mask = 0;
+	
+	// Set bits for each mode
+	for (int mode : modes){
+		if (mode >= 0 && mode < 32){
+			uncooperative_modes_mask |= (1u << mode);
+		}
+	}
 }

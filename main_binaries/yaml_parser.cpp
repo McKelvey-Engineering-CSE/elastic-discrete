@@ -411,7 +411,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 		if (has_modes){
 
 			for (YAML::Node mode : task["modes"]) {
-				if (!yaml_is_time(mode["work_A"]) || !yaml_is_time(mode["span_A"]) || !yaml_is_time(mode["period"])) {
+				// Period is always required
+				if (!yaml_is_time(mode["period"])) {
 					return -6;
 				}
 
@@ -427,15 +428,30 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 				else
 					strcpy(mode_info.mode_type, "heavy");
 
-				mode_info.work_sec = mode["work_A"]["sec"].as<int>();
-				mode_info.work_nsec = mode["work_A"]["nsec"].as<int>();
-				mode_info.span_sec = mode["span_A"]["sec"].as<int>();
-				mode_info.span_nsec = mode["span_A"]["nsec"].as<int>();
+				// Handle work_A and span_A - they may not be present if A is equivalent to another processor
+				// and no actual work is done on A cores. In this case, set them to 0.
+				bool has_work_A = yaml_is_time(mode["work_A"]) && yaml_is_time(mode["span_A"]);
+				if (has_work_A) {
+					mode_info.work_sec = mode["work_A"]["sec"].as<int>();
+					mode_info.work_nsec = mode["work_A"]["nsec"].as<int>();
+					mode_info.span_sec = mode["span_A"]["sec"].as<int>();
+					mode_info.span_nsec = mode["span_A"]["nsec"].as<int>();
+				} else {
+					// No work_A/span_A specified - set to 0
+					// The TaskData structure will use the equivalence vector to determine
+					// which processors can actually execute this work
+					mode_info.work_sec = 0;
+					mode_info.work_nsec = 0;
+					mode_info.span_sec = 0;
+					mode_info.span_nsec = 0;
+				}
+				
 				mode_info.period_sec = mode["period"]["sec"].as<int>();
 				mode_info.period_nsec = mode["period"]["nsec"].as<int>();
 
 				//check for GPU params
-				if (yaml_is_time(mode["work_B"]) && yaml_is_time(mode["span_B"])){
+				bool has_work_B = yaml_is_time(mode["work_B"]) && yaml_is_time(mode["span_B"]);
+				if (has_work_B){
 
 					mode_info.gpu_work_sec = mode["work_B"]["sec"].as<int>();
 					mode_info.gpu_work_nsec = mode["work_B"]["nsec"].as<int>();
@@ -445,7 +461,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 				}
 
 				//check for CPU C params
-				if (yaml_is_time(mode["work_C"]) && yaml_is_time(mode["span_C"])){
+				bool has_work_C = yaml_is_time(mode["work_C"]) && yaml_is_time(mode["span_C"]);
+				if (has_work_C){
 
 					mode_info.cpu_C_work_sec = mode["work_C"]["sec"].as<int>();
 					mode_info.cpu_C_work_nsec = mode["work_C"]["nsec"].as<int>();
@@ -455,13 +472,41 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 				}
 
 				//check for GPU D params
-				if (yaml_is_time(mode["work_D"]) && yaml_is_time(mode["span_D"])){
+				bool has_work_D = yaml_is_time(mode["work_D"]) && yaml_is_time(mode["span_D"]);
+				if (has_work_D){
 
 					mode_info.gpu_D_work_sec = mode["work_D"]["sec"].as<int>();
 					mode_info.gpu_D_work_nsec = mode["work_D"]["nsec"].as<int>();
 					mode_info.gpu_D_span_sec = mode["span_D"]["sec"].as<int>();
 					mode_info.gpu_D_span_nsec = mode["span_D"]["nsec"].as<int>();
 
+				}
+
+				// Validate that at least one processor type has work/span defined
+				if (!has_work_A && !has_work_B && !has_work_C && !has_work_D) {
+					print_module::print(std::cerr, "ERROR: Mode must have at least one processor type with work and span defined (work_A/span_A, work_B/span_B, work_C/span_C, or work_D/span_D).\n");
+					return -6;
+				}
+
+				// Validate equivalence consistency: if processor A has no work but is referenced 
+				// in the equivalence vector, it must be equivalent to a processor type that has work
+				if (!has_work_A && task_info.processor_A_type != 0) {
+					
+					if (task_info.processor_A_type == 1 && !has_work_B) {
+						print_module::print(std::cerr, "ERROR: Processor A has no work/span defined but processor_equivalence indicates B is equivalent to A. A must have work defined or be equivalent to a processor type that does (e.g., A: 2B if work_B is defined).\n");
+						return -6;
+					}
+
+					if (task_info.processor_A_type == 2 && !has_work_C) {
+						print_module::print(std::cerr, "ERROR: Processor A has no work/span defined but processor_equivalence indicates C is equivalent to A. A must have work defined or be equivalent to a processor type that does (e.g., A: 2C if work_C is defined).\n");
+						return -6;
+					}
+
+					if (task_info.processor_A_type == 3 && !has_work_D) {
+						print_module::print(std::cerr, "ERROR: Processor A has no work/span defined but processor_equivalence indicates D is equivalent to A. A must have work defined or be equivalent to a processor type that does (e.g., A: 2D if work_D is defined).\n");
+						return -6;
+					}
+					
 				}
 
 				task_info.modes.push_back(mode_info);
@@ -474,7 +519,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 			std::vector<struct parsed_task_mode_info> elastic_ranges;
 
 			for (YAML::Node mode : task["ranges"]) {
-				if (!yaml_is_time(mode["work_A"]) || !yaml_is_time(mode["span_A"]) || !yaml_is_time(mode["period"])) {
+				// Period is always required
+				if (!yaml_is_time(mode["period"])) {
 					return -6;
 				}
 
@@ -490,15 +536,30 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 				else
 					strcpy(mode_info.mode_type, "heavy");
 
-				mode_info.work_sec = mode["work_A"]["sec"].as<int>();
-				mode_info.work_nsec = mode["work_A"]["nsec"].as<int>();
-				mode_info.span_sec = mode["span_A"]["sec"].as<int>();
-				mode_info.span_nsec = mode["span_A"]["nsec"].as<int>();
+				// Handle work_A and span_A - they may not be present if A is equivalent to another processor
+				// and no actual work is done on A cores. In this case, set them to 0.
+				bool has_work_A = yaml_is_time(mode["work_A"]) && yaml_is_time(mode["span_A"]);
+				if (has_work_A) {
+					mode_info.work_sec = mode["work_A"]["sec"].as<int>();
+					mode_info.work_nsec = mode["work_A"]["nsec"].as<int>();
+					mode_info.span_sec = mode["span_A"]["sec"].as<int>();
+					mode_info.span_nsec = mode["span_A"]["nsec"].as<int>();
+				} else {
+					// No work_A/span_A specified - set to 0
+					// The TaskData structure will use the equivalence vector to determine
+					// which processors can actually execute this work
+					mode_info.work_sec = 0;
+					mode_info.work_nsec = 0;
+					mode_info.span_sec = 0;
+					mode_info.span_nsec = 0;
+				}
+				
 				mode_info.period_sec = mode["period"]["sec"].as<int>();
 				mode_info.period_nsec = mode["period"]["nsec"].as<int>();
 
 				//check for GPU params
-				if (yaml_is_time(mode["work_B"]) && yaml_is_time(mode["span_B"])){
+				bool has_work_B = yaml_is_time(mode["work_B"]) && yaml_is_time(mode["span_B"]);
+				if (has_work_B){
 
 					mode_info.gpu_work_sec = mode["work_B"]["sec"].as<int>();
 					mode_info.gpu_work_nsec = mode["work_B"]["nsec"].as<int>();
@@ -522,7 +583,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 				}
 
 				//check for CPU C params
-				if (yaml_is_time(mode["work_C"]) && yaml_is_time(mode["span_C"])){
+				bool has_work_C = yaml_is_time(mode["work_C"]) && yaml_is_time(mode["span_C"]);
+				if (has_work_C){
 
 					mode_info.cpu_C_work_sec = mode["work_C"]["sec"].as<int>();
 					mode_info.cpu_C_work_nsec = mode["work_C"]["nsec"].as<int>();
@@ -546,7 +608,8 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 				}
 
 				//check for GPU D params
-				if (yaml_is_time(mode["work_D"]) && yaml_is_time(mode["span_D"])){
+				bool has_work_D = yaml_is_time(mode["work_D"]) && yaml_is_time(mode["span_D"]);
+				if (has_work_D){
 
 					mode_info.gpu_D_work_sec = mode["work_D"]["sec"].as<int>();
 					mode_info.gpu_D_work_nsec = mode["work_D"]["nsec"].as<int>();
@@ -567,6 +630,25 @@ int read_scheduling_yaml_file(std::ifstream &ifs,
 						mode_info.gpu_D_period_nsec = mode_info.period_nsec;
 					}
 
+				}
+
+				// Validate that at least one processor type has work/span defined
+				if (!has_work_A && !has_work_B && !has_work_C && !has_work_D) {
+					print_module::print(std::cerr, "ERROR: Range must have at least one processor type with work and span defined (work_A/span_A, work_B/span_B, work_C/span_C, or work_D/span_D).\n");
+					return -6;
+				}
+
+				// Validate equivalence consistency: if processor A has no work but is referenced 
+				// in the equivalence vector, it must be equivalent to a processor type that has work
+				if (!has_work_A && task_info.processor_A_type == 0) {
+					// A has no work and is equivalent to itself - check if any other processor is equivalent to A
+					bool some_processor_uses_A = (task_info.processor_B_type == 0) || 
+					                              (task_info.processor_C_type == 0) || 
+					                              (task_info.processor_D_type == 0);
+					if (some_processor_uses_A) {
+						print_module::print(std::cerr, "ERROR: Processor A has no work/span defined but processor_equivalence indicates other processors are equivalent to A. A must have work defined or be equivalent to a processor type that does (e.g., A: 2B if work_B is defined).\n");
+						return -6;
+					}
 				}
 
 				elastic_ranges.push_back(mode_info);
