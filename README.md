@@ -243,12 +243,34 @@ int get_current_mode();
 
 // Set cooperative behavior
 void set_cooperative(bool cooperative);
+
+//companion function to call after setting self
+//cooperative if you want to possibly hand off
+//resources
+void allow_change();
+
+//gets the mode you were in previously
+int get_previous_mode();
+
+//set uncooperative behavior
+void set_uncooperative_modes_mask(uint32_t mask);
+void set_uncooperative_modes(std::initializer_list<int> modes);
+
+//allows clearing of the mask or list without removing
+//your uncooperative status
+void clear_all_uncooperative_modes();
+
 ```
 
 **Function Descriptions:**
 - **`modify_self(int new_mode)`**: Requests a mode change and triggers a reallocation of system resources to enable the mode change for the requesting task
 - **`get_current_mode()`**: Returns the mode the system has acknowledged the task is in (this is important since what mode the system thinks the task is in is all that really matters - if the system doesn't know a task is in a specific mode, it won't allocate resources for that mode)
 - **`set_cooperative(bool cooperative)`**: Marks whether the task is willing to have its mode lowered to a lower utilization mode to free up resources for another task which is requesting resources for its own mode change
+- **`allow_change()`**: Call this function to force the scheduler to make a new reschedule calculation after you become cooperative again. When uncooperative, the scheduler keeps you in a set of specific modes regardless of what configuration is best for the system objective. This tells the scheduler "you can optimize the system once again without me refusing to change"
+- **`get_previous_mode()`**: Returns the mode you were in during the last reschedule.
+- **`set_uncooperative_modes_mask(uint32_t mask)`**: specifies a set of modes that you are willing to execute in. This is the mask-providing form where a single int is supplied as a bitmask, marking the modes you are willing to execute in via setting their bit to 1.
+- **`set_uncooperative_modes(std::initializer_list<int> modes)`**: Same behavior as `set_uncooperative_modes_mask(uint32_t mask)`, but instead of a mask, you can specify the index of the modes directly as an input list.
+- **`clear_all_uncooperative_modes()`**: clears the modes list/mask without removing you from uncooperative.
 
 ### Task Variables
 ```cpp
