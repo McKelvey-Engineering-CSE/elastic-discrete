@@ -3,7 +3,7 @@
 [![C++](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://isocpp.org/std/the-standard)
 [![CUDA](https://img.shields.io/badge/CUDA-Supported-green.svg)](https://developer.nvidia.com/cuda-zone)
 
-**Last updated:** 15 October 2025 by Tyler Martin
+**Last updated:** 19 February 2026 by Tyler Martin
 
 ## Table of Contents
 - [Overview](#overview)
@@ -157,7 +157,7 @@ When you specify that a processor is equivalent to processor A for a given task 
 3. **Optimizes Allocation**: Generates safe core allocations for each processor type
 4. **Accounts for Heterogeneity**: Considers performance differences when scheduling
 
-The scheduler does this for each task by looking at it's processor_equivalence field. This is done so that each task can specify what processors it sees as equivalent. For one task, maybe the GPU and CPU can make forward progress on the same work and therefore are equivalent, but not for another task. This ensures each task can specify how it wants to be treated.
+The scheduler does this for each task by looking at it's processor_equivalence field. This is done so that each task can specify what processors it sees as equivalent. For one task, maybe the GPU and CPU can make forward progress on the same work and therefore are equivalent, but not for another task. This ensures each task can specify how it wants to be treated. NOTE: When a processors is marked as equivalent with processor "A", the scheduler will still force each task to hold 1 processor from A. This is due to how OMP behaves when migrating it's primary thread, and keeping it parked is the best solution.
 
 ### Example Use Case
 For a system with:
@@ -229,7 +229,7 @@ tasks:
 
 ### Execution Modes
 - **Real Mode**: Tasks run as actual processes with real work
-- **Simulation Mode**: Tasks are simulated for fast testing and debugging
+- **Simulation Mode**: Tasks are simulated for fast testing and debugging (**`Should`** still work but is deprecated)
 
 ## API Reference
 
@@ -337,16 +337,5 @@ make all
 The Makefile automatically detects your environment:
 - **CUDA Available**: Compiles with GPU acceleration
 - **CUDA Not Available**: Falls back to CPU-only compilation
-
-## Testing
-
-### Running Tests
-```bash
-cd testing_module/bin/
-./clustering_launcher ./james.yaml
-```
-
-Starts a test configuration with a heterogeneous system comprised of 16 A cores, 16 B cores and 1 accelerator C. Spawns tasks which pretend to work via spinning with their resources and request mode changes as they execute.
-
 
 **Note**: This is a research-grade system designed for heterogeneous real-time computing. For production use, additional testing and validation may be required.
