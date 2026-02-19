@@ -134,9 +134,9 @@ int run(int argc, char *argv[]){
         
     }
 
-    const int instigation_time[] = {3, 5, 7, 11, 13};
+    const int instigation_time[] = {300, 500, 700, 1100, 1300};
 
-    if (task_index < 5){
+    if (task_index < 2){
 
         if (iterations_complete % instigation_time[task_index] == 0){
 

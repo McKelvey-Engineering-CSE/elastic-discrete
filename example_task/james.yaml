@@ -3,189 +3,128 @@ schedulable: true
 explicit_sync: false
 maxRuntime: {sec: 60, nsec: 0}
 processor_topology: {A: A, B: A, C: C, D: D}
-processor_count: {A: 8, B: 2, C: 16, D: 1}
+processor_count: {A: 8, B: 1, C: 8, D: 1}
 tasks:
   - program:
       name: james
-      args: "0 514285 2 10"
-    elasticity: 5
-    processor_equivalence: {A: 1A, B: 0.3A, C: 1.75A, D: 1D}
+      args: "0 928571 2 10"
+    elasticity: 1
+    processor_equivalence: {A: 1A, B: 1B, C: 1C, D: 1D}
     modes:
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
+      - work_A: {sec: 0, nsec: 1590000}
+        span_A: {sec: 0, nsec: 103828}
         period: {sec: 0, nsec: 1000000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 1250000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 1500000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 1750000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 2000000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 2250000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 2500000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 2750000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3000000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3250000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3500000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3750000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 4000000}
-
+      - work_A: {sec: 0, nsec: 2590000}
+        span_A: {sec: 0, nsec: 207656}
+        period: {sec: 0, nsec: 1000000}
 
   - program:
       name: james
-      args: "1 514285 2 10"
-    elasticity: 5
-    processor_equivalence: {A: 1A, B: 0.3A, C: 1.75A, D: 1D}
+      args: "1 928571 2 10"
+    elasticity: 2
+    processor_equivalence: {A: 1A, B: 1B, C: 1C, D: 1D}
     modes:
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
+      - work_A: {sec: 0, nsec: 4192500}
+        span_A: {sec: 0, nsec: 155742}
+        work_C: {sec: 0, nsec: 1452000}
+        span_C: {sec: 0, nsec: 1989}
         period: {sec: 0, nsec: 1000000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 1250000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 1500000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 1750000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
+      - work_A: {sec: 0, nsec: 4192500}
+        span_A: {sec: 0, nsec: 155742}
+        work_C: {sec: 0, nsec: 1452000}
+        span_C: {sec: 0, nsec: 1989}
         period: {sec: 0, nsec: 2000000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 2250000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 2500000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 2750000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3000000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3250000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3500000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3750000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
+      - work_A: {sec: 0, nsec: 4192500}
+        span_A: {sec: 0, nsec: 155742}
+        work_C: {sec: 0, nsec: 1452000}
+        span_C: {sec: 0, nsec: 1989}
+        period: {sec: 0, nsec: 4000000}
+      - work_A: {sec: 0, nsec: 1397500}
+        span_A: {sec: 0, nsec: 51914}
+        work_C: {sec: 0, nsec: 484000}
+        span_C: {sec: 0, nsec: 663}
+        period: {sec: 0, nsec: 1000000}
+      - work_A: {sec: 0, nsec: 1397500}
+        span_A: {sec: 0, nsec: 51914}
+        work_C: {sec: 0, nsec: 484000}
+        span_C: {sec: 0, nsec: 663}
+        period: {sec: 0, nsec: 2000000}
+      - work_A: {sec: 0, nsec: 1397500}
+        span_A: {sec: 0, nsec: 51914}
+        work_C: {sec: 0, nsec: 484000}
+        span_C: {sec: 0, nsec: 663}
         period: {sec: 0, nsec: 4000000}
 
   - program:
       name: james
-      args: "2 514285 2 10"
-    elasticity: 5
-    processor_equivalence: {A: 1A, B: 0.3A, C: 1.75A, D: 1D}
+      args: "2 928571 2 10"
+    elasticity: 2
+    processor_equivalence: {A: 1A, B: 1B, C: 1C, D: 1D}
     modes:
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
+      - work_A: {sec: 0, nsec: 4192500}
+        span_A: {sec: 0, nsec: 155742}
+        work_C: {sec: 0, nsec: 1452000}
+        span_C: {sec: 0, nsec: 1989}
         period: {sec: 0, nsec: 1000000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 1250000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 1500000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 1750000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
+      - work_A: {sec: 0, nsec: 4192500}
+        span_A: {sec: 0, nsec: 155742}
+        work_C: {sec: 0, nsec: 1452000}
+        span_C: {sec: 0, nsec: 1989}
         period: {sec: 0, nsec: 2000000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 2250000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 2500000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 2750000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3000000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3250000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3500000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3750000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
+      - work_A: {sec: 0, nsec: 4192500}
+        span_A: {sec: 0, nsec: 155742}
+        work_C: {sec: 0, nsec: 1452000}
+        span_C: {sec: 0, nsec: 1989}
         period: {sec: 0, nsec: 4000000}
-
+      - work_A: {sec: 0, nsec: 1397500}
+        span_A: {sec: 0, nsec: 51914}
+        work_C: {sec: 0, nsec: 484000}
+        span_C: {sec: 0, nsec: 663}
+        period: {sec: 0, nsec: 1000000}
+      - work_A: {sec: 0, nsec: 1397500}
+        span_A: {sec: 0, nsec: 51914}
+        work_C: {sec: 0, nsec: 484000}
+        span_C: {sec: 0, nsec: 663}
+        period: {sec: 0, nsec: 2000000}
+      - work_A: {sec: 0, nsec: 1397500}
+        span_A: {sec: 0, nsec: 51914}
+        work_C: {sec: 0, nsec: 484000}
+        span_C: {sec: 0, nsec: 663}
+        period: {sec: 0, nsec: 4000000}
+        
   - program:
       name: james
-      args: "3 514285 2 10"
-    elasticity: 7
-    processor_equivalence: {A: 1A, B: 0.3A, C: 1.75A, D: 1D}
+      args: "3 928571 2 10"
+    elasticity: 4
+    processor_equivalence: {A: 1A, B: 1B, C: 1C, D: 1D}
     modes:
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
+      - work_A: {sec: 0, nsec: 2795000}
+        span_A: {sec: 0, nsec: 103828}
+        work_C: {sec: 0, nsec: 968000}
+        span_C: {sec: 0, nsec: 1326}
         period: {sec: 0, nsec: 1000000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 1250000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 1500000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 1750000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
+      - work_A: {sec: 0, nsec: 2795000}
+        span_A: {sec: 0, nsec: 103828}
+        work_C: {sec: 0, nsec: 968000}
+        span_C: {sec: 0, nsec: 1326}
         period: {sec: 0, nsec: 2000000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 2250000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 2500000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 2750000} 
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3000000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3250000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3500000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
-        period: {sec: 0, nsec: 3750000}
-      - work_A: {sec: 0, nsec: 4000000}
-        span_A: {sec: 0, nsec: 150000}
+      - work_A: {sec: 0, nsec: 2795000}
+        span_A: {sec: 0, nsec: 103828}
+        work_C: {sec: 0, nsec: 968000}
+        span_C: {sec: 0, nsec: 1326}
+        period: {sec: 0, nsec: 4000000}
+      - work_A: {sec: 0, nsec: 1397500}
+        span_A: {sec: 0, nsec: 51914}
+        work_C: {sec: 0, nsec: 484000}
+        span_C: {sec: 0, nsec: 663}
+        period: {sec: 0, nsec: 1000000}
+      - work_A: {sec: 0, nsec: 1397500}
+        span_A: {sec: 0, nsec: 51914}
+        work_C: {sec: 0, nsec: 484000}
+        span_C: {sec: 0, nsec: 663}
+        period: {sec: 0, nsec: 2000000}
+      - work_A: {sec: 0, nsec: 1397500}
+        span_A: {sec: 0, nsec: 51914}
+        work_C: {sec: 0, nsec: 484000}
+        span_C: {sec: 0, nsec: 663}
         period: {sec: 0, nsec: 4000000}

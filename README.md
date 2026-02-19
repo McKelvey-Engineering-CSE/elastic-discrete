@@ -336,6 +336,13 @@ make all
 ### Build Options
 The Makefile automatically detects your environment:
 - **CUDA Available**: Compiles with GPU acceleration
-- **CUDA Not Available**: Falls back to CPU-only compilation
+- **CUDA Not Available**: Falls back to CPU-only compilation (Not heavily tested, nvcc is always used)
+
+### Testing
+The framework includes an example run with the task "james.cpp". Once the scheduler is built, it can be run by doing into the testing_module/bin directory
+and running it with the james.yaml input file. This test has no real work being done, but models a system with 8 homogeneous CPU cores and 8 GPU processing
+units. It provides an example of how to partition with libsmctrl, and it shows a single high criticality task which is prioritized over the other tasks
+in the system. Because of this, with the settings it has, it will tend to need to "slam" other tasks into lower modes to complete it's transition. This showcases
+multiple graceful and not so graceful system reschedules to ensure the best possible execution across a hypothetical dynamic system of tasks.
 
 **Note**: This is a research-grade system designed for heterogeneous real-time computing. For production use, additional testing and validation may be required.
