@@ -2,7 +2,7 @@
 schedulable: true
 explicit_sync: false
 maxRuntime: {sec: 60, nsec: 0}
-processor_topology: {A: A, B: A, C: C, D: D}
+processor_topology: {A: A, B: B, C: C, D: D}
 processor_count: {A: 8, B: 1, C: 8, D: 1}
 tasks:
   - program:
