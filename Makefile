@@ -1,5 +1,5 @@
 ##### Compiler Detection and Settings #################################################
-NVCC := $(shell which nvc 2> /dev/null)
+NVCC := $(shell which nvcc 2> /dev/null)
 NVCC := $(notdir $(NVCC))
 HAS_NVCC := $(if $(filter nvcc,$(NVCC)),true,false)
 
