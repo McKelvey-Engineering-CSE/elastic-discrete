@@ -1,6 +1,6 @@
-#include "libsmctrl.h"
 #ifdef __NVCC__
-    
+#include "libsmctrl.h"
+
     cudaStream_t libsmctrl_stream;
 
 	__device__ inline static unsigned int smid()

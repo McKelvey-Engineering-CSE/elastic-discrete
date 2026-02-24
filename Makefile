@@ -1,5 +1,5 @@
 ##### Compiler Detection and Settings #################################################
-NVCC := $(shell which nvcc 2> /dev/null)
+NVCC := $(shell which nvc 2> /dev/null)
 NVCC := $(notdir $(NVCC))
 HAS_NVCC := $(if $(filter nvcc,$(NVCC)),true,false)
 
@@ -26,6 +26,7 @@ ifeq ($(HAS_NVCC),true)
     FLAGS := $(COMMON_FLAGS) -arch=native --expt-relaxed-constexpr -Xcompiler -Wall -Xcompiler -gdwarf-3 $(HEADERS) -lcuda -lcudart -Xcompiler -mcmodel=medium -Xcompiler "-mavx2 -march=native -mfma -lopenblaso" -lopenblaso
     LIBS := $(COMMON_LIBS) -Xcompiler -fopenmp -L./omp_module -Xlinker -rpath,./omp_module -lcublas
 	NVCC_OVERRIDE := --x=cu
+    LIBSMCTRL_OBJ := libsmctrl/libsmctrl.o
     ifneq (,$(X86_64_ARCH))
         FLAGS += -Xcompiler $(ARCH_FLAGS)
     endif
@@ -33,6 +34,7 @@ else
     CC := g++ $(OMP_LIB)
     FLAGS := $(COMMON_FLAGS) $(HEADERS) -Wall -gdwarf-3
     LIBS := $(COMMON_LIBS) -fopenmp -L./omp_module -Wl,-rpath,./omp_module
+    LIBSMCTRL_OBJ :=
     ifneq (,$(X86_64_ARCH))
         FLAGS += $(ARCH_FLAGS)
     endif
@@ -81,8 +83,10 @@ libclustering.a: $(CLUSTERING_OBJECTS)
 	ar rcsf $@ $^
 
 # Object compilation rules
+ifeq ($(HAS_NVCC),true)
 libsmctrl.o:
 	cd libsmctrl && make libsmctrl.a
+endif
 
 task.o: ./task_module/task.cpp timespec_functions.o
 	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $< $(LIBS)
@@ -91,8 +95,13 @@ scheduler_piece.o: ./scheduler_module/scheduler.cpp timespec_functions.o
 	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $< -o $@
 
 #force link it with libsmctrl.o
+ifeq ($(HAS_NVCC),true)
 scheduler.o: scheduler_piece.o libsmctrl/libsmctrl.o
 	ld -relocatable $^ -o $@
+else
+scheduler.o: scheduler_piece.o
+	cp $< $@
+endif
 
 schedule.o: ./scheduler_module/schedule.cpp timespec_functions.o
 	$(CC) $(NVCC_OVERRIDE) $(FLAGS) -c $<
@@ -129,5 +138,5 @@ james-bin: ./example_task/james.cpp
 	$(CC) $(FLAGS) $(NVCC_OVERRIDE) ./example_task/james.cpp -c $< $(LIBS)
 
 james: james-bin task_manager.o print_library.o $(BARRIER_OBJECTS) timespec_functions.o schedule.o taskData.o task.o
-	$(CC) $(FLAGS) james.o timespec_functions.o schedule.o taskData.o task.o libsmctrl/libsmctrl.o task_manager.o print_library.o $(BARRIER_OBJECTS) -o james $(LIBS)
+	$(CC) $(FLAGS) james.o timespec_functions.o schedule.o taskData.o task.o $(LIBSMCTRL_OBJ) task_manager.o print_library.o $(BARRIER_OBJECTS) -o james $(LIBS)
 
